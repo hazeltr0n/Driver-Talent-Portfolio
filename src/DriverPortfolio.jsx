@@ -2,7 +2,7 @@ import { useState } from "react";
 
 const driverData = {
   name: "James H.",
-  homeBase: "Fort Worth, TX 76105",
+  homeBase: "Dallas, TX",
   cdlClass: "Class A",
   endorsements: ["Tanker (N)"],
   routePref: "Local / Regional",
@@ -32,7 +32,7 @@ const driverData = {
   },
   videoUrl: "https://www.youtube.com/watch?v=7TEEFojS7Ds",
   aiNotes: "James is a licensed and active CDL-A driver with no felonies or misdemeanors in the last 15 years, no reported crashes, no drug or alcohol violations, and a clear MVR. Originally from Ardmore, Oklahoma and now based in Dallas, he's a family man with a wife and three kids who got into trucking through FreeWorld's CDL program. His father was a truck driver, and James takes pride in operating big equipment and treating every truck like he owns it. Former dispatchers describe him as a hard worker who genuinely cares about safety and taking care of customers. He meets baseline eligibility for safety-sensitive driving roles and brings a strong work ethic rooted in providing for his family.",
-  story: "James grew up in Fort Worth and found his calling behind the wheel after completing CDL training in 2023. He takes pride in being a reliable, safety-first driver who shows up every day ready to work. He values companies that invest in their drivers and offer a path to grow.",
+  story: "James grew up in Ardmore, Oklahoma and now calls Dallas, Texas home. He's a dedicated family man — his wife Jocelyn is a school teacher, and together they're raising three kids: Michael (12), Jackson (8), and Jordan (5). Trucking runs in his blood; his dad was a driver, and James always loved the idea of operating big equipment. After facing limited job options due to a past mistake, he discovered FreeWorld and earned his CDL in 2023. What he's looking for in an employer comes down to three things: stability (established operations with long-term customers), solid compensation and benefits for his family, and a culture where people lift each other up. He treats every truck like he owns it and takes pride in protecting the company's safety record.",
   whyTrucking: "I really believe in the covenant between a driver and employer. Your job is to get the customers, my job is to take care of them.",
   strengths: [
     { trait: "Reliability", score: 92, desc: "Consistent attendance and on-time performance across all verified employers" },
@@ -421,15 +421,13 @@ export default function DriverPortfolio() {
                 <div style={{ fontSize: 12, color: "#CDF95C", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600, marginBottom: 6 }}>Video Introduction</div>
                 <div style={{ fontSize: 20, fontWeight: 700, color: "#FFFFFF", fontFamily: "Georgia, serif" }}>Hear James's Story</div>
               </div>
-              <div style={{ position: "relative", paddingBottom: "56.25%", height: 0 }}>
-                <iframe
-                  src="https://www.youtube.com/embed/7TEEFojS7Ds"
-                  title="James's Story"
-                  style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
+              <video
+                controls
+                style={{ width: "100%", maxHeight: "70vh", objectFit: "contain", display: "block", background: "#000" }}
+              >
+                <source src="/james-story.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
             </Card>
 
             <Card>
