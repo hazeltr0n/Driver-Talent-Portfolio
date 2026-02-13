@@ -97,16 +97,16 @@ function Badge({ children, variant = "default" }) {
 
 function SectionTitle({ children, icon }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 10, borderBottom: "2px solid #004751" }}>
-      {icon && <span style={{ fontSize: 20 }}>{icon}</span>}
-      <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#004751", fontFamily: "Georgia, serif" }}>{children}</h2>
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, paddingBottom: 10, borderBottom: "2px solid #004751" }}>
+      {icon && <span style={{ fontSize: 18 }}>{icon}</span>}
+      <h2 style={{ margin: 0, fontSize: "clamp(16px, 4vw, 20px)", fontWeight: 700, color: "#004751", fontFamily: "Georgia, serif" }}>{children}</h2>
     </div>
   );
 }
 
 function Card({ children, style = {} }) {
   return (
-    <div style={{ background: "#FFFFFF", borderRadius: 10, padding: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", border: "1px solid #E8ECEE", ...style }}>
+    <div style={{ background: "#FFFFFF", borderRadius: 10, padding: "20px 16px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", border: "1px solid #E8ECEE", ...style }}>
       {children}
     </div>
   );
@@ -127,14 +127,14 @@ export default function DriverPortfolio() {
   return (
     <div style={{ fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", background: "#F4F4F4", minHeight: "100vh", padding: 0 }}>
       {/* Header */}
-      <div style={{ background: "#004751", padding: "28px 32px 20px", color: "#FFFFFF" }}>
+      <div style={{ background: "#004751", padding: "24px 16px 20px", color: "#FFFFFF" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
               <span style={{ background: "#CDF95C", color: "#191931", fontWeight: 800, fontSize: 13, padding: "3px 10px", borderRadius: 4, letterSpacing: 1 }}>FW.</span>
               <span style={{ fontSize: 12, color: "#8AAFB8", letterSpacing: 1.5, textTransform: "uppercase", fontWeight: 600 }}>Driver Talent Portfolio</span>
             </div>
-            <h1 style={{ margin: "12px 0 4px", fontSize: 32, fontWeight: 700, fontFamily: "Georgia, serif" }}>{d.name}</h1>
+            <h1 style={{ margin: "12px 0 4px", fontSize: "clamp(24px, 6vw, 32px)", fontWeight: 700, fontFamily: "Georgia, serif" }}>{d.name}</h1>
             <p style={{ margin: 0, fontSize: 15, color: "#B0CDD4" }}>
               {d.homeBase} · CDL {d.cdlClass} · {d.yearsExp} Years Experience
             </p>
@@ -146,14 +146,14 @@ export default function DriverPortfolio() {
         </div>
 
         {/* Quick Stats Row */}
-        <div style={{ display: "flex", gap: 20, marginTop: 20, flexWrap: "wrap" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginTop: 20 }}>
           {[
             { label: "Route Pref", value: d.routePref },
             { label: "Availability", value: d.availability },
             { label: "Endorsements", value: d.endorsements.join(", ") },
             { label: "Avg Tenure", value: d.avgTenure },
           ].map((s, i) => (
-            <div key={i} style={{ background: "rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 16px", minWidth: 140 }}>
+            <div key={i} style={{ background: "rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 12px" }}>
               <div style={{ fontSize: 11, color: "#8AAFB8", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600, marginBottom: 3 }}>{s.label}</div>
               <div style={{ fontSize: 14, fontWeight: 600, color: "#FFFFFF" }}>{s.value}</div>
             </div>
@@ -162,13 +162,13 @@ export default function DriverPortfolio() {
       </div>
 
       {/* Tabs */}
-      <div style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E8F0", padding: "0 32px", display: "flex", gap: 0, overflowX: "auto" }}>
+      <div style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E8F0", padding: "0 16px", display: "flex", gap: 0, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             style={{
-              padding: "14px 20px",
+              padding: "14px 12px",
               border: "none",
               background: "none",
               cursor: "pointer",
@@ -186,7 +186,7 @@ export default function DriverPortfolio() {
       </div>
 
       {/* Content */}
-      <div style={{ padding: "24px 32px", maxWidth: 960, margin: "0 auto" }}>
+      <div style={{ padding: "20px 16px", maxWidth: 960, margin: "0 auto" }}>
 
         {/* OVERVIEW TAB */}
         {activeTab === "overview" && (
@@ -195,13 +195,13 @@ export default function DriverPortfolio() {
             {d.jobFit && (
               <Card style={{ background: "#004751", color: "#FFFFFF", border: "none" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
-                  <div>
+                  <div style={{ flex: "1 1 200px" }}>
                     <div style={{ fontSize: 12, color: "#CDF95C", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600, marginBottom: 4 }}>Job Fit Assessment</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif" }}>{d.jobFit.role}</div>
+                    <div style={{ fontSize: "clamp(16px, 4vw, 18px)", fontWeight: 700, fontFamily: "Georgia, serif" }}>{d.jobFit.role}</div>
                     <div style={{ fontSize: 14, color: "#B0CDD4", marginTop: 2 }}>{d.jobFit.employer}</div>
                   </div>
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: 48, fontWeight: 800, color: "#CDF95C", lineHeight: 1, fontFamily: "Georgia, serif" }}>{d.jobFit.overallScore}</div>
+                  <div style={{ textAlign: "center", flex: "0 0 auto" }}>
+                    <div style={{ fontSize: "clamp(36px, 10vw, 48px)", fontWeight: 800, color: "#CDF95C", lineHeight: 1, fontFamily: "Georgia, serif" }}>{d.jobFit.overallScore}</div>
                     <div style={{ fontSize: 12, color: "#B0CDD4", marginTop: 2 }}>Overall Fit Score</div>
                   </div>
                 </div>
@@ -211,8 +211,8 @@ export default function DriverPortfolio() {
             {/* Experience Table */}
             <Card>
               <SectionTitle icon="📋">Employment History</SectionTitle>
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+              <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", margin: "0 -16px", padding: "0 16px" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 480 }}>
                   <thead>
                     <tr style={{ borderBottom: "2px solid #E8ECEE" }}>
                       {["Company", "Role", "Tenure", "Verified"].map(h => (
@@ -237,7 +237,7 @@ export default function DriverPortfolio() {
             </Card>
 
             {/* Equipment & Training side by side */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
               <Card>
                 <SectionTitle icon="🚛">Equipment Experience</SectionTitle>
                 {d.equipment.map((eq, i) => (
@@ -276,13 +276,13 @@ export default function DriverPortfolio() {
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <Card style={{ background: "#004751", color: "#FFFFFF", border: "none" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 20 }}>
-                <div>
+                <div style={{ flex: "1 1 200px" }}>
                   <div style={{ fontSize: 12, color: "#CDF95C", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600, marginBottom: 6 }}>Matched Position</div>
-                  <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "Georgia, serif" }}>{d.jobFit.role}</div>
+                  <div style={{ fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 700, fontFamily: "Georgia, serif" }}>{d.jobFit.role}</div>
                   <div style={{ fontSize: 15, color: "#B0CDD4", marginTop: 4 }}>{d.jobFit.employer}</div>
                 </div>
-                <div style={{ textAlign: "center", background: "rgba(205,249,92,0.12)", borderRadius: 12, padding: "16px 24px" }}>
-                  <div style={{ fontSize: 56, fontWeight: 800, color: "#CDF95C", lineHeight: 1, fontFamily: "Georgia, serif" }}>{d.jobFit.overallScore}</div>
+                <div style={{ textAlign: "center", background: "rgba(205,249,92,0.12)", borderRadius: 12, padding: "16px 20px", flex: "0 0 auto" }}>
+                  <div style={{ fontSize: "clamp(40px, 12vw, 56px)", fontWeight: 800, color: "#CDF95C", lineHeight: 1, fontFamily: "Georgia, serif" }}>{d.jobFit.overallScore}</div>
                   <div style={{ fontSize: 13, color: "#B0CDD4", marginTop: 4 }}>Overall Fit</div>
                 </div>
               </div>
@@ -335,7 +335,7 @@ export default function DriverPortfolio() {
 
             <Card>
               <SectionTitle icon="🧭">Culture & Work Preferences</SectionTitle>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20 }}>
                 <div>
                   <div style={{ fontSize: 12, color: "#5A7A82", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600, marginBottom: 6 }}>Work Style</div>
                   <div style={{ fontSize: 15, fontWeight: 600, color: "#1A2A30" }}>{d.cultureFit.workStyle}</div>
@@ -364,7 +364,7 @@ export default function DriverPortfolio() {
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <Card>
               <SectionTitle icon="📄">Motor Vehicle Record (MVR)</SectionTitle>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 20 }}>
                 {[
                   { label: "Moving Violations", value: d.mvrDetails.violations, status: "clear" },
                   { label: "At-Fault Accidents", value: d.mvrDetails.accidents, status: "clear" },
@@ -417,7 +417,7 @@ export default function DriverPortfolio() {
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             {/* Video Embed */}
             <Card style={{ padding: 0, overflow: "hidden" }}>
-              <div style={{ background: "#004751", padding: "24px 24px 8px" }}>
+              <div style={{ background: "#004751", padding: "20px 16px 8px" }}>
                 <div style={{ fontSize: 12, color: "#CDF95C", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600, marginBottom: 6 }}>Video Introduction</div>
                 <div style={{ fontSize: 20, fontWeight: 700, color: "#FFFFFF", fontFamily: "Georgia, serif" }}>Hear James's Story</div>
               </div>
@@ -437,7 +437,7 @@ export default function DriverPortfolio() {
 
             <Card style={{ background: "#004751", color: "#FFFFFF", border: "none" }}>
               <div style={{ fontSize: 12, color: "#CDF95C", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600, marginBottom: 10 }}>In His Own Words</div>
-              <p style={{ margin: 0, fontSize: 17, lineHeight: 1.8, fontStyle: "italic", fontFamily: "Georgia, serif", color: "#E8EDF0" }}>
+              <p style={{ margin: 0, fontSize: "clamp(15px, 4vw, 17px)", lineHeight: 1.8, fontStyle: "italic", fontFamily: "Georgia, serif", color: "#E8EDF0" }}>
                 "{d.whyTrucking}"
               </p>
               <p style={{ margin: "12px 0 0", fontSize: 14, color: "#B0CDD4" }}>— {d.name}, CDL-A Driver</p>
@@ -447,7 +447,7 @@ export default function DriverPortfolio() {
       </div>
 
       {/* Footer */}
-      <div style={{ background: "#004751", padding: "16px 32px", marginTop: 32, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ background: "#004751", padding: "16px", marginTop: 32, display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ background: "#CDF95C", color: "#191931", fontWeight: 800, fontSize: 12, padding: "2px 8px", borderRadius: 3 }}>FW.</span>
           <span style={{ fontSize: 13, color: "#8AAFB8" }}>FreeWorld Driver Talent Portfolio</span>

@@ -3,3 +3,17 @@
   padding: 0;
   box-sizing: border-box;
 }
+
+/* Smooth scrolling for tabs */
+::-webkit-scrollbar {
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 2px;
+}
