@@ -31,7 +31,7 @@ const driverData = {
     hours: 170,
   },
   videoUrl: "https://www.youtube.com/watch?v=7TEEFojS7Ds",
-  aiNotes: "Based on our extensive investigation, James presents as a licensed and active CDL-A driver with a clean criminal history, no reported crashes, no drug or alcohol violations, and a clear MVR. His inspection history shows vehicle-related compliance issues only, including a small number of out-of-service events tied to equipment condition, but no driver out-of-service history. He meets baseline eligibility for safety-sensitive driving roles, subject to carrier-specific inspection tolerance and equipment maintenance standards.",
+  aiNotes: "James is a licensed and active CDL-A driver with no felonies or misdemeanors in the last 15 years, no reported crashes, no drug or alcohol violations, and a clear MVR. Originally from Ardmore, Oklahoma and now based in Dallas, he's a family man with a wife and three kids who got into trucking through FreeWorld's CDL program. His father was a truck driver, and James takes pride in operating big equipment and treating every truck like he owns it. Former dispatchers describe him as a hard worker who genuinely cares about safety and taking care of customers. He meets baseline eligibility for safety-sensitive driving roles and brings a strong work ethic rooted in providing for his family.",
   story: "James grew up in Fort Worth and found his calling behind the wheel after completing CDL training in 2023. He takes pride in being a reliable, safety-first driver who shows up every day ready to work. He values companies that invest in their drivers and offer a path to grow.",
   whyTrucking: "I really believe in the covenant between a driver and employer. Your job is to get the customers, my job is to take care of them.",
   strengths: [
@@ -141,7 +141,6 @@ export default function DriverPortfolio() {
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-start" }}>
             <Badge variant="clear">MVR: {d.mvr} ✓</Badge>
-            <Badge variant="clear">Criminal: {d.criminal} ✓</Badge>
             <Badge variant="clear">Clearinghouse: {d.clearinghouse} ✓</Badge>
           </div>
         </div>
