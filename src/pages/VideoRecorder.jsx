@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getCandidate, uploadVideoClip, transcribeVideoClips, triggerVideoAssembly } from '../lib/api';
+import { getCandidate, uploadVideoClip, confirmAllClips, transcribeVideoClips, triggerVideoAssembly } from '../lib/api';
 
 const QUESTIONS = [
   {
@@ -325,9 +325,10 @@ export default function VideoRecorder({ uuid }) {
         setUploadProgress((prev) => ({ ...prev, [i]: 'uploading' }));
 
         const promise = uploadVideoClip(uuid, i, clip.blob)
-          .then(() => {
+          .then((clipInfo) => {
             console.log(`Q${i} upload complete`);
             setUploadProgress((prev) => ({ ...prev, [i]: 'done' }));
+            return clipInfo; // Return clip info for batch confirm
           })
           .catch((err) => {
             console.error(`Q${i} upload failed:`, err);
@@ -342,7 +343,12 @@ export default function VideoRecorder({ uuid }) {
     }
 
     try {
-      await Promise.all(uploadPromises);
+      // Wait for all uploads to R2
+      const uploadedClips = await Promise.all(uploadPromises);
+      console.log('All uploads complete, confirming:', uploadedClips);
+
+      // Confirm all clips at once (avoids race condition)
+      await confirmAllClips(uuid, uploadedClips);
 
       // Now transcribe the clips
       setProcessingStep('transcribing');

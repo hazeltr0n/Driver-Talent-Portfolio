@@ -13,10 +13,11 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { uuid, questionNumber, clipKey } = req.body;
+  const { uuid, questionNumber, clipKey, clips } = req.body;
 
-  if (!uuid || !questionNumber) {
-    return res.status(400).json({ error: 'uuid and questionNumber required' });
+  // Support batch mode (multiple clips at once) or single clip
+  if (!uuid || (!questionNumber && !clips)) {
+    return res.status(400).json({ error: 'uuid and (questionNumber or clips) required' });
   }
 
   try {
@@ -47,16 +48,28 @@ export default async function handler(req, res) {
       }
     }
 
-    // Build clip URL - use R2 public URL if available
-    const actualClipKey = clipKey || `videos/${uuid}/q${questionNumber}.webm`;
-    const clipUrl = `${R2_PUBLIC_URL}/${actualClipKey}`;
-
-    // Update clip info
-    videoClips[`q${questionNumber}`] = {
-      key: actualClipKey,
-      url: clipUrl,
-      uploadedAt: new Date().toISOString(),
-    };
+    // Handle batch mode (multiple clips) or single clip
+    if (clips && Array.isArray(clips)) {
+      // Batch mode - add all clips at once
+      for (const clip of clips) {
+        const actualClipKey = clip.clipKey || `videos/${uuid}/q${clip.questionNumber}.webm`;
+        const clipUrl = `${R2_PUBLIC_URL}/${actualClipKey}`;
+        videoClips[`q${clip.questionNumber}`] = {
+          key: actualClipKey,
+          url: clipUrl,
+          uploadedAt: new Date().toISOString(),
+        };
+      }
+    } else {
+      // Single clip mode
+      const actualClipKey = clipKey || `videos/${uuid}/q${questionNumber}.webm`;
+      const clipUrl = `${R2_PUBLIC_URL}/${actualClipKey}`;
+      videoClips[`q${questionNumber}`] = {
+        key: actualClipKey,
+        url: clipUrl,
+        uploadedAt: new Date().toISOString(),
+      };
+    }
 
     // Determine video status
     const uploadedQuestions = Object.keys(videoClips).length;

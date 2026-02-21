@@ -183,14 +183,19 @@ export async function uploadVideoClip(uuid, questionNumber, blob) {
 
   if (!uploadResponse.ok) throw new Error('Upload failed');
 
-  // Confirm upload
+  // Return clip info for batch confirmation later
+  return { questionNumber, clipKey };
+}
+
+// Confirm all clips at once to avoid race conditions
+export async function confirmAllClips(uuid, clips) {
   const confirmResponse = await fetch('/api/videos/confirm', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ uuid, questionNumber, clipKey }),
+    body: JSON.stringify({ uuid, clips }),
   });
 
-  if (!confirmResponse.ok) throw new Error('Failed to confirm upload');
+  if (!confirmResponse.ok) throw new Error('Failed to confirm uploads');
   return confirmResponse.json();
 }
 

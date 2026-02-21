@@ -63,13 +63,13 @@ export default async function handler(req, res) {
 
     console.log(`Transcribing ${Object.keys(videoClips).length} clips for ${uuid}`);
 
-    // Transcribe each clip
+    // Transcribe all clips in parallel for speed
     const transcripts = {};
     const storyUpdates = {};
 
-    for (const [clipKey, clipData] of Object.entries(videoClips)) {
+    const transcriptionPromises = Object.entries(videoClips).map(async ([clipKey, clipData]) => {
       const questionNum = parseInt(clipKey.replace('q', ''));
-      if (!questionNum || questionNum < 1 || questionNum > 6) continue;
+      if (!questionNum || questionNum < 1 || questionNum > 6) return null;
 
       const clipUrl = clipData.url;
       console.log(`Transcribing Q${questionNum}: ${clipUrl}`);
@@ -88,11 +88,15 @@ export default async function handler(req, res) {
         if (fieldName) {
           storyUpdates[fieldName] = cleanedTranscript;
         }
+        return { questionNum, success: true };
       } catch (err) {
         console.error(`Failed to transcribe Q${questionNum}:`, err.message);
         transcripts[questionNum] = { error: err.message };
+        return { questionNum, success: false, error: err.message };
       }
-    }
+    });
+
+    await Promise.all(transcriptionPromises);
 
     // Update Airtable with story answers and set status to complete
     if (Object.keys(storyUpdates).length > 0) {
