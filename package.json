@@ -11,7 +11,8 @@
     "start": "vercel dev",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "mkdir -p node_modules/pdf-parse/test/data && touch node_modules/pdf-parse/test/data/05-versions-space.pdf"
   },
   "dependencies": {
     "@aws-sdk/client-iam": "^3.995.0",
@@ -21,7 +22,7 @@
     "@remotion/lambda": "^4.0.427",
     "dotenv": "^17.3.1",
     "openai": "^6.22.0",
-    "pdf-parse": "^2.4.5",
+    "pdf-parse": "^1.1.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.0",

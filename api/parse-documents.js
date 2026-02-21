@@ -183,7 +183,11 @@ async function updateRecord(recordId, fields) {
 }
 
 async function extractTextFromPDF(base64) {
-  const { default: pdfParse } = await import('pdf-parse');
+  // Use inner module directly to avoid debug mode check in index.js
+  const { createRequire } = await import('module');
+  const require = createRequire(import.meta.url);
+  const pdfParse = require('pdf-parse/lib/pdf-parse.js');
+
   const buffer = Buffer.from(base64, 'base64');
   const data = await pdfParse(buffer);
   return data.text;
