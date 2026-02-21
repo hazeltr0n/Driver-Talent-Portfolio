@@ -189,7 +189,7 @@ export default function VideoRecorder({ uuid }) {
     if (videoRef.current && streamRef.current && !videoRef.current.srcObject) {
       videoRef.current.srcObject = streamRef.current;
     }
-  });
+  }, [showIntro, showCoaching, recordingState]); // Only re-check when UI state changes
 
   const stopRecording = useCallback(() => {
     if (timerRef.current) {
@@ -339,7 +339,7 @@ export default function VideoRecorder({ uuid }) {
       // Pass current clips to avoid stale closure
       uploadAllClips(clips);
     }
-  }, [currentQuestion, clips, uuid]);
+  }, [currentQuestion, clips]);
 
   const uploadAllClips = async (clipsToUpload) => {
     setRecordingState('uploading');
