@@ -306,30 +306,38 @@ export default function VideoRecorder({ uuid }) {
       setRecordingState('idle');
     } else {
       // All questions done - trigger uploads
-      uploadAllClips();
+      // Pass current clips to avoid stale closure
+      uploadAllClips(clips);
     }
   }, [currentQuestion, clips, uuid]);
 
-  const uploadAllClips = async () => {
+  const uploadAllClips = async (clipsToUpload) => {
     setRecordingState('uploading');
     setProcessingStep('uploading');
     const uploadPromises = [];
 
+    console.log('Uploading clips:', Object.keys(clipsToUpload));
+
     for (let i = 1; i <= QUESTIONS.length; i++) {
-      const clip = clips[i];
+      const clip = clipsToUpload[i];
       if (clip?.blob) {
+        console.log(`Uploading Q${i}, blob size:`, clip.blob.size);
         setUploadProgress((prev) => ({ ...prev, [i]: 'uploading' }));
 
         const promise = uploadVideoClip(uuid, i, clip.blob)
           .then(() => {
+            console.log(`Q${i} upload complete`);
             setUploadProgress((prev) => ({ ...prev, [i]: 'done' }));
           })
           .catch((err) => {
+            console.error(`Q${i} upload failed:`, err);
             setUploadProgress((prev) => ({ ...prev, [i]: 'error' }));
             throw err;
           });
 
         uploadPromises.push(promise);
+      } else {
+        console.warn(`Q${i} missing - no clip found`);
       }
     }
 
