@@ -221,7 +221,7 @@ function calculateRouteMatch(driver, req) {
   const prefMap = {
     'daily': ['local', 'home daily'],
     'weekly': ['regional', 'home weekly'],
-    'bi-weekly': ['otr', 'regional'],
+    'otr': ['otr', 'regional'],
     'flexible': ['local', 'regional', 'otr'],
   };
 

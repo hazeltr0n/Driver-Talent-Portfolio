@@ -6,6 +6,30 @@ const CANDIDATES_TABLE_ID = process.env.AIRTABLE_CANDIDATES_TABLE_ID;
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// Valid Airtable fields that we can update
+// Keep in sync with AIRTABLE_SCHEMA.md
+const VALID_FIELDS = [
+  // CDL/Professional
+  'cdl_class', 'years_experience', 'endorsements',
+  'equipment_experience', 'employment_history',
+  // Preferences
+  'home_time_preference', 'min_weekly_pay', 'target_weekly_pay', 'willing_touch_freight',
+  // Compliance/Safety
+  'mvr_status', 'mvr_violations_3yr', 'mvr_accidents_3yr',
+  'clearinghouse_status', 'psp_crashes_5yr', 'psp_inspections_3yr', 'psp_driver_oos',
+  // AI Generated
+  'ai_recruiter_notes', 'ai_narrative', 'ai_pull_quote',
+  // Portfolio
+  'portfolio_slug', 'portfolio_published',
+  // Story
+  'story_who_are_you', 'story_what_is_your_why', 'story_freeworld_journey',
+  'story_why_trucking', 'story_looking_for', 'story_what_others_say',
+  // Video
+  'video_status', 'video_url', 'video_clips',
+  // Status
+  'placement_status',
+];
+
 // Vercel serverless config
 export const config = {
   api: {
@@ -43,9 +67,6 @@ export default async function handler(req, res) {
       Object.assign(updates, {
         cdl_class: data.cdl_class,
         endorsements: data.endorsements,
-        license_number: data.license_number,
-        license_state: data.license_state,
-        license_expiration: data.license_expiration,
         years_experience: data.years_experience,
         willing_touch_freight: data.willing_touch_freight,
         employment_history: JSON.stringify(data.employment_history || []),
@@ -101,9 +122,17 @@ export default async function handler(req, res) {
     }
     updates.portfolio_published = true;
 
+    // Filter to only valid fields before saving
+    const filteredUpdates = {};
+    for (const [key, value] of Object.entries(updates)) {
+      if (VALID_FIELDS.includes(key) && value !== undefined && value !== null) {
+        filteredUpdates[key] = value;
+      }
+    }
+
     // Save to Airtable
-    console.log('Saving to Airtable...');
-    await updateRecord(record.id, updates);
+    console.log('Saving to Airtable...', Object.keys(filteredUpdates));
+    await updateRecord(record.id, filteredUpdates);
 
     const slug = updates.portfolio_slug || record.fields.portfolio_slug;
     const formUrl = `/form/${uuid}`;

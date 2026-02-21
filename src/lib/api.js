@@ -7,6 +7,21 @@ export async function searchCandidates(query) {
   return data.candidates;
 }
 
+export async function searchFreeAgents(query) {
+  const response = await fetch(`/api/free-agents/search?q=${encodeURIComponent(query)}`);
+  if (!response.ok) throw new Error('Search failed');
+  const data = await response.json();
+  return data.results.map(r => ({
+    uuid: r.uuid,
+    name: r.fullName,
+    email: r.email,
+    phone: r.phone,
+    city: r.city,
+    state: r.state,
+    location: [r.city, r.state].filter(Boolean).join(', '),
+  }));
+}
+
 export async function getCandidate(uuid) {
   const response = await fetch(`/api/candidates/${uuid}`);
   if (!response.ok) throw new Error('Candidate not found');
@@ -20,6 +35,19 @@ export async function updateCandidate(uuid, fields) {
     body: JSON.stringify(fields),
   });
   if (!response.ok) throw new Error('Update failed');
+  return response.json();
+}
+
+export async function createCandidate(fields) {
+  const response = await fetch('/api/candidates', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(fields),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Create failed');
+  }
   return response.json();
 }
 
@@ -122,6 +150,67 @@ export async function deleteSubmission(id) {
     method: 'DELETE',
   });
   if (!response.ok) throw new Error('Delete submission failed');
+  return response.json();
+}
+
+// Video Recording API
+export async function getVideoStatus(uuid) {
+  const response = await fetch(`/api/videos/${uuid}`);
+  if (!response.ok) throw new Error('Failed to get video status');
+  return response.json();
+}
+
+export async function getUploadUrl(uuid, questionNumber) {
+  const response = await fetch('/api/videos/upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uuid, questionNumber }),
+  });
+  if (!response.ok) throw new Error('Failed to get upload URL');
+  return response.json();
+}
+
+export async function uploadVideoClip(uuid, questionNumber, blob) {
+  // Get presigned URL
+  const { uploadUrl, clipKey } = await getUploadUrl(uuid, questionNumber);
+
+  // Upload to storage
+  const uploadResponse = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'video/webm' },
+    body: blob,
+  });
+
+  if (!uploadResponse.ok) throw new Error('Upload failed');
+
+  // Confirm upload
+  const confirmResponse = await fetch('/api/videos/confirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uuid, questionNumber, clipKey }),
+  });
+
+  if (!confirmResponse.ok) throw new Error('Failed to confirm upload');
+  return confirmResponse.json();
+}
+
+export async function triggerVideoAssembly(uuid) {
+  const response = await fetch('/api/videos/assemble', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uuid }),
+  });
+  if (!response.ok) throw new Error('Failed to start video assembly');
+  return response.json();
+}
+
+export async function transcribeVideoClips(uuid) {
+  const response = await fetch('/api/videos/transcribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uuid }),
+  });
+  if (!response.ok) throw new Error('Failed to transcribe videos');
   return response.json();
 }
 

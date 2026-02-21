@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, useParams, Navigate } from 'react-router-dom'
 import DriverPortfolio from './DriverPortfolio'
 import DriverStoryForm from './DriverStoryForm'
+import VideoRecorder from './pages/VideoRecorder'
 import Dashboard from './admin/Dashboard'
 import Drivers from './admin/Drivers'
 import Requisitions from './admin/Requisitions'
@@ -16,6 +17,11 @@ function FormWrapper() {
   return <DriverStoryForm uuid={uuid} />
 }
 
+function VideoRecorderWrapper() {
+  const { uuid } = useParams()
+  return <VideoRecorder uuid={uuid} />
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -23,6 +29,7 @@ function App() {
         <Route path="/" element={<Navigate to="/portfolio/james-h" replace />} />
         <Route path="/portfolio/:slug" element={<PortfolioWrapper />} />
         <Route path="/form/:uuid" element={<FormWrapper />} />
+        <Route path="/record/:uuid" element={<VideoRecorderWrapper />} />
 
         {/* Admin routes */}
         <Route path="/admin" element={<Dashboard />} />

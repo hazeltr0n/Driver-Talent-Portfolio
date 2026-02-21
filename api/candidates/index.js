@@ -61,9 +61,11 @@ async function createCandidate(data, res) {
     return res.status(400).json({ error: 'Full name is required' });
   }
 
-  // Check if already imported (by synced_record_id)
-  if (synced_record_id) {
-    const checkFormula = encodeURIComponent(`{synced_record_id} = "${synced_record_id}"`);
+  // Check if already exists (by uuid or synced_record_id)
+  if (data.uuid || synced_record_id) {
+    const checkField = data.uuid ? 'uuid' : 'synced_record_id';
+    const checkValue = data.uuid || synced_record_id;
+    const checkFormula = encodeURIComponent(`{${checkField}} = "${checkValue}"`);
     const checkUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${CANDIDATES_TABLE_ID}?filterByFormula=${checkFormula}&maxRecords=1`;
 
     const checkResponse = await fetch(checkUrl, {
@@ -72,7 +74,7 @@ async function createCandidate(data, res) {
     const checkData = await checkResponse.json();
 
     if (checkData.records && checkData.records.length > 0) {
-      // Already imported, return existing record
+      // Already exists, return existing record
       const existing = checkData.records[0];
       return res.status(200).json({
         uuid: existing.fields.uuid,

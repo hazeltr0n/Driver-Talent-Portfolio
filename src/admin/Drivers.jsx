@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
-import { searchCandidates, parseDocuments, fileToBase64 } from '../lib/api';
+import { searchFreeAgents, searchCandidates, createCandidate, parseDocuments, fileToBase64 } from '../lib/api';
 
 const API_BASE = '/api';
 
@@ -43,6 +43,10 @@ export default function Drivers() {
   const [filterAgent, setFilterAgent] = useState('');
   const [sortBy, setSortBy] = useState('name');
   const [sortDir, setSortDir] = useState('asc');
+
+  // Inline editing
+  const [editingCell, setEditingCell] = useState(null); // { uuid, field }
+  const [savingCell, setSavingCell] = useState(null);
 
   useEffect(() => {
     loadDrivers();
@@ -122,6 +126,27 @@ export default function Drivers() {
     } else {
       setSortBy(field);
       setSortDir('asc');
+    }
+  };
+
+  const handleInlineSave = async (uuid, field, value) => {
+    setSavingCell({ uuid, field });
+    try {
+      const response = await fetch(`${API_BASE}/candidates/${uuid}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value }),
+      });
+      if (!response.ok) throw new Error('Save failed');
+      // Update local state
+      setDrivers(prev => prev.map(d =>
+        d.uuid === uuid ? { ...d, [field]: value } : d
+      ));
+    } catch (err) {
+      console.error('Failed to save:', err);
+    } finally {
+      setSavingCell(null);
+      setEditingCell(null);
     }
   };
 
@@ -212,16 +237,58 @@ export default function Drivers() {
             <div style={{ ...styles.tableCell, width: 60, flex: 'none' }}>
               {driver.years_experience ? `${driver.years_experience} yrs` : '-'}
             </div>
-            <div style={{ ...styles.tableCell, width: 140, flex: 'none', fontSize: 13, color: '#5A7A82' }}>
-              {driver.career_agent?.name || '-'}
+            <div
+              style={{ ...styles.tableCell, width: 140, flex: 'none', fontSize: 13, color: '#5A7A82', cursor: 'pointer' }}
+              onClick={() => setEditingCell({ uuid: driver.uuid, field: 'career_agent' })}
+            >
+              {editingCell?.uuid === driver.uuid && editingCell?.field === 'career_agent' ? (
+                <select
+                  autoFocus
+                  value={driver.career_agent?.id || ''}
+                  onChange={(e) => handleInlineSave(driver.uuid, 'career_agent', e.target.value ? { id: e.target.value } : null)}
+                  onBlur={() => setEditingCell(null)}
+                  onClick={(e) => e.stopPropagation()}
+                  style={styles.inlineSelect}
+                  disabled={savingCell?.uuid === driver.uuid}
+                >
+                  <option value="">Unassigned</option>
+                  {collaborators.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <span style={styles.editableCell}>
+                  {driver.career_agent?.name || '-'}
+                </span>
+              )}
             </div>
-            <div style={{ ...styles.tableCell, width: 160, flex: 'none' }}>
-              <span style={{
-                ...styles.statusBadge,
-                ...getPlacementStatusStyle(driver.placement_status),
-              }}>
-                {driver.placement_status || 'Not Set'}
-              </span>
+            <div
+              style={{ ...styles.tableCell, width: 160, flex: 'none', cursor: 'pointer' }}
+              onClick={() => setEditingCell({ uuid: driver.uuid, field: 'placement_status' })}
+            >
+              {editingCell?.uuid === driver.uuid && editingCell?.field === 'placement_status' ? (
+                <select
+                  autoFocus
+                  value={driver.placement_status || ''}
+                  onChange={(e) => handleInlineSave(driver.uuid, 'placement_status', e.target.value)}
+                  onBlur={() => setEditingCell(null)}
+                  onClick={(e) => e.stopPropagation()}
+                  style={styles.inlineSelect}
+                  disabled={savingCell?.uuid === driver.uuid}
+                >
+                  <option value="">Not Set</option>
+                  {PLACEMENT_STATUSES.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              ) : (
+                <span style={{
+                  ...styles.statusBadge,
+                  ...getPlacementStatusStyle(driver.placement_status),
+                }}>
+                  {driver.placement_status || 'Not Set'}
+                </span>
+              )}
             </div>
             <div style={{ ...styles.tableCell, width: 70, flex: 'none' }}>
               <button
@@ -257,18 +324,28 @@ export default function Drivers() {
             setShowAddDriver(false);
             loadDrivers();
           }}
+          onSelectExisting={(driver) => {
+            setShowAddDriver(false);
+            // Find the full driver object from drivers list
+            const fullDriver = drivers.find(d => d.uuid === driver.uuid);
+            if (fullDriver) setSelectedDriver(fullDriver);
+          }}
         />
       )}
     </AdminLayout>
   );
 }
 
-function AddDriverModal({ onClose, onSuccess }) {
+function AddDriverModal({ onClose, onSuccess, onSelectExisting }) {
   const [step, setStep] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
+  const [freeAgentResults, setFreeAgentResults] = useState([]);
+  const [existingDrivers, setExistingDrivers] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
+  const [manualEntry, setManualEntry] = useState(false);
+  const [manualForm, setManualForm] = useState({ name: '', email: '', phone: '', city: '', state: '' });
   const [files, setFiles] = useState({
     tenstreet: null,
     mvr: null,
@@ -283,9 +360,15 @@ function AddDriverModal({ onClose, onSuccess }) {
     if (searchQuery.length < 2) return;
     setSearching(true);
     setError(null);
+    setHasSearched(true);
     try {
-      const results = await searchCandidates(searchQuery);
-      setSearchResults(results);
+      // Search both tables in parallel
+      const [freeAgents, candidates] = await Promise.all([
+        searchFreeAgents(searchQuery),
+        searchCandidates(searchQuery),
+      ]);
+      setFreeAgentResults(freeAgents);
+      setExistingDrivers(candidates);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -298,6 +381,16 @@ function AddDriverModal({ onClose, onSuccess }) {
     setStep(2);
   };
 
+  const handleSelectExisting = (driver) => {
+    onClose();
+    if (onSelectExisting) onSelectExisting(driver);
+  };
+
+  const handleManualEntry = () => {
+    setManualEntry(true);
+    setManualForm({ ...manualForm, name: searchQuery });
+  };
+
   const handleFileChange = (field, file) => {
     setFiles(prev => ({ ...prev, [field]: file }));
   };
@@ -307,6 +400,20 @@ function AddDriverModal({ onClose, onSuccess }) {
     setParsing(true);
     setError(null);
     try {
+      let candidateUuid = selectedCandidate.uuid;
+
+      // Create candidate first (for both free agents and manual entries)
+      // This ensures they exist in the Candidates table before parsing
+      const created = await createCandidate({
+        uuid: selectedCandidate.isManual ? undefined : selectedCandidate.uuid,
+        fullName: selectedCandidate.name,
+        email: selectedCandidate.email,
+        phone: selectedCandidate.phone,
+        city: selectedCandidate.city,
+        state: selectedCandidate.state,
+      });
+      candidateUuid = created.uuid;
+
       const documents = {};
       if (files.tenstreet) documents.tenstreet = await fileToBase64(files.tenstreet);
       if (files.mvr) documents.mvr = await fileToBase64(files.mvr);
@@ -317,7 +424,7 @@ function AddDriverModal({ onClose, onSuccess }) {
         throw new Error('Please upload at least one document');
       }
 
-      const result = await parseDocuments(selectedCandidate.uuid, documents);
+      const result = await parseDocuments(candidateUuid, documents);
       setResult(result);
       setStep(3);
     } catch (err) {
@@ -354,7 +461,7 @@ function AddDriverModal({ onClose, onSuccess }) {
 
         <div style={styles.modalBody}>
           {/* Step 1: Search */}
-          {step === 1 && (
+          {step === 1 && !manualEntry && (
             <>
               <p style={styles.stepDesc}>Find the Free Agent in the system by name.</p>
               <div style={styles.searchRow}>
@@ -370,23 +477,129 @@ function AddDriverModal({ onClose, onSuccess }) {
                   {searching ? '...' : 'Search'}
                 </button>
               </div>
-              {searchResults.length > 0 && (
-                <div style={styles.results}>
-                  {searchResults.map(c => (
-                    <div
-                      key={c.uuid}
-                      onClick={() => handleSelectCandidate(c)}
-                      style={styles.resultItem}
-                    >
-                      <div style={styles.resultName}>{c.name}</div>
-                      <div style={styles.resultMeta}>
-                        {c.location && <span>{c.location}</span>}
-                        {c.email && <span> · {c.email}</span>}
+
+              {/* Existing Drivers */}
+              {existingDrivers.length > 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <div style={styles.resultSectionLabel}>Already in Drivers:</div>
+                  <div style={styles.results}>
+                    {existingDrivers.map(d => (
+                      <div
+                        key={d.uuid}
+                        onClick={() => handleSelectExisting(d)}
+                        style={{ ...styles.resultItem, background: '#F0FAF0' }}
+                      >
+                        <div style={styles.resultName}>{d.name}</div>
+                        <div style={styles.resultMeta}>
+                          {d.location && <span>{d.location}</span>}
+                          <span style={{ marginLeft: 8, color: '#059669', fontWeight: 600 }}>View →</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
+
+              {/* Free Agents */}
+              {freeAgentResults.length > 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <div style={styles.resultSectionLabel}>Free Agents (not yet added):</div>
+                  <div style={styles.results}>
+                    {freeAgentResults.map(c => (
+                      <div
+                        key={c.uuid}
+                        onClick={() => handleSelectCandidate(c)}
+                        style={styles.resultItem}
+                      >
+                        <div style={styles.resultName}>{c.name}</div>
+                        <div style={styles.resultMeta}>
+                          {c.location && <span>{c.location}</span>}
+                          {c.email && <span> · {c.email}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* No results - manual entry option */}
+              {hasSearched && freeAgentResults.length === 0 && existingDrivers.length === 0 && (
+                <div style={styles.noResults}>
+                  <p>No results found for "{searchQuery}"</p>
+                  <button onClick={handleManualEntry} style={styles.button}>
+                    Add Manually
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Step 1b: Manual Entry Form */}
+          {step === 1 && manualEntry && (
+            <>
+              <p style={styles.stepDesc}>Enter driver details manually.</p>
+              <div style={styles.manualForm}>
+                <input
+                  type="text"
+                  placeholder="Full Name *"
+                  value={manualForm.name}
+                  onChange={(e) => setManualForm({ ...manualForm, name: e.target.value })}
+                  style={styles.input}
+                />
+                <input
+                  type="email"
+                  placeholder="Email"
+                  value={manualForm.email}
+                  onChange={(e) => setManualForm({ ...manualForm, email: e.target.value })}
+                  style={styles.input}
+                />
+                <input
+                  type="tel"
+                  placeholder="Phone"
+                  value={manualForm.phone}
+                  onChange={(e) => setManualForm({ ...manualForm, phone: e.target.value })}
+                  style={styles.input}
+                />
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <input
+                    type="text"
+                    placeholder="City"
+                    value={manualForm.city}
+                    onChange={(e) => setManualForm({ ...manualForm, city: e.target.value })}
+                    style={{ ...styles.input, flex: 1 }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="State"
+                    value={manualForm.state}
+                    onChange={(e) => setManualForm({ ...manualForm, state: e.target.value })}
+                    style={{ ...styles.input, width: 80 }}
+                  />
+                </div>
+              </div>
+              <div style={styles.actions}>
+                <button onClick={() => setManualEntry(false)} style={styles.buttonSecondary}>Back</button>
+                <button
+                  onClick={() => {
+                    if (!manualForm.name.trim()) {
+                      setError('Name is required');
+                      return;
+                    }
+                    setSelectedCandidate({
+                      name: manualForm.name,
+                      email: manualForm.email,
+                      phone: manualForm.phone,
+                      city: manualForm.city,
+                      state: manualForm.state,
+                      isManual: true,
+                    });
+                    setStep(2);
+                  }}
+                  style={styles.button}
+                >
+                  Continue
+                </button>
+              </div>
             </>
           )}
 
@@ -529,7 +742,7 @@ function DriverModal({ driver, collaborators, onClose, onSave }) {
     { key: 'cdl_class', label: 'CDL Class', type: 'select', options: ['A', 'B'] },
     { key: 'years_experience', label: 'Years Experience', type: 'number' },
     { key: 'endorsements', label: 'Endorsements', type: 'text', placeholder: 'H, T, N, X' },
-    { key: 'home_time_preference', label: 'Home Time Preference', type: 'select', options: ['Daily', 'Weekly', 'Bi-weekly', 'Flexible'] },
+    { key: 'home_time_preference', label: 'Home Time Preference', type: 'select', options: ['Daily', 'Weekly', 'OTR', 'Flexible'] },
     { key: 'min_weekly_pay', label: 'Min Weekly Pay', type: 'number' },
     { key: 'target_weekly_pay', label: 'Target Weekly Pay', type: 'number' },
     { key: 'willing_touch_freight', label: 'Willing Touch Freight', type: 'checkbox' },
@@ -658,6 +871,54 @@ function DriverModal({ driver, collaborators, onClose, onSave }) {
                   )}
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Video Recording Section */}
+          <div style={styles.section}>
+            <h3 style={styles.sectionTitle}>Video Story</h3>
+            <div style={styles.videoSection}>
+              <div style={styles.videoStatus}>
+                <span style={styles.fieldLabel}>Status:</span>
+                <span style={{
+                  ...styles.statusBadge,
+                  background: driver.video_status === 'complete' ? '#D1FAE5' :
+                             driver.video_status === 'processing' ? '#FEF3C7' :
+                             driver.video_status === 'recording' ? '#DBEAFE' : '#F3F4F6',
+                  color: driver.video_status === 'complete' ? '#059669' :
+                         driver.video_status === 'processing' ? '#D97706' :
+                         driver.video_status === 'recording' ? '#2563EB' : '#6B7280',
+                }}>
+                  {driver.video_status || 'Not Started'}
+                </span>
+              </div>
+              <div style={styles.videoActions}>
+                <button
+                  onClick={() => {
+                    const recordUrl = `${window.location.origin}/record/${driver.uuid}`;
+                    navigator.clipboard.writeText(recordUrl);
+                    alert('Recording link copied to clipboard!');
+                  }}
+                  style={styles.videoButton}
+                >
+                  Copy Recording Link
+                </button>
+                <a
+                  href={`/record/${driver.uuid}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={styles.videoButtonSecondary}
+                >
+                  Open Recorder
+                </a>
+              </div>
+              {driver.video_url && (
+                <div style={styles.videoPreview}>
+                  <a href={driver.video_url} target="_blank" rel="noopener noreferrer">
+                    View Final Video →
+                  </a>
+                </div>
+              )}
             </div>
           </div>
 
@@ -992,6 +1253,48 @@ const styles = {
     borderRadius: 8,
     textAlign: 'center',
   },
+  videoSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+  },
+  videoStatus: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+  },
+  videoActions: {
+    display: 'flex',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  videoButton: {
+    padding: '8px 16px',
+    fontSize: 13,
+    fontWeight: 600,
+    background: '#004751',
+    color: '#FFFFFF',
+    border: 'none',
+    borderRadius: 6,
+    cursor: 'pointer',
+  },
+  videoButtonSecondary: {
+    padding: '8px 16px',
+    fontSize: 13,
+    fontWeight: 600,
+    background: '#FFFFFF',
+    color: '#004751',
+    border: '1px solid #004751',
+    borderRadius: 6,
+    cursor: 'pointer',
+    textDecoration: 'none',
+  },
+  videoPreview: {
+    padding: 12,
+    background: '#D1FAE5',
+    borderRadius: 6,
+    textAlign: 'center',
+  },
   // Add Driver Modal styles
   steps: {
     display: 'flex',
@@ -1066,16 +1369,36 @@ const styles = {
     textDecoration: 'none',
   },
   results: {
-    marginTop: 12,
+    marginTop: 8,
     border: '1px solid #E8ECEE',
     borderRadius: 6,
     overflow: 'hidden',
+  },
+  resultSectionLabel: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#5A7A82',
+    textTransform: 'uppercase',
+    marginBottom: 6,
   },
   resultItem: {
     padding: '10px 14px',
     cursor: 'pointer',
     borderBottom: '1px solid #E8ECEE',
     background: '#FFFFFF',
+  },
+  noResults: {
+    marginTop: 20,
+    padding: 20,
+    textAlign: 'center',
+    background: '#F8FAFB',
+    borderRadius: 8,
+  },
+  manualForm: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    marginBottom: 16,
   },
   resultName: {
     fontWeight: 600,
@@ -1180,5 +1503,20 @@ const styles = {
     borderRadius: 4,
     cursor: 'pointer',
     flexShrink: 0,
+  },
+  inlineSelect: {
+    width: '100%',
+    padding: '4px 6px',
+    fontSize: 12,
+    border: '1px solid #004751',
+    borderRadius: 4,
+    background: '#FFFFFF',
+    cursor: 'pointer',
+  },
+  editableCell: {
+    display: 'inline-block',
+    padding: '2px 4px',
+    borderRadius: 4,
+    transition: 'background 0.15s',
   },
 };

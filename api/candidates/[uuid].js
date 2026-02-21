@@ -63,14 +63,27 @@ async function updateCandidate(uuid, updates, res) {
   const recordId = searchData.records[0].id;
 
   // Valid fields that can be updated (excludes synced fields like fullName, email, phone, city, state, zipcode)
+  // Keep in sync with AIRTABLE_SCHEMA.md
   const VALID_FIELDS = [
+    // CDL/Professional
     'cdl_class', 'years_experience', 'endorsements',
-    'home_time_preference', 'min_weekly_pay', 'target_weekly_pay',
-    'willing_touch_freight', 'mvr_status', 'mvr_violations_3yr',
-    'mvr_accidents_3yr', 'clearinghouse_status', 'placement_status',
+    'equipment_experience', 'employment_history',
+    // Preferences
+    'home_time_preference', 'min_weekly_pay', 'target_weekly_pay', 'willing_touch_freight',
+    // Compliance/Safety
+    'mvr_status', 'mvr_violations_3yr', 'mvr_accidents_3yr',
+    'clearinghouse_status', 'psp_crashes_5yr', 'psp_inspections_3yr', 'psp_driver_oos',
+    // AI Generated
+    'ai_recruiter_notes', 'ai_narrative', 'ai_pull_quote',
+    // Portfolio
     'portfolio_slug', 'portfolio_published',
+    // Story
     'story_who_are_you', 'story_what_is_your_why', 'story_freeworld_journey',
     'story_why_trucking', 'story_looking_for', 'story_what_others_say',
+    // Video
+    'video_status', 'video_url', 'video_clips',
+    // Status
+    'placement_status',
   ];
 
   // Filter to only valid fields

@@ -5,16 +5,10 @@ export default function DriverStoryForm({ uuid }) {
   const [driver, setDriver] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
+  const [step, setStep] = useState("preferences"); // preferences, choice, complete
 
   const [form, setForm] = useState({
-    story_who_are_you: "",
-    story_what_is_your_why: "",
-    story_freeworld_journey: "",
-    story_why_trucking: "",
-    story_looking_for: "",
-    story_what_others_say: "",
     zipcode: "",
     home_time_preference: "",
     shift_preference: "",
@@ -22,6 +16,7 @@ export default function DriverStoryForm({ uuid }) {
     max_commute_miles: "",
     min_weekly_pay: "",
     target_weekly_pay: "",
+    willing_touch_freight: false,
   });
 
   useEffect(() => {
@@ -35,12 +30,6 @@ export default function DriverStoryForm({ uuid }) {
       .then((data) => {
         setDriver({ id: data.id, fields: data });
         setForm({
-          story_who_are_you: data.story_who_are_you || "",
-          story_what_is_your_why: data.story_what_is_your_why || "",
-          story_freeworld_journey: data.story_freeworld_journey || "",
-          story_why_trucking: data.story_why_trucking || "",
-          story_looking_for: data.story_looking_for || "",
-          story_what_others_say: data.story_what_others_say || "",
           zipcode: data.zipcode?.toString() || data.zipcodeFromApplication?.toString() || "",
           home_time_preference: data.home_time_preference || "",
           shift_preference: data.shift_preference || "",
@@ -48,6 +37,7 @@ export default function DriverStoryForm({ uuid }) {
           max_commute_miles: data.max_commute_miles || "",
           min_weekly_pay: data.min_weekly_pay?.toString() || "",
           target_weekly_pay: data.target_weekly_pay?.toString() || "",
+          willing_touch_freight: data.willing_touch_freight || false,
         });
         setLoading(false);
       })
@@ -59,7 +49,6 @@ export default function DriverStoryForm({ uuid }) {
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
-    setSaved(false);
   };
 
   const handleSubmit = async (e) => {
@@ -74,12 +63,20 @@ export default function DriverStoryForm({ uuid }) {
         target_weekly_pay: form.target_weekly_pay ? parseInt(form.target_weekly_pay) : null,
       };
       await updateCandidate(uuid, fields);
-      setSaved(true);
+      setStep("choice");
     } catch (err) {
       setError(err.message);
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleRecordVideo = () => {
+    window.location.href = `/record/${uuid}`;
+  };
+
+  const handleSkipVideo = () => {
+    setStep("complete");
   };
 
   if (loading) {
@@ -107,57 +104,82 @@ export default function DriverStoryForm({ uuid }) {
 
   const firstName = driver?.fields?.fullName?.split(" ")[0] || "Driver";
 
+  // Choice Screen - after preferences saved
+  if (step === "choice") {
+    return (
+      <div style={styles.container}>
+        <div style={styles.card}>
+          <img src="/fw-logo.svg" alt="FreeWorld" style={styles.logo} />
+          <h1 style={styles.title}>Preferences Saved!</h1>
+          <p style={styles.subtitle}>
+            Now let's make your profile stand out. Record a short video introducing yourself to employers.
+          </p>
+
+          <div style={styles.choiceButtons}>
+            <button onClick={handleRecordVideo} style={styles.primaryButton}>
+              Record My Story Video
+            </button>
+            <button onClick={handleSkipVideo} style={styles.secondaryButton}>
+              I'll do this later
+            </button>
+          </div>
+
+          <p style={styles.tipText}>
+            The video takes about 5 minutes and helps employers see the real you.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Completion Screen
+  if (step === "complete") {
+    return (
+      <div style={styles.container}>
+        <div style={styles.card}>
+          <div style={styles.successIcon}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+          </div>
+          <h1 style={styles.title}>You're All Set!</h1>
+          <p style={styles.subtitle}>
+            Your preferences have been saved. Your Career Agent will use this to find the best job matches for you.
+          </p>
+
+          <div style={styles.nextSteps}>
+            <h3 style={styles.nextStepsTitle}>What's Next?</h3>
+            <ul style={styles.nextStepsList}>
+              <li>Your Career Agent will review your profile</li>
+              <li>We'll match you with jobs that fit your preferences</li>
+              <li>You'll hear from us when we find a great opportunity</li>
+            </ul>
+          </div>
+
+          <button
+            onClick={() => window.location.href = `/record/${uuid}`}
+            style={styles.secondaryButton}
+          >
+            Record Video Story (Optional)
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Preferences Form
   return (
     <div style={styles.container}>
       <div style={styles.formCard}>
         <div style={styles.header}>
           <img src="/fw-logo.svg" alt="FreeWorld" style={styles.logo} />
-          <h1 style={styles.title}>Tell Your Story, {firstName}</h1>
+          <h1 style={styles.title}>Welcome, {firstName}!</h1>
           <p style={styles.subtitle}>
-            Help recruiters understand who you are beyond your resume. This information will appear on your Driver Fit Profile.
+            Tell us about your job preferences so we can find the best matches for you.
           </p>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <Section title="Your Story">
-            <TextArea
-              label="Who are you?"
-              placeholder="Tell us about yourself - where you're from, your family, what matters to you..."
-              value={form.story_who_are_you}
-              onChange={(v) => handleChange("story_who_are_you", v)}
-            />
-            <TextArea
-              label="What is your why?"
-              placeholder="What drives you? What gets you up in the morning?"
-              value={form.story_what_is_your_why}
-              onChange={(v) => handleChange("story_what_is_your_why", v)}
-            />
-            <TextArea
-              label="Your FreeWorld journey"
-              placeholder="Share your story: What happened (brief & honest, 1-3 sentences on the conviction). What changed (training, counseling, growth). How you found FreeWorld and what the experience has meant for your path forward. How you'll bring value to an employer (skills, reliability, commitment)."
-              value={form.story_freeworld_journey}
-              onChange={(v) => handleChange("story_freeworld_journey", v)}
-            />
-            <TextArea
-              label="Why trucking?"
-              placeholder="What drew you to trucking? What do you love about it?"
-              value={form.story_why_trucking}
-              onChange={(v) => handleChange("story_why_trucking", v)}
-            />
-            <TextArea
-              label="What are you looking for in an employer?"
-              placeholder="What matters most - stability, pay, culture, home time? What would make a job the right fit?"
-              value={form.story_looking_for}
-              onChange={(v) => handleChange("story_looking_for", v)}
-            />
-            <TextArea
-              label="What would others say about you?"
-              placeholder="How would a former dispatcher, coworker, or friend describe you?"
-              value={form.story_what_others_say}
-              onChange={(v) => handleChange("story_what_others_say", v)}
-            />
-          </Section>
-
           <Section title="Your Preferences">
             <Input
               label="Your Zip Code"
@@ -169,7 +191,7 @@ export default function DriverStoryForm({ uuid }) {
               label="Home time preference"
               value={form.home_time_preference}
               onChange={(v) => handleChange("home_time_preference", v)}
-              options={["", "Daily", "Weekly", "Bi-weekly", "Flexible"]}
+              options={["", "Daily", "Weekly", "OTR", "Flexible"]}
             />
             <Select
               label="Shift preference"
@@ -188,6 +210,11 @@ export default function DriverStoryForm({ uuid }) {
               value={form.max_commute_miles}
               onChange={(v) => handleChange("max_commute_miles", v)}
               options={["", "25 miles", "50 miles", "75 miles", "100+ miles"]}
+            />
+            <Checkbox
+              label="I'm willing to handle touch freight (loading/unloading)"
+              checked={form.willing_touch_freight}
+              onChange={(v) => handleChange("willing_touch_freight", v)}
             />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <Input
@@ -211,12 +238,8 @@ export default function DriverStoryForm({ uuid }) {
             <div style={styles.error}>{error}</div>
           )}
 
-          {saved && (
-            <div style={styles.success}>Your profile has been saved!</div>
-          )}
-
           <button type="submit" disabled={saving} style={styles.submitButton}>
-            {saving ? "Saving..." : "Save My Profile"}
+            {saving ? "Saving..." : "Continue"}
           </button>
         </form>
       </div>
@@ -229,21 +252,6 @@ function Section({ title, children }) {
     <div style={{ marginBottom: 32 }}>
       <h2 style={styles.sectionTitle}>{title}</h2>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>{children}</div>
-    </div>
-  );
-}
-
-function TextArea({ label, placeholder, value, onChange }) {
-  return (
-    <div>
-      <label style={styles.label}>{label}</label>
-      <textarea
-        style={styles.textarea}
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        rows={4}
-      />
     </div>
   );
 }
@@ -279,6 +287,20 @@ function Select({ label, value, onChange, options }) {
         ))}
       </select>
     </div>
+  );
+}
+
+function Checkbox({ label, checked, onChange }) {
+  return (
+    <label style={styles.checkboxLabel}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        style={styles.checkbox}
+      />
+      <span>{label}</span>
+    </label>
   );
 }
 
@@ -356,17 +378,18 @@ const styles = {
     color: "#1A2A30",
     boxSizing: "border-box",
   },
-  textarea: {
-    width: "100%",
-    padding: "12px 14px",
+  checkboxLabel: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
     fontSize: 15,
-    border: "1px solid #D1D9DD",
-    borderRadius: 8,
-    background: "#FAFBFB",
     color: "#1A2A30",
-    resize: "vertical",
-    fontFamily: "inherit",
-    boxSizing: "border-box",
+    cursor: "pointer",
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    cursor: "pointer",
   },
   submitButton: {
     width: "100%",
@@ -380,17 +403,71 @@ const styles = {
     cursor: "pointer",
     marginTop: 8,
   },
+  primaryButton: {
+    width: "100%",
+    padding: "16px 24px",
+    fontSize: 16,
+    fontWeight: 700,
+    color: "#191931",
+    background: "#CDF95C",
+    border: "none",
+    borderRadius: 8,
+    cursor: "pointer",
+    marginBottom: 12,
+  },
+  secondaryButton: {
+    width: "100%",
+    padding: "14px 24px",
+    fontSize: 15,
+    fontWeight: 600,
+    color: "#004751",
+    background: "#FFFFFF",
+    border: "2px solid #004751",
+    borderRadius: 8,
+    cursor: "pointer",
+  },
+  choiceButtons: {
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  tipText: {
+    fontSize: 13,
+    color: "#5A7A82",
+    marginTop: 16,
+  },
+  successIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: "50%",
+    background: "#D1FAE5",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    margin: "0 auto 20px",
+  },
+  nextSteps: {
+    background: "#F8FAFB",
+    borderRadius: 8,
+    padding: 20,
+    marginTop: 24,
+    marginBottom: 24,
+    textAlign: "left",
+  },
+  nextStepsTitle: {
+    margin: "0 0 12px",
+    fontSize: 16,
+    fontWeight: 700,
+    color: "#004751",
+  },
+  nextStepsList: {
+    margin: 0,
+    paddingLeft: 20,
+    color: "#3A5A64",
+    lineHeight: 1.8,
+  },
   error: {
     background: "#FFF0F0",
     color: "#C53030",
-    padding: "12px 16px",
-    borderRadius: 8,
-    marginBottom: 16,
-    fontSize: 14,
-  },
-  success: {
-    background: "#F0FAF0",
-    color: "#2E7D32",
     padding: "12px 16px",
     borderRadius: 8,
     marginBottom: 16,

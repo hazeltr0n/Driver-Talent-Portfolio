@@ -12,12 +12,19 @@
     "postinstall": "mkdir -p node_modules/pdf-parse/test/data && touch node_modules/pdf-parse/test/data/05-versions-space.pdf"
   },
   "dependencies": {
+    "@aws-sdk/client-iam": "^3.995.0",
+    "@aws-sdk/client-s3": "^3.995.0",
+    "@aws-sdk/s3-request-presigner": "^3.995.0",
+    "@remotion/cli": "^4.0.427",
+    "@remotion/lambda": "^4.0.427",
     "dotenv": "^16.4.5",
     "openai": "^4.77.0",
     "pdf-parse": "^1.1.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.13.0"
+    "react-router-dom": "^7.13.0",
+    "remotion": "^4.0.427",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
