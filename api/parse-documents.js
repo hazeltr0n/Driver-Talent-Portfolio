@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import pdf from 'pdf-parse/lib/pdf-parse.js';
 
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
@@ -183,12 +184,8 @@ async function updateRecord(recordId, fields) {
 }
 
 async function extractTextFromPDF(base64) {
-  const { createRequire } = await import('module');
-  const require = createRequire(import.meta.url);
-  const pdfParse = require('pdf-parse');
-
   const buffer = Buffer.from(base64, 'base64');
-  const data = await pdfParse(buffer);
+  const data = await pdf(buffer);
   return data.text;
 }
 
