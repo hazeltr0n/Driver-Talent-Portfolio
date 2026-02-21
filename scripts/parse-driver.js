@@ -10,9 +10,7 @@
  */
 
 import 'dotenv/config';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse');
+import pdfParse from 'pdf-parse';
 import OpenAI from 'openai';
 import { findCandidateByName, findCandidateBySlug, updateCandidate, generateSlug } from './lib/airtable.js';
 
