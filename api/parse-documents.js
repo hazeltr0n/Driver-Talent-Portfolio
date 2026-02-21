@@ -136,12 +136,12 @@ export default async function handler(req, res) {
     await updateRecord(record.id, filteredUpdates);
 
     const slug = updates.portfolio_slug || record.fields.portfolio_slug;
-    const formUrl = `/form/${uuid}`;
+    const recordUrl = `/record/${uuid}`;
     const portfolioUrl = `/portfolio/${slug}`;
 
     res.status(200).json({
       success: true,
-      formUrl,
+      recordUrl,
       portfolioUrl,
       slug,
     });

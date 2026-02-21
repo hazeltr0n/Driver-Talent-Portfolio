@@ -355,7 +355,7 @@ function AddDriverModal({ onClose, onSuccess, onSelectExisting }) {
   const [parsing, setParsing] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
-  const [shortLinks, setShortLinks] = useState({ form: null, portfolio: null });
+  const [shortLinks, setShortLinks] = useState({ record: null, portfolio: null });
   const [shortening, setShortening] = useState(null);
 
   const handleShorten = async (type, url, title) => {
@@ -643,22 +643,22 @@ function AddDriverModal({ onClose, onSuccess, onSelectExisting }) {
               <div style={styles.successIcon}>✓</div>
               <p style={styles.stepDesc}>Profile created for {selectedCandidate.name}!</p>
               <div style={styles.linkBox}>
-                <div style={styles.linkLabel}>Form Link (send to driver):</div>
+                <div style={styles.linkLabel}>Video Recording Link (send to driver):</div>
                 <div style={styles.linkValue}>
-                  {shortLinks.form || `${window.location.origin}${result.formUrl}`}
+                  {shortLinks.record || `${window.location.origin}${result.recordUrl}`}
                   <button
-                    onClick={() => navigator.clipboard.writeText(shortLinks.form || window.location.origin + result.formUrl)}
+                    onClick={() => navigator.clipboard.writeText(shortLinks.record || window.location.origin + result.recordUrl)}
                     style={styles.copyButton}
                   >
                     Copy
                   </button>
-                  {!shortLinks.form && (
+                  {!shortLinks.record && (
                     <button
-                      onClick={() => handleShorten('form', window.location.origin + result.formUrl, `Story Form - ${selectedCandidate.name}`)}
-                      disabled={shortening === 'form'}
+                      onClick={() => handleShorten('record', window.location.origin + result.recordUrl, `Record Story - ${selectedCandidate.name}`)}
+                      disabled={shortening === 'record'}
                       style={{ ...styles.copyButton, background: '#059669' }}
                     >
-                      {shortening === 'form' ? '...' : 'Shorten'}
+                      {shortening === 'record' ? '...' : 'Shorten'}
                     </button>
                   )}
                 </div>
