@@ -45,13 +45,32 @@ export const DriverStoryVideo = ({ driverName, driverLocation, clips, musicUrl }
     );
     currentFrame += cardDuration;
 
-    // Video clip
-    const clipDuration = clip.durationInFrames || fps * 60;
+    // Video clip with VAD-based trimming
+    const trimStart = clip.trimStart ?? 0;
+    const trimEnd = clip.trimEnd ?? null;
+
+    // Calculate frames to skip at start and actual duration
+    const startFromFrame = Math.floor(trimStart * fps);
+    // Add 0.3s buffer before speech starts (if we have trim data)
+    const bufferFrames = trimStart > 0 ? Math.floor(0.3 * fps) : 0;
+    const adjustedStartFrame = Math.max(0, startFromFrame - bufferFrames);
+
+    // Calculate duration: if we have trimEnd, use that; otherwise use full clip
+    let clipDuration;
+    if (trimEnd !== null && trimEnd > trimStart) {
+      // Duration = (speech end + buffer) - (speech start - buffer)
+      const speechDuration = trimEnd - trimStart;
+      clipDuration = Math.ceil((speechDuration + 0.6) * fps); // 0.3s buffer on each side
+    } else {
+      clipDuration = clip.durationInFrames || fps * 60;
+    }
+
     sequences.push(
       <Sequence key={`clip-${index}`} from={currentFrame} durationInFrames={clipDuration}>
         <AbsoluteFill style={{ backgroundColor: '#000' }}>
           <OffthreadVideo
             src={clip.url}
+            startFrom={adjustedStartFrame}
             style={{
               width: '100%',
               height: '100%',

@@ -67,10 +67,16 @@ export default async function handler(req, res) {
       ? `${fields.city}, ${fields.state}`
       : 'United States';
 
-    const clips = requiredClips.map((key, index) => ({
-      url: videoClips[key].url,
-      durationInFrames: 30 * 60, // 60 seconds max at 30fps
-    }));
+    const clips = requiredClips.map((key, index) => {
+      const clip = videoClips[key];
+      return {
+        url: clip.url,
+        // Trim data from VAD (in seconds)
+        trimStart: clip.speechStart ?? 0,
+        trimEnd: clip.speechEnd ?? null,
+        durationInFrames: 30 * 60, // 60 seconds max at 30fps
+      };
+    });
 
     // Update status to processing
     const updateUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${CANDIDATES_TABLE_ID}/${recordId}`;

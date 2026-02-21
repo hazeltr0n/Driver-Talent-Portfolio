@@ -75,9 +75,13 @@ export default async function handler(req, res) {
       console.log(`Transcribing Q${questionNum}: ${clipUrl}`);
 
       try {
-        // Transcribe with Deepgram
-        const rawTranscript = await transcribeWithDeepgram(clipUrl);
-        transcripts[questionNum] = { raw: rawTranscript };
+        // Transcribe with Deepgram (includes VAD timing)
+        const { transcript: rawTranscript, speechStart, speechEnd } = await transcribeWithDeepgram(clipUrl);
+        transcripts[questionNum] = {
+          raw: rawTranscript,
+          speechStart,
+          speechEnd,
+        };
 
         // Clean up with OpenAI
         const cleanedTranscript = await cleanupTranscript(rawTranscript, questionNum);
@@ -88,7 +92,8 @@ export default async function handler(req, res) {
         if (fieldName) {
           storyUpdates[fieldName] = cleanedTranscript;
         }
-        return { questionNum, success: true };
+
+        return { questionNum, success: true, speechStart, speechEnd };
       } catch (err) {
         console.error(`Failed to transcribe Q${questionNum}:`, err.message);
         transcripts[questionNum] = { error: err.message };
@@ -96,13 +101,25 @@ export default async function handler(req, res) {
       }
     });
 
-    await Promise.all(transcriptionPromises);
+    const results = await Promise.all(transcriptionPromises);
 
-    // Update Airtable with story answers and set status to complete
+    // Add trim data to video_clips
+    for (const result of results) {
+      if (result?.success && result.questionNum) {
+        const clipKey = `q${result.questionNum}`;
+        if (videoClips[clipKey]) {
+          videoClips[clipKey].speechStart = result.speechStart;
+          videoClips[clipKey].speechEnd = result.speechEnd;
+        }
+      }
+    }
+
+    // Update Airtable with story answers, trim data, and set status to complete
     if (Object.keys(storyUpdates).length > 0) {
       storyUpdates.video_status = 'complete';
+      storyUpdates.video_clips = JSON.stringify(videoClips);
       await updateCandidate(candidate.id, storyUpdates);
-      console.log(`Updated ${Object.keys(storyUpdates).length} story fields`);
+      console.log(`Updated ${Object.keys(storyUpdates).length} story fields with trim data`);
     }
 
     res.status(200).json({
@@ -117,7 +134,8 @@ export default async function handler(req, res) {
 }
 
 async function transcribeWithDeepgram(audioUrl) {
-  const response = await fetch('https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&punctuate=true', {
+  // Use utterances for VAD-based speech detection with timestamps
+  const response = await fetch('https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&punctuate=true&utterances=true', {
     method: 'POST',
     headers: {
       'Authorization': `Token ${DEEPGRAM_API_KEY}`,
@@ -132,13 +150,32 @@ async function transcribeWithDeepgram(audioUrl) {
   }
 
   const data = await response.json();
-  const transcript = data.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
+  const alternative = data.results?.channels?.[0]?.alternatives?.[0];
+  const transcript = alternative?.transcript || '';
 
   if (!transcript) {
     throw new Error('Empty transcript');
   }
 
-  return transcript;
+  // Get speech timing from utterances (VAD-detected speech segments)
+  const utterances = data.results?.utterances || [];
+  let speechStart = null;
+  let speechEnd = null;
+
+  if (utterances.length > 0) {
+    speechStart = utterances[0].start;
+    speechEnd = utterances[utterances.length - 1].end;
+  } else if (alternative?.words?.length > 0) {
+    // Fallback to word timestamps
+    speechStart = alternative.words[0].start;
+    speechEnd = alternative.words[alternative.words.length - 1].end;
+  }
+
+  return {
+    transcript,
+    speechStart,
+    speechEnd,
+  };
 }
 
 async function cleanupTranscript(rawTranscript, questionNum) {

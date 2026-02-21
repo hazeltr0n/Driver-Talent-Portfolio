@@ -269,6 +269,7 @@ export default function VideoRecorder({ uuid }) {
       setShowCoaching(true);
       return;
     }
+    // If coaching already seen, start countdown directly
     startCountdown();
   }, [currentQuestion, seenCoaching, startCountdown]);
 
@@ -402,7 +403,7 @@ export default function VideoRecorder({ uuid }) {
     );
   }
 
-  // Intro Screen
+  // Intro Screen (first time only)
   if (showIntro) {
     return (
       <div style={styles.container}>
@@ -418,79 +419,29 @@ export default function VideoRecorder({ uuid }) {
             <div style={styles.introTips}>
               <div style={styles.introTip}>
                 <span style={styles.introTipBullet}>•</span>
-                <span><strong>Lighting:</strong> Face a window or light source. Avoid sitting with a window behind you.</span>
+                <span><strong>Lighting:</strong> Face a window or light source.</span>
               </div>
               <div style={styles.introTip}>
                 <span style={styles.introTipBullet}>•</span>
-                <span><strong>Quiet space:</strong> Find somewhere without background noise - no TV, traffic, or interruptions.</span>
+                <span><strong>Quiet space:</strong> No background noise.</span>
               </div>
               <div style={styles.introTip}>
                 <span style={styles.introTipBullet}>•</span>
-                <span><strong>Dress the part:</strong> Wear what you'd wear to meet a hiring manager.</span>
+                <span><strong>Look at the camera:</strong> Not at yourself.</span>
               </div>
               <div style={styles.introTip}>
                 <span style={styles.introTipBullet}>•</span>
-                <span><strong>Look at the camera:</strong> Look at the camera dot, not at yourself on screen.</span>
-              </div>
-              <div style={styles.introTip}>
-                <span style={styles.introTipBullet}>•</span>
-                <span><strong>Be yourself:</strong> Speak naturally. Employers want to see the real you.</span>
+                <span><strong>Be yourself:</strong> Speak naturally.</span>
               </div>
             </div>
           </div>
 
-          <div style={styles.introSection}>
-            <h3 style={styles.introSectionTitle}>What to Expect</h3>
-            <p style={styles.introText}>
-              You'll answer 6 questions, up to 60 seconds each. Before each question, we'll show you tips on what makes a great answer. You can re-record any answer until you're happy with it.
-            </p>
-          </div>
-
           <div style={styles.introReminder}>
-            <strong>Remember:</strong> Your story is your strength. Focus on who you are today and where you're headed, not where you've been.
+            <strong>Remember:</strong> Your story is your strength. Focus on who you are today, not where you've been.
           </div>
 
           <button onClick={() => { setShowIntro(false); setShowCoaching(true); setSeenCoaching({ 0: true }); }} style={styles.introButton}>
-            I'm Ready - Let's Go
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Coaching Screen (shown before each question)
-  if (showCoaching) {
-    const question = QUESTIONS[currentQuestion];
-    return (
-      <div style={styles.container}>
-        <div style={styles.coachingScreen}>
-          <div style={styles.coachingHeader}>
-            <span style={styles.coachingQuestionNum}>Question {currentQuestion + 1} of {QUESTIONS.length}</span>
-            <h2 style={styles.coachingTitle}>{question.title}</h2>
-            <p style={styles.coachingPrompt}>{question.prompt}</p>
-          </div>
-
-          <div style={styles.coachingWhy}>
-            <span style={styles.coachingWhyLabel}>Why this matters:</span>
-            <p style={styles.coachingWhyText}>{question.coaching.why}</p>
-          </div>
-
-          <div style={styles.coachingTips}>
-            <span style={styles.coachingTipsLabel}>Tips for a great answer:</span>
-            <ul style={styles.coachingTipsList}>
-              {question.coaching.tips.map((tip, idx) => (
-                <li key={idx} style={styles.coachingTipItem}>{tip}</li>
-              ))}
-            </ul>
-          </div>
-
-          <div style={styles.coachingExample}>
-            <span style={styles.coachingExampleLabel}>Example:</span>
-            <p style={styles.coachingExampleText}>{question.coaching.example}</p>
-          </div>
-
-          <button onClick={() => { setShowCoaching(false); startCountdown(); }} style={styles.coachingButton}>
-            Got It - Start Recording
+            I'm Ready
           </button>
         </div>
       </div>
@@ -672,12 +623,37 @@ export default function VideoRecorder({ uuid }) {
         </div>
       </div>
 
-      {/* Tips */}
-      {recordingState === 'idle' && !hasCurrentClip && (
-        <div style={styles.tips}>
-          <p style={styles.tipText}>
-            <strong>Tips:</strong> Find good lighting, speak clearly, and be yourself!
-          </p>
+      {/* Coaching Modal Overlay */}
+      {showCoaching && (
+        <div style={styles.coachingOverlay}>
+          <div style={styles.coachingModal}>
+            <div style={styles.coachingHeader}>
+              <span style={styles.coachingQuestionNum}>Question {currentQuestion + 1} of {QUESTIONS.length}</span>
+              <h2 style={styles.coachingTitle}>{question.title}</h2>
+            </div>
+
+            <div style={styles.coachingWhy}>
+              <p style={styles.coachingWhyText}>{question.coaching.why}</p>
+            </div>
+
+            <div style={styles.coachingTips}>
+              <span style={styles.coachingTipsLabel}>Tips:</span>
+              <ul style={styles.coachingTipsList}>
+                {question.coaching.tips.map((tip, idx) => (
+                  <li key={idx} style={styles.coachingTipItem}>{tip}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div style={styles.coachingExample}>
+              <span style={styles.coachingExampleLabel}>Example:</span>
+              <p style={styles.coachingExampleText}>{question.coaching.example}</p>
+            </div>
+
+            <button onClick={() => setShowCoaching(false)} style={styles.coachingButton}>
+              Got It
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -1142,21 +1118,30 @@ const styles = {
     cursor: 'pointer',
     marginTop: 'auto',
   },
-  // Coaching Screen
-  coachingScreen: {
-    flex: 1,
+  // Coaching Modal Overlay
+  coachingOverlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(0, 0, 0, 0.85)',
     display: 'flex',
-    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    zIndex: 100,
+  },
+  coachingModal: {
+    background: '#004751',
+    borderRadius: 16,
     padding: 24,
-    maxWidth: 500,
-    margin: '0 auto',
+    maxWidth: 400,
+    width: '100%',
+    maxHeight: '80vh',
     overflowY: 'auto',
+    border: '1px solid rgba(205, 249, 92, 0.3)',
   },
   coachingHeader: {
     textAlign: 'center',
-    marginBottom: 24,
-    paddingBottom: 24,
-    borderBottom: '1px solid rgba(255,255,255,0.1)',
+    marginBottom: 16,
   },
   coachingQuestionNum: {
     fontSize: 12,
@@ -1166,8 +1151,8 @@ const styles = {
     fontWeight: 600,
   },
   coachingTitle: {
-    margin: '8px 0 4px',
-    fontSize: 28,
+    margin: '8px 0 0',
+    fontSize: 22,
     fontWeight: 700,
     color: '#FFFFFF',
     fontFamily: 'Georgia, serif',
@@ -1178,7 +1163,7 @@ const styles = {
     color: '#B0CDD4',
   },
   coachingWhy: {
-    marginBottom: 20,
+    marginBottom: 12,
   },
   coachingWhyLabel: {
     display: 'block',
@@ -1196,7 +1181,7 @@ const styles = {
     lineHeight: 1.5,
   },
   coachingTips: {
-    marginBottom: 20,
+    marginBottom: 12,
   },
   coachingTipsLabel: {
     display: 'block',
@@ -1241,15 +1226,16 @@ const styles = {
     lineHeight: 1.5,
   },
   coachingButton: {
-    padding: '16px 32px',
+    width: '100%',
+    padding: '14px 24px',
     fontSize: 16,
     fontWeight: 700,
     background: '#CDF95C',
     color: '#004751',
     border: 'none',
-    borderRadius: 12,
+    borderRadius: 10,
     cursor: 'pointer',
-    marginTop: 'auto',
+    marginTop: 16,
   },
 };
 
