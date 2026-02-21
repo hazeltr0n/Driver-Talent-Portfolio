@@ -1,7 +1,37 @@
+import { BrowserRouter, Routes, Route, useParams, Navigate } from 'react-router-dom'
 import DriverPortfolio from './DriverPortfolio'
+import DriverStoryForm from './DriverStoryForm'
+import Dashboard from './admin/Dashboard'
+import Drivers from './admin/Drivers'
+import Requisitions from './admin/Requisitions'
+import Submissions from './admin/Submissions'
+
+function PortfolioWrapper() {
+  const { slug } = useParams()
+  return <DriverPortfolio slug={slug} />
+}
+
+function FormWrapper() {
+  const { uuid } = useParams()
+  return <DriverStoryForm uuid={uuid} />
+}
 
 function App() {
-  return <DriverPortfolio />
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Navigate to="/portfolio/james-h" replace />} />
+        <Route path="/portfolio/:slug" element={<PortfolioWrapper />} />
+        <Route path="/form/:uuid" element={<FormWrapper />} />
+
+        {/* Admin routes */}
+        <Route path="/admin" element={<Dashboard />} />
+        <Route path="/admin/drivers" element={<Drivers />} />
+        <Route path="/admin/requisitions" element={<Requisitions />} />
+        <Route path="/admin/submissions" element={<Submissions />} />
+      </Routes>
+    </BrowserRouter>
+  )
 }
 
 export default App

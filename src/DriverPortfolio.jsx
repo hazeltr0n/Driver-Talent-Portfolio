@@ -1,71 +1,5 @@
-import { useState } from "react";
-
-const driverData = {
-  name: "James H.",
-  homeBase: "Dallas, TX",
-  cdlClass: "Class A",
-  endorsements: ["Tanker (N)"],
-  routePref: "Local / Regional",
-  availability: "Home Daily Preferred",
-  yearsExp: 2.5,
-  mvr: "Clear",
-  psp: "See Notes",
-  criminal: "Clear",
-  clearinghouse: "No Violations",
-  avgTenure: "10 Months",
-  experience: [
-    { company: "4J Trucking LLC", role: "Company Driver", tenure: "19 months", verified: true, regulated: true },
-    { company: "Legend Freights", role: "Company Driver", tenure: "6 months", verified: true, regulated: true },
-    { company: "Di Kestro Trucking Co.", role: "Company Driver", tenure: "5 months", verified: true, regulated: true },
-  ],
-  equipment: [
-    { type: "Tractor-Trailer", level: "Yes" },
-    { type: "53' Dry Van", level: "Primary Experience" },
-    { type: "Straight Truck", level: "Yes" },
-    { type: "Tanker (Bulk)", level: "< 1 year" },
-  ],
-  training: {
-    school: "TruckGod Training School",
-    location: "Grand Prairie, TX",
-    graduated: "2023",
-    hours: 170,
-  },
-  videoUrl: "https://www.youtube.com/watch?v=7TEEFojS7Ds",
-  aiNotes: "James is a licensed and active CDL-A driver with no felonies or misdemeanors in the last 15 years, no reported crashes, no drug or alcohol violations, and a clear MVR. Originally from Ardmore, Oklahoma and now based in Dallas, he's a family man with a wife and three kids who got into trucking through FreeWorld's CDL program. His father was a truck driver, and James takes pride in operating big equipment and treating every truck like he owns it. Former dispatchers describe him as a hard worker who genuinely cares about safety and taking care of customers. He meets baseline eligibility for safety-sensitive driving roles and brings a strong work ethic rooted in providing for his family.",
-  story: "James grew up in Ardmore, Oklahoma and now calls Dallas, Texas home. He's a dedicated family man — his wife Jocelyn is a school teacher, and together they're raising three kids: Michael (12), Jackson (8), and Jordan (5). Trucking runs in his blood; his dad was a driver, and James always loved the idea of operating big equipment. After facing limited job options due to a past mistake, he discovered FreeWorld and earned his CDL in 2023. What he's looking for in an employer comes down to three things: stability (established operations with long-term customers), solid compensation and benefits for his family, and a culture where people lift each other up. He treats every truck like he owns it and takes pride in protecting the company's safety record.",
-  whyTrucking: "I really believe in the covenant between a driver and employer. Your job is to get the customers, my job is to take care of them.",
-  strengths: [
-    { trait: "Reliability", score: 92, desc: "Consistent attendance and on-time performance across all verified employers" },
-    { trait: "Safety Orientation", score: 88, desc: "Clean MVR, no crashes, no driver OOS events. Strong pre-trip habits." },
-    { trait: "Communication", score: 85, desc: "Responsive to dispatchers and proactive about route updates" },
-    { trait: "Adaptability", score: 80, desc: "Experience across dry van, straight truck, and tanker operations" },
-  ],
-  cultureFit: {
-    workStyle: "Structured & Reliable",
-    teamPref: "Supportive team environment with clear expectations",
-    growthGoal: "Wants to grow into specialized hauling (tanker/hazmat)",
-    values: ["Respect", "Safety-first culture", "Career development", "Work-life balance"],
-  },
-  jobFit: {
-    employer: "ABC Freight Solutions",
-    role: "Regional Dry Van Driver — Home Weekly",
-    overallScore: 91,
-    dimensions: [
-      { name: "Route & Schedule Match", score: 94, note: "Local/regional preference aligns with home-weekly schedule" },
-      { name: "Equipment Match", score: 90, note: "Primary dry van experience matches fleet requirements" },
-      { name: "Culture Alignment", score: 92, note: "Values safety-first culture; employer ranks top-quartile in driver satisfaction" },
-      { name: "Compensation Fit", score: 85, note: "Target range aligns with employer's posted pay band" },
-      { name: "Background Eligibility", score: 95, note: "Clean criminal record and MVR meet all employer thresholds" },
-    ],
-  },
-  mvrDetails: {
-    violations: 0,
-    accidents: 0,
-    suspensions: 0,
-    lastPull: "January 2026",
-    summary: "No moving violations, no at-fault accidents, no license suspensions or revocations in the past 3 years.",
-  },
-};
+import { useState, useEffect } from "react";
+import { getPortfolio } from "./lib/api";
 
 function ScoreBar({ score, color = "#004751" }) {
   return (
@@ -95,10 +29,9 @@ function Badge({ children, variant = "default" }) {
   );
 }
 
-function SectionTitle({ children, icon }) {
+function SectionTitle({ children }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, paddingBottom: 10, borderBottom: "2px solid #004751" }}>
-      {icon && <span style={{ fontSize: 18 }}>{icon}</span>}
       <h2 style={{ margin: 0, fontSize: "clamp(16px, 4vw, 20px)", fontWeight: 700, color: "#004751", fontFamily: "Georgia, serif" }}>{children}</h2>
     </div>
   );
@@ -112,17 +45,89 @@ function Card({ children, style = {} }) {
   );
 }
 
-export default function DriverPortfolio() {
-  const [activeTab, setActiveTab] = useState("overview");
-  const d = driverData;
+function LoadingState() {
+  return (
+    <div style={{ fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", background: "#F4F4F4", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ textAlign: "center" }}>
+        <img src="/fw-logo.svg" alt="FreeWorld" style={{ height: 48, width: 48, marginBottom: 20 }} />
+        <p style={{ color: "#5A7A82", fontSize: 16 }}>Loading portfolio...</p>
+      </div>
+    </div>
+  );
+}
 
+function NotFoundState({ slug }) {
+  return (
+    <div style={{ fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", background: "#F4F4F4", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ textAlign: "center", maxWidth: 400, padding: 20 }}>
+        <img src="/fw-logo.svg" alt="FreeWorld" style={{ height: 48, width: 48, marginBottom: 20 }} />
+        <h1 style={{ color: "#004751", fontSize: 24, fontFamily: "Georgia, serif", marginBottom: 12 }}>Portfolio Not Found</h1>
+        <p style={{ color: "#5A7A82", fontSize: 15, lineHeight: 1.6 }}>
+          No driver portfolio found for "{slug}". The portfolio may not exist or may not be published yet.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ErrorState({ error }) {
+  return (
+    <div style={{ fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", background: "#F4F4F4", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ textAlign: "center", maxWidth: 400, padding: 20 }}>
+        <img src="/fw-logo.svg" alt="FreeWorld" style={{ height: 48, width: 48, marginBottom: 20 }} />
+        <h1 style={{ color: "#004751", fontSize: 24, fontFamily: "Georgia, serif", marginBottom: 12 }}>Error Loading Portfolio</h1>
+        <p style={{ color: "#5A7A82", fontSize: 15, lineHeight: 1.6 }}>
+          {error}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export default function DriverPortfolio({ slug }) {
+  const [driver, setDriver] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState("overview");
+
+  useEffect(() => {
+    if (!slug) {
+      setError("No portfolio slug provided");
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    getPortfolio(slug)
+      .then((data) => {
+        setDriver(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, [slug]);
+
+  if (loading) return <LoadingState />;
+  if (error) return <ErrorState error={error} />;
+  if (!driver) return <NotFoundState slug={slug} />;
+
+  const d = driver;
+
+  // Build tabs - only show Job Fit if there's match data
   const tabs = [
     { id: "overview", label: "Overview" },
-    { id: "jobfit", label: "Job Fit Assessment" },
-    { id: "strengths", label: "Skills & Character" },
     { id: "compliance", label: "MVR & Compliance" },
     { id: "story", label: "Driver Story" },
   ];
+
+  // If we have job fit data, add that tab
+  if (d.jobFit) {
+    tabs.splice(1, 0, { id: "jobfit", label: "Job Fit Assessment" });
+  }
 
   return (
     <div style={{ fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", background: "#F4F4F4", minHeight: "100vh", padding: 0 }}>
@@ -131,34 +136,15 @@ export default function DriverPortfolio() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
-              <span style={{ background: "#CDF95C", color: "#191931", fontWeight: 800, fontSize: 13, padding: "3px 10px", borderRadius: 4, letterSpacing: 1 }}>FW.</span>
-              <span style={{ fontSize: 12, color: "#8AAFB8", letterSpacing: 1.5, textTransform: "uppercase", fontWeight: 600 }}>Driver Talent Portfolio</span>
+              <img src="/fw-logo-white.svg" alt="FreeWorld" style={{ height: 32, width: 32 }} />
+              <span style={{ fontSize: 12, color: "#8AAFB8", letterSpacing: 1.5, textTransform: "uppercase", fontWeight: 600 }}>Driver Fit Profile</span>
             </div>
             <h1 style={{ margin: "12px 0 4px", fontSize: "clamp(24px, 6vw, 32px)", fontWeight: 700, fontFamily: "Georgia, serif" }}>{d.name}</h1>
             <p style={{ margin: 0, fontSize: 15, color: "#B0CDD4" }}>
-              {d.homeBase} · CDL {d.cdlClass} · {d.yearsExp} Years Experience
+              {d.homeBase && `${d.homeBase} · `}{d.cdlClass}{d.yearsExp > 0 && ` · ${d.yearsExp} Years Experience`}
             </p>
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-start" }}>
-            <Badge variant="clear">MVR: {d.mvr} ✓</Badge>
-            <Badge variant="clear">Clearinghouse: {d.clearinghouse} ✓</Badge>
           </div>
-        </div>
-
-        {/* Quick Stats Row */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginTop: 20 }}>
-          {[
-            { label: "Route Pref", value: d.routePref },
-            { label: "Availability", value: d.availability },
-            { label: "Endorsements", value: d.endorsements.join(", ") },
-            { label: "Avg Tenure", value: d.avgTenure },
-          ].map((s, i) => (
-            <div key={i} style={{ background: "rgba(255,255,255,0.08)", borderRadius: 8, padding: "10px 12px" }}>
-              <div style={{ fontSize: 11, color: "#8AAFB8", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600, marginBottom: 3 }}>{s.label}</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#FFFFFF" }}>{s.value}</div>
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* Tabs */}
@@ -191,7 +177,7 @@ export default function DriverPortfolio() {
         {/* OVERVIEW TAB */}
         {activeTab === "overview" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            {/* Job Fit Banner */}
+            {/* Job Fit Banner - only if we have match data */}
             {d.jobFit && (
               <Card style={{ background: "#004751", color: "#FFFFFF", border: "none" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
@@ -209,70 +195,78 @@ export default function DriverPortfolio() {
             )}
 
             {/* Experience Table */}
-            <Card>
-              <SectionTitle icon="📋">Employment History</SectionTitle>
-              <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", margin: "0 -16px", padding: "0 16px" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 480 }}>
-                  <thead>
-                    <tr style={{ borderBottom: "2px solid #E8ECEE" }}>
-                      {["Company", "Role", "Tenure", "Verified"].map(h => (
-                        <th key={h} style={{ textAlign: "left", padding: "10px 12px", color: "#5A7A82", fontWeight: 600, fontSize: 12, textTransform: "uppercase", letterSpacing: 0.5 }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {d.experience.map((exp, i) => (
-                      <tr key={i} style={{ borderBottom: "1px solid #F0F2F4" }}>
-                        <td style={{ padding: "12px", fontWeight: 600, color: "#1A2A30" }}>{exp.company}</td>
-                        <td style={{ padding: "12px", color: "#5A7A82" }}>{exp.role}</td>
-                        <td style={{ padding: "12px", color: "#1A2A30" }}>{exp.tenure}</td>
-                        <td style={{ padding: "12px" }}>
-                          {exp.verified && <Badge variant="clear">✓ DOT-Regulated</Badge>}
-                        </td>
+            {d.experience.length > 0 && (
+              <Card>
+                <SectionTitle>Employment History</SectionTitle>
+                <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", margin: "0 -16px", padding: "0 16px" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 480 }}>
+                    <thead>
+                      <tr style={{ borderBottom: "2px solid #E8ECEE" }}>
+                        {["Company", "Role", "Tenure", "Verified"].map(h => (
+                          <th key={h} style={{ textAlign: "left", padding: "10px 12px", color: "#5A7A82", fontWeight: 600, fontSize: 12, textTransform: "uppercase", letterSpacing: 0.5 }}>{h}</th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+                    </thead>
+                    <tbody>
+                      {d.experience.map((exp, i) => (
+                        <tr key={i} style={{ borderBottom: "1px solid #F0F2F4" }}>
+                          <td style={{ padding: "12px", fontWeight: 600, color: "#1A2A30" }}>{exp.company}</td>
+                          <td style={{ padding: "12px", color: "#5A7A82" }}>{exp.role}</td>
+                          <td style={{ padding: "12px", color: "#1A2A30" }}>{exp.tenure}</td>
+                          <td style={{ padding: "12px" }}>
+                            {exp.verified && <Badge variant="clear">DOT-Regulated</Badge>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
 
             {/* Equipment & Training side by side */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
-              <Card>
-                <SectionTitle icon="🚛">Equipment Experience</SectionTitle>
-                {d.equipment.map((eq, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: i < d.equipment.length - 1 ? "1px solid #F0F2F4" : "none" }}>
-                    <span style={{ fontWeight: 600, color: "#1A2A30", fontSize: 14 }}>{eq.type}</span>
-                    <span style={{ color: "#5A7A82", fontSize: 14 }}>{eq.level}</span>
-                  </div>
-                ))}
-              </Card>
-              <Card>
-                <SectionTitle icon="🎓">Training</SectionTitle>
-                {[
-                  { label: "CDL School", value: d.training.school },
-                  { label: "Location", value: d.training.location },
-                  { label: "Graduated", value: d.training.graduated },
-                  { label: "Instruction Hours", value: `${d.training.hours} hours` },
-                ].map((item, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: i < 3 ? "1px solid #F0F2F4" : "none" }}>
-                    <span style={{ color: "#5A7A82", fontSize: 14 }}>{item.label}</span>
-                    <span style={{ fontWeight: 600, color: "#1A2A30", fontSize: 14 }}>{item.value}</span>
-                  </div>
-                ))}
-              </Card>
+              {d.equipment.length > 0 && (
+                <Card>
+                  <SectionTitle>Equipment Experience</SectionTitle>
+                  {d.equipment.map((eq, i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: i < d.equipment.length - 1 ? "1px solid #F0F2F4" : "none" }}>
+                      <span style={{ fontWeight: 600, color: "#1A2A30", fontSize: 14 }}>{eq.type}</span>
+                      <span style={{ color: "#5A7A82", fontSize: 14 }}>{eq.level}</span>
+                    </div>
+                  ))}
+                </Card>
+              )}
+              {d.training.school && (
+                <Card>
+                  <SectionTitle>Training</SectionTitle>
+                  {[
+                    { label: "CDL School", value: d.training.school },
+                    d.training.location && { label: "Location", value: d.training.location },
+                    { label: "Graduated", value: d.training.graduated },
+                    { label: "Instruction Hours", value: `${d.training.hours} hours` },
+                  ].filter(Boolean).map((item, i, arr) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: i < arr.length - 1 ? "1px solid #F0F2F4" : "none" }}>
+                      <span style={{ color: "#5A7A82", fontSize: 14 }}>{item.label}</span>
+                      <span style={{ fontWeight: 600, color: "#1A2A30", fontSize: 14 }}>{item.value}</span>
+                    </div>
+                  ))}
+                </Card>
+              )}
             </div>
 
             {/* AI Notes */}
-            <Card style={{ background: "#F8FAFB", borderLeft: "4px solid #004751" }}>
-              <div style={{ fontSize: 12, color: "#004751", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 700, marginBottom: 8 }}>AI Recruiter Notes</div>
-              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, color: "#3A5A64" }}>{d.aiNotes}</p>
-            </Card>
+            {d.aiNotes && (
+              <Card style={{ background: "#F8FAFB", borderLeft: "4px solid #004751" }}>
+                <div style={{ fontSize: 12, color: "#004751", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 700, marginBottom: 8 }}>AI Recruiter Notes</div>
+                <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, color: "#3A5A64" }}>{d.aiNotes}</p>
+              </Card>
+            )}
           </div>
         )}
 
         {/* JOB FIT TAB */}
-        {activeTab === "jobfit" && (
+        {activeTab === "jobfit" && d.jobFit && (
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <Card style={{ background: "#004751", color: "#FFFFFF", border: "none" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 20 }}>
@@ -288,74 +282,31 @@ export default function DriverPortfolio() {
               </div>
             </Card>
 
-            <Card>
-              <SectionTitle icon="📊">Fit Dimensions</SectionTitle>
-              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                {d.jobFit.dimensions.map((dim, i) => (
-                  <div key={i}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                      <span style={{ fontWeight: 600, color: "#1A2A30", fontSize: 15 }}>{dim.name}</span>
+            {d.jobFit.dimensions && d.jobFit.dimensions.length > 0 && (
+              <Card>
+                <SectionTitle>Fit Dimensions</SectionTitle>
+                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                  {d.jobFit.dimensions.map((dim, i) => (
+                    <div key={i}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                        <span style={{ fontWeight: 600, color: "#1A2A30", fontSize: 15 }}>{dim.name}</span>
+                      </div>
+                      <ScoreBar score={dim.score} />
+                      <p style={{ margin: "6px 0 0", fontSize: 13, color: "#5A7A82" }}>{dim.note}</p>
                     </div>
-                    <ScoreBar score={dim.score} />
-                    <p style={{ margin: "6px 0 0", fontSize: 13, color: "#5A7A82" }}>{dim.note}</p>
-                  </div>
-                ))}
-              </div>
-            </Card>
+                  ))}
+                </div>
+              </Card>
+            )}
 
-            <Card style={{ background: "#F8FAFB", borderLeft: "4px solid #CDF95C" }}>
-              <div style={{ fontSize: 12, color: "#004751", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 700, marginBottom: 8 }}>Career Agent Recommendation</div>
-              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, color: "#3A5A64" }}>
-                James is a strong match for this position. His local/regional preference aligns perfectly with the home-weekly schedule, and his primary dry van experience matches the fleet. His clean compliance record and consistent work history demonstrate the reliability this employer values. We recommend moving to interview.
-              </p>
-            </Card>
-          </div>
-        )}
-
-        {/* SKILLS & CHARACTER TAB */}
-        {activeTab === "strengths" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <Card>
-              <SectionTitle icon="💪">Skills & Character Assessment</SectionTitle>
-              <p style={{ margin: "0 0 20px", fontSize: 14, color: "#5A7A82" }}>
-                Based on FreeWorld's scientifically vetted assessment of driver capabilities, work habits, and character traits.
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
-                {d.strengths.map((s, i) => (
-                  <div key={i}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                      <span style={{ fontWeight: 700, color: "#1A2A30", fontSize: 15 }}>{s.trait}</span>
-                    </div>
-                    <ScoreBar score={s.score} />
-                    <p style={{ margin: "6px 0 0", fontSize: 13, color: "#5A7A82" }}>{s.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            <Card>
-              <SectionTitle icon="🧭">Culture & Work Preferences</SectionTitle>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20 }}>
-                <div>
-                  <div style={{ fontSize: 12, color: "#5A7A82", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600, marginBottom: 6 }}>Work Style</div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: "#1A2A30" }}>{d.cultureFit.workStyle}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 12, color: "#5A7A82", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600, marginBottom: 6 }}>Growth Goal</div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: "#1A2A30" }}>{d.cultureFit.growthGoal}</div>
-                </div>
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <div style={{ fontSize: 12, color: "#5A7A82", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600, marginBottom: 6 }}>Team Preference</div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: "#1A2A30" }}>{d.cultureFit.teamPref}</div>
-                </div>
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <div style={{ fontSize: 12, color: "#5A7A82", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600, marginBottom: 8 }}>Core Values</div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {d.cultureFit.values.map((v, i) => <Badge key={i} variant="teal">{v}</Badge>)}
-                  </div>
-                </div>
-              </div>
-            </Card>
+            {d.jobFit.recommendation && (
+              <Card style={{ background: "#F8FAFB", borderLeft: "4px solid #CDF95C" }}>
+                <div style={{ fontSize: 12, color: "#004751", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 700, marginBottom: 8 }}>Career Agent Recommendation</div>
+                <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, color: "#3A5A64" }}>
+                  {d.jobFit.recommendation}
+                </p>
+              </Card>
+            )}
           </div>
         )}
 
@@ -363,16 +314,16 @@ export default function DriverPortfolio() {
         {activeTab === "compliance" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <Card>
-              <SectionTitle icon="📄">Motor Vehicle Record (MVR)</SectionTitle>
+              <SectionTitle>Motor Vehicle Record (MVR)</SectionTitle>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 20 }}>
                 {[
-                  { label: "Moving Violations", value: d.mvrDetails.violations, status: "clear" },
-                  { label: "At-Fault Accidents", value: d.mvrDetails.accidents, status: "clear" },
-                  { label: "Suspensions", value: d.mvrDetails.suspensions, status: "clear" },
+                  { label: "Moving Violations", value: d.mvrDetails.violations, status: d.mvrDetails.violations === 0 ? "clear" : "warn" },
+                  { label: "At-Fault Accidents", value: d.mvrDetails.accidents, status: d.mvrDetails.accidents === 0 ? "clear" : "warn" },
+                  { label: "Suspensions", value: d.mvrDetails.suspensions, status: d.mvrDetails.suspensions === 0 ? "clear" : "warn" },
                   { label: "Last MVR Pull", value: d.mvrDetails.lastPull, status: "info" },
                 ].map((item, i) => (
-                  <div key={i} style={{ background: item.status === "clear" ? "#F0FAF0" : "#F4F4F4", borderRadius: 8, padding: 16, textAlign: "center" }}>
-                    <div style={{ fontSize: 28, fontWeight: 800, color: item.status === "clear" ? "#004751" : "#1A2A30", fontFamily: "Georgia, serif" }}>
+                  <div key={i} style={{ background: item.status === "clear" ? "#F0FAF0" : item.status === "warn" ? "#FFF8E1" : "#F4F4F4", borderRadius: 8, padding: 16, textAlign: "center" }}>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: item.status === "clear" ? "#004751" : item.status === "warn" ? "#F57F17" : "#1A2A30", fontFamily: "Georgia, serif" }}>
                       {typeof item.value === "number" ? item.value : item.value}
                     </div>
                     <div style={{ fontSize: 12, color: "#5A7A82", marginTop: 4, fontWeight: 600 }}>{item.label}</div>
@@ -384,16 +335,33 @@ export default function DriverPortfolio() {
               </div>
             </Card>
 
+            {/* PSP Details */}
             <Card>
-              <SectionTitle icon="✅">Compliance Status</SectionTitle>
+              <SectionTitle>Pre-Employment Screening (PSP)</SectionTitle>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
+                {[
+                  { label: "Crashes (5yr)", value: d.pspDetails.crashes5yr, status: d.pspDetails.crashes5yr === 0 ? "clear" : "warn" },
+                  { label: "Inspections (3yr)", value: d.pspDetails.inspections3yr, status: "info" },
+                  { label: "Driver OOS", value: d.pspDetails.driverOOS, status: d.pspDetails.driverOOS === 0 ? "clear" : "warn" },
+                ].map((item, i) => (
+                  <div key={i} style={{ background: item.status === "clear" ? "#F0FAF0" : item.status === "warn" ? "#FFF8E1" : "#F4F4F4", borderRadius: 8, padding: 16, textAlign: "center" }}>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: item.status === "clear" ? "#004751" : item.status === "warn" ? "#F57F17" : "#1A2A30", fontFamily: "Georgia, serif" }}>
+                      {item.value}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#5A7A82", marginTop: 4, fontWeight: 600 }}>{item.label}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card>
+              <SectionTitle>Compliance Status</SectionTitle>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {[
-                  { item: "MVR (Motor Vehicle Record)", status: "Clear", ok: true },
-                  { item: "PSP (Pre-Employment Screening)", status: "See Notes — vehicle inspections only, no driver OOS", ok: true },
-                  { item: "Criminal Background", status: "Clear", ok: true },
-                  { item: "FMCSA Clearinghouse", status: "No Violations", ok: true },
-                  { item: "Drug & Alcohol Testing", status: "No Violations", ok: true },
-                  { item: "DOT Medical Card", status: "Current", ok: true },
+                  { item: "MVR (Motor Vehicle Record)", status: d.mvr, ok: d.mvr === "Clear" },
+                  { item: "PSP (Pre-Employment Screening)", status: d.psp === "Clear" ? "Clear" : "See Notes", ok: d.psp === "Clear" },
+                  { item: "FMCSA Clearinghouse", status: d.clearinghouse, ok: d.clearinghouse === "Not Prohibited" },
+                  { item: "DOT Medical Card", status: d.license.medicalCardStatus, ok: d.license.medicalCardStatus === "Valid" },
                 ].map((c, i) => (
                   <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: c.ok ? "#F0FAF0" : "#FFF8E1", borderRadius: 8, border: `1px solid ${c.ok ? "#C8E6C9" : "#FFECB3"}` }}>
                     <span style={{ fontWeight: 600, color: "#1A2A30", fontSize: 14 }}>{c.item}</span>
@@ -406,7 +374,7 @@ export default function DriverPortfolio() {
             <Card style={{ background: "#F8FAFB", borderLeft: "4px solid #004751" }}>
               <div style={{ fontSize: 12, color: "#004751", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 700, marginBottom: 8 }}>DOT Application Status</div>
               <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, color: "#3A5A64" }}>
-                Full DOT application on file and available upon employer request. Application includes complete 10-year employment history, residence history, and all required disclosures. FreeWorld has verified employment history directly with previous carriers.
+                Full DOT application on file and available upon employer request. Application includes complete 10-year employment history, residence history, and all required disclosures.
               </p>
             </Card>
           </div>
@@ -415,33 +383,79 @@ export default function DriverPortfolio() {
         {/* DRIVER STORY TAB */}
         {activeTab === "story" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            {/* Video Embed */}
-            <Card style={{ padding: 0, overflow: "hidden" }}>
-              <div style={{ background: "#004751", padding: "20px 16px 8px" }}>
-                <div style={{ fontSize: 12, color: "#CDF95C", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600, marginBottom: 6 }}>Video Introduction</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: "#FFFFFF", fontFamily: "Georgia, serif" }}>Hear James's Story</div>
-              </div>
-              <video
-                controls
-                style={{ width: "100%", maxHeight: "70vh", objectFit: "contain", display: "block", background: "#000" }}
-              >
-                <source src="/james-story.mp4" type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
-            </Card>
+            {/* Video Embed - only if video URL exists */}
+            {d.videoUrl && (
+              <Card style={{ padding: 0, overflow: "hidden" }}>
+                <div style={{ background: "#004751", padding: "20px 16px 8px" }}>
+                  <div style={{ fontSize: 12, color: "#CDF95C", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600, marginBottom: 6 }}>Video Introduction</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: "#FFFFFF", fontFamily: "Georgia, serif" }}>Hear {d.name.split(' ')[0]}'s Story</div>
+                </div>
+                {d.videoUrl.includes('youtube.com') || d.videoUrl.includes('youtu.be') ? (
+                  <div style={{ position: "relative", paddingBottom: "56.25%", height: 0 }}>
+                    <iframe
+                      src={`https://www.youtube.com/embed/${extractYouTubeId(d.videoUrl)}`}
+                      style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                ) : (
+                  <video
+                    controls
+                    style={{ width: "100%", maxHeight: "70vh", objectFit: "contain", display: "block", background: "#000" }}
+                  >
+                    <source src={d.videoUrl} type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
+                )}
+              </Card>
+            )}
 
-            <Card>
-              <SectionTitle icon="📝">About James</SectionTitle>
-              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.8, color: "#2A3A40" }}>{d.story}</p>
-            </Card>
+            {/* Story/Narrative */}
+            {d.story && (
+              <Card>
+                <SectionTitle>About {d.name.split(' ')[0]}</SectionTitle>
+                <p style={{ margin: 0, fontSize: 15, lineHeight: 1.8, color: "#2A3A40" }}>{d.story}</p>
+              </Card>
+            )}
 
-            <Card style={{ background: "#004751", color: "#FFFFFF", border: "none" }}>
-              <div style={{ fontSize: 12, color: "#CDF95C", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600, marginBottom: 10 }}>In His Own Words</div>
-              <p style={{ margin: 0, fontSize: "clamp(15px, 4vw, 17px)", lineHeight: 1.8, fontStyle: "italic", fontFamily: "Georgia, serif", color: "#E8EDF0" }}>
-                "{d.whyTrucking}"
-              </p>
-              <p style={{ margin: "12px 0 0", fontSize: 14, color: "#B0CDD4" }}>— {d.name}, CDL-A Driver</p>
-            </Card>
+            {/* Pull Quote */}
+            {d.whyTrucking && (
+              <Card style={{ background: "#004751", color: "#FFFFFF", border: "none" }}>
+                <div style={{ fontSize: 12, color: "#CDF95C", textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600, marginBottom: 10 }}>In Their Own Words</div>
+                <p style={{ margin: 0, fontSize: "clamp(15px, 4vw, 17px)", lineHeight: 1.8, fontStyle: "italic", fontFamily: "Georgia, serif", color: "#E8EDF0" }}>
+                  "{d.whyTrucking}"
+                </p>
+                <p style={{ margin: "12px 0 0", fontSize: 14, color: "#B0CDD4" }}>— {d.name}, CDL-{d.cdlClass.replace('Class ', '')} Driver</p>
+              </Card>
+            )}
+
+            {/* If no AI narrative, show raw story responses */}
+            {!d.story && d.storyResponses.whoAreYou && (
+              <Card>
+                <SectionTitle>About {d.name.split(' ')[0]}</SectionTitle>
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {d.storyResponses.whoAreYou && (
+                    <div>
+                      <div style={{ fontSize: 12, color: "#5A7A82", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600, marginBottom: 6 }}>Who They Are</div>
+                      <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, color: "#2A3A40" }}>{d.storyResponses.whoAreYou}</p>
+                    </div>
+                  )}
+                  {d.storyResponses.whyTrucking && (
+                    <div>
+                      <div style={{ fontSize: 12, color: "#5A7A82", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600, marginBottom: 6 }}>Why Trucking</div>
+                      <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, color: "#2A3A40" }}>{d.storyResponses.whyTrucking}</p>
+                    </div>
+                  )}
+                  {d.storyResponses.lookingFor && (
+                    <div>
+                      <div style={{ fontSize: 12, color: "#5A7A82", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600, marginBottom: 6 }}>What They're Looking For</div>
+                      <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, color: "#2A3A40" }}>{d.storyResponses.lookingFor}</p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
           </div>
         )}
       </div>
@@ -449,11 +463,16 @@ export default function DriverPortfolio() {
       {/* Footer */}
       <div style={{ background: "#004751", padding: "16px", marginTop: 32, display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ background: "#CDF95C", color: "#191931", fontWeight: 800, fontSize: 12, padding: "2px 8px", borderRadius: 3 }}>FW.</span>
-          <span style={{ fontSize: 13, color: "#8AAFB8" }}>FreeWorld Driver Talent Portfolio</span>
+          <img src="/fw-logo-white.svg" alt="FreeWorld" style={{ height: 24, width: 24 }} />
+          <span style={{ fontSize: 13, color: "#8AAFB8" }}>FreeWorld Driver Fit Profile</span>
         </div>
         <span style={{ fontSize: 12, color: "#5A7A82" }}>Confidential · Generated February 2026</span>
       </div>
     </div>
   );
+}
+
+function extractYouTubeId(url) {
+  const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
+  return match ? match[1] : '';
 }
