@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
-import { searchFreeAgents, searchCandidates, createCandidate, parseDocuments, fileToBase64 } from '../lib/api';
+import { searchFreeAgents, searchCandidates, createCandidate, parseDocuments, fileToBase64, shortenUrl } from '../lib/api';
 
 const API_BASE = '/api';
 
@@ -704,6 +704,31 @@ function DriverModal({ driver, collaborators, onClose, onSave }) {
   const [formData, setFormData] = useState({ ...driver });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [shortening, setShortening] = useState(null); // 'record' | 'portfolio' | null
+  const [shortLinks, setShortLinks] = useState({});
+
+  const handleShorten = async (type) => {
+    setShortening(type);
+    try {
+      const baseUrl = window.location.origin;
+      let url, title;
+      if (type === 'record') {
+        url = `${baseUrl}/record/${driver.uuid}`;
+        title = `Record Story - ${driver.fullName || driver.name}`;
+      } else {
+        url = `${baseUrl}/portfolio/${driver.portfolio_slug}`;
+        title = `Portfolio - ${driver.fullName || driver.name}`;
+      }
+      const result = await shortenUrl(url, title);
+      setShortLinks(prev => ({ ...prev, [type]: result.shortUrl }));
+      navigator.clipboard.writeText(result.shortUrl);
+      alert(`Short link copied: ${result.shortUrl}`);
+    } catch (err) {
+      alert(`Failed to shorten: ${err.message}`);
+    } finally {
+      setShortening(null);
+    }
+  };
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -894,15 +919,15 @@ function DriverModal({ driver, collaborators, onClose, onSave }) {
               </div>
               <div style={styles.videoActions}>
                 <button
-                  onClick={() => {
-                    const recordUrl = `${window.location.origin}/record/${driver.uuid}`;
-                    navigator.clipboard.writeText(recordUrl);
-                    alert('Recording link copied to clipboard!');
-                  }}
+                  onClick={() => handleShorten('record')}
+                  disabled={shortening === 'record'}
                   style={styles.videoButton}
                 >
-                  Copy Recording Link
+                  {shortening === 'record' ? 'Shortening...' : shortLinks.record ? 'Copy Again' : 'Get Short Link'}
                 </button>
+                {shortLinks.record && (
+                  <span style={styles.shortLinkDisplay}>{shortLinks.record}</span>
+                )}
                 <a
                   href={`/record/${driver.uuid}`}
                   target="_blank"
@@ -927,6 +952,16 @@ function DriverModal({ driver, collaborators, onClose, onSave }) {
               <a href={`/portfolio/${driver.portfolio_slug}`} target="_blank" rel="noopener noreferrer">
                 View Portfolio →
               </a>
+              <button
+                onClick={() => handleShorten('portfolio')}
+                disabled={shortening === 'portfolio'}
+                style={{ ...styles.videoButton, marginLeft: 12 }}
+              >
+                {shortening === 'portfolio' ? '...' : 'Get Short Link'}
+              </button>
+              {shortLinks.portfolio && (
+                <span style={styles.shortLinkDisplay}>{shortLinks.portfolio}</span>
+              )}
             </div>
           )}
         </div>
@@ -1518,5 +1553,14 @@ const styles = {
     padding: '2px 4px',
     borderRadius: 4,
     transition: 'background 0.15s',
+  },
+  shortLinkDisplay: {
+    fontSize: 12,
+    color: '#059669',
+    fontFamily: 'monospace',
+    background: '#D1FAE5',
+    padding: '4px 8px',
+    borderRadius: 4,
+    marginLeft: 8,
   },
 };

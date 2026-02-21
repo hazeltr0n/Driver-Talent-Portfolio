@@ -229,6 +229,17 @@ export async function getClipFeedback(clipUrl, questionNumber) {
   return response.json();
 }
 
+// URL Shortener
+export async function shortenUrl(url, title) {
+  const response = await fetch('/api/shorten', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, title }),
+  });
+  if (!response.ok) throw new Error('Failed to shorten URL');
+  return response.json();
+}
+
 // Helper to convert File to base64
 export function fileToBase64(file) {
   return new Promise((resolve, reject) => {
