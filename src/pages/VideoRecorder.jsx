@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getCandidate, uploadVideoClip, confirmAllClips, transcribeVideoClips, triggerVideoAssembly } from '../lib/api';
+import { getCandidate, uploadVideoClip, confirmAllClips, transcribeVideoClips, triggerVideoAssembly, getClipFeedback, getUploadUrl } from '../lib/api';
 
 const QUESTIONS = [
   {
@@ -112,6 +112,8 @@ export default function VideoRecorder({ uuid }) {
   const [uploadProgress, setUploadProgress] = useState({});
   const [processingStep, setProcessingStep] = useState(null); // null, 'uploading', 'transcribing', 'complete'
   const [seenCoaching, setSeenCoaching] = useState({}); // Track which questions we've seen coaching for
+  const [feedback, setFeedback] = useState(null); // Coaching feedback for current clip
+  const [gettingFeedback, setGettingFeedback] = useState(false);
 
   // Refs
   const videoRef = useRef(null);
@@ -221,16 +223,41 @@ export default function VideoRecorder({ uuid }) {
       }
     };
 
-    recorder.onstop = () => {
+    recorder.onstop = async () => {
       const blob = new Blob(chunksRef.current, { type: 'video/webm' });
-      const url = URL.createObjectURL(blob);
+      const localUrl = URL.createObjectURL(blob);
+      const questionNum = currentQuestion + 1;
 
       setClips((prev) => ({
         ...prev,
-        [currentQuestion + 1]: { blob, url },
+        [questionNum]: { blob, url: localUrl },
       }));
 
+      // Get coaching feedback
+      setGettingFeedback(true);
       setRecordingState('preview');
+
+      try {
+        // Upload to R2 to get a URL for transcription
+        const { uploadUrl, clipKey } = await getUploadUrl(uuid, questionNum);
+        await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'video/webm' },
+          body: blob,
+        });
+
+        const R2_PUBLIC_URL = 'https://pub-8b36f76f7271d135b183f7a7a7d0cb80.r2.dev';
+        const clipUrl = `${R2_PUBLIC_URL}/${clipKey}`;
+
+        // Get feedback from coach
+        const { transcript, feedback: coachFeedback } = await getClipFeedback(clipUrl, questionNum);
+        setFeedback({ transcript, ...coachFeedback });
+      } catch (err) {
+        console.error('Failed to get feedback:', err);
+        setFeedback(null);
+      } finally {
+        setGettingFeedback(false);
+      }
     };
 
     recorder.start(1000); // Collect data every second
@@ -297,10 +324,12 @@ export default function VideoRecorder({ uuid }) {
       delete newClips[questionId];
       return newClips;
     });
+    setFeedback(null);
     setRecordingState('idle');
   }, [currentQuestion]);
 
   const acceptClip = useCallback(() => {
+    setFeedback(null);
     // Move to next question or finish
     if (currentQuestion < QUESTIONS.length - 1) {
       setCurrentQuestion((prev) => prev + 1);
@@ -580,13 +609,36 @@ export default function VideoRecorder({ uuid }) {
           )}
 
           {recordingState === 'preview' && (
-            <div style={styles.previewControls}>
-              <button onClick={retakeRecording} style={styles.retakeButton}>
-                Retake
-              </button>
-              <button onClick={acceptClip} style={styles.acceptButton}>
-                {currentQuestion < QUESTIONS.length - 1 ? 'Next Question' : 'Finish & Upload'}
-              </button>
+            <div style={styles.previewSection}>
+              {gettingFeedback ? (
+                <div style={styles.feedbackLoading}>
+                  <div style={styles.uploadingSpinner} />
+                  <p style={styles.feedbackLoadingText}>Getting feedback from your coach...</p>
+                </div>
+              ) : feedback ? (
+                <div style={styles.feedbackCard}>
+                  <p style={styles.feedbackEncouragement}>{feedback.encouragement}</p>
+                  {feedback.growthNote && (
+                    <p style={styles.feedbackGrowth}>{feedback.growthNote}</p>
+                  )}
+                  {feedback.example && (
+                    <p style={styles.feedbackExample}>
+                      <em>You could say something like: "{feedback.example}"</em>
+                      <br />
+                      <span style={styles.feedbackExampleNote}>(But use your own words!)</span>
+                    </p>
+                  )}
+                </div>
+              ) : null}
+              <div style={styles.previewControls}>
+                <button onClick={retakeRecording} style={styles.retakeButton}>
+                  Re-record
+                </button>
+                <button onClick={acceptClip} style={styles.acceptButton} disabled={gettingFeedback}>
+                  {feedback?.isGoodToGo === false ? 'Keep Anyway' :
+                   currentQuestion < QUESTIONS.length - 1 ? 'Next Question' : 'Finish & Upload'}
+                </button>
+              </div>
             </div>
           )}
 
@@ -890,6 +942,55 @@ const styles = {
     border: 'none',
     borderRadius: 8,
     cursor: 'pointer',
+  },
+  previewSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 16,
+    width: '100%',
+    maxWidth: 400,
+  },
+  feedbackLoading: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 12,
+    padding: 20,
+  },
+  feedbackLoadingText: {
+    color: '#B0CDD4',
+    fontSize: 14,
+    margin: 0,
+  },
+  feedbackCard: {
+    background: 'rgba(205, 249, 92, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    borderLeft: '4px solid #CDF95C',
+  },
+  feedbackEncouragement: {
+    margin: 0,
+    fontSize: 15,
+    color: '#FFFFFF',
+    lineHeight: 1.5,
+  },
+  feedbackGrowth: {
+    margin: '12px 0 0',
+    fontSize: 14,
+    color: '#B0CDD4',
+    lineHeight: 1.5,
+  },
+  feedbackExample: {
+    margin: '12px 0 0',
+    fontSize: 13,
+    color: '#B0CDD4',
+    lineHeight: 1.5,
+    fontStyle: 'italic',
+  },
+  feedbackExampleNote: {
+    fontSize: 12,
+    color: '#5A7A82',
+    fontStyle: 'normal',
   },
   uploadingContainer: {
     display: 'flex',

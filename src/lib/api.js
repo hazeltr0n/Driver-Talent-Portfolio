@@ -219,6 +219,16 @@ export async function transcribeVideoClips(uuid) {
   return response.json();
 }
 
+export async function getClipFeedback(clipUrl, questionNumber) {
+  const response = await fetch('/api/videos/feedback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clipUrl, questionNumber }),
+  });
+  if (!response.ok) throw new Error('Failed to get feedback');
+  return response.json();
+}
+
 // Helper to convert File to base64
 export function fileToBase64(file) {
   return new Promise((resolve, reject) => {
