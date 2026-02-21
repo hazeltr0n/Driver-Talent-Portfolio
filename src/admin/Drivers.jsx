@@ -355,6 +355,21 @@ function AddDriverModal({ onClose, onSuccess, onSelectExisting }) {
   const [parsing, setParsing] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [shortLinks, setShortLinks] = useState({ form: null, portfolio: null });
+  const [shortening, setShortening] = useState(null);
+
+  const handleShorten = async (type, url, title) => {
+    setShortening(type);
+    try {
+      const result = await shortenUrl(url, title);
+      setShortLinks(prev => ({ ...prev, [type]: result.shortUrl }));
+      navigator.clipboard.writeText(result.shortUrl);
+    } catch (err) {
+      console.error('Shorten failed:', err);
+    } finally {
+      setShortening(null);
+    }
+  };
 
   const handleSearch = async () => {
     if (searchQuery.length < 2) return;
@@ -630,25 +645,43 @@ function AddDriverModal({ onClose, onSuccess, onSelectExisting }) {
               <div style={styles.linkBox}>
                 <div style={styles.linkLabel}>Form Link (send to driver):</div>
                 <div style={styles.linkValue}>
-                  {window.location.origin}{result.formUrl}
+                  {shortLinks.form || `${window.location.origin}${result.formUrl}`}
                   <button
-                    onClick={() => navigator.clipboard.writeText(window.location.origin + result.formUrl)}
+                    onClick={() => navigator.clipboard.writeText(shortLinks.form || window.location.origin + result.formUrl)}
                     style={styles.copyButton}
                   >
                     Copy
                   </button>
+                  {!shortLinks.form && (
+                    <button
+                      onClick={() => handleShorten('form', window.location.origin + result.formUrl, `Story Form - ${selectedCandidate.name}`)}
+                      disabled={shortening === 'form'}
+                      style={{ ...styles.copyButton, background: '#059669' }}
+                    >
+                      {shortening === 'form' ? '...' : 'Shorten'}
+                    </button>
+                  )}
                 </div>
               </div>
               <div style={styles.linkBox}>
                 <div style={styles.linkLabel}>Portfolio URL:</div>
                 <div style={styles.linkValue}>
-                  {window.location.origin}{result.portfolioUrl}
+                  {shortLinks.portfolio || `${window.location.origin}${result.portfolioUrl}`}
                   <button
-                    onClick={() => navigator.clipboard.writeText(window.location.origin + result.portfolioUrl)}
+                    onClick={() => navigator.clipboard.writeText(shortLinks.portfolio || window.location.origin + result.portfolioUrl)}
                     style={styles.copyButton}
                   >
                     Copy
                   </button>
+                  {!shortLinks.portfolio && (
+                    <button
+                      onClick={() => handleShorten('portfolio', window.location.origin + result.portfolioUrl, `Portfolio - ${selectedCandidate.name}`)}
+                      disabled={shortening === 'portfolio'}
+                      style={{ ...styles.copyButton, background: '#059669' }}
+                    >
+                      {shortening === 'portfolio' ? '...' : 'Shorten'}
+                    </button>
+                  )}
                 </div>
               </div>
               <div style={styles.actions}>
