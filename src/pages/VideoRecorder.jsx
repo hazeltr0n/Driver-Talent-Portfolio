@@ -166,6 +166,17 @@ export default function VideoRecorder({ uuid }) {
     console.log('[getStream] calling getUserMedia...');
     gettingStreamRef.current = true;
     try {
+      // Request permissions separately first, then stop - prevents Chrome crash
+      // Pattern from InterviewAgent project
+      console.log('[getStream] requesting audio permission first...');
+      const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioStream.getTracks().forEach(track => track.stop());
+      console.log('[getStream] audio permission granted, requesting video...');
+      const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      videoStream.getTracks().forEach(track => track.stop());
+      console.log('[getStream] video permission granted, getting combined stream...');
+
+      // Now get the actual combined stream
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       console.log('[getStream] getUserMedia succeeded');
       streamRef.current = stream;
