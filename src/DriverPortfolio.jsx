@@ -100,7 +100,11 @@ export default function DriverPortfolio({ slug }) {
     setLoading(true);
     setError(null);
 
-    getPortfolio(slug)
+    // Get submission ID from URL query params
+    const urlParams = new URLSearchParams(window.location.search);
+    const submissionId = urlParams.get('submission');
+
+    getPortfolio(slug, submissionId)
       .then((data) => {
         setDriver(data);
         setLoading(false);

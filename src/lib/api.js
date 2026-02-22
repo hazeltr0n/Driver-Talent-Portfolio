@@ -51,8 +51,12 @@ export async function createCandidate(fields) {
   return response.json();
 }
 
-export async function getPortfolio(slug) {
-  const response = await fetch(`/api/portfolio/${slug}`);
+export async function getPortfolio(slug, submissionId = null) {
+  let url = `/api/portfolio/${slug}`;
+  if (submissionId) {
+    url += `?submission=${submissionId}`;
+  }
+  const response = await fetch(url);
   if (!response.ok) {
     if (response.status === 404) return null;
     throw new Error('Failed to load portfolio');
