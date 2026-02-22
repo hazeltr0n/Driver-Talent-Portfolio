@@ -16,7 +16,7 @@ export default function DriverStoryForm({ uuid }) {
     max_commute_miles: "",
     min_weekly_pay: "",
     target_weekly_pay: "",
-    willing_touch_freight: false,
+    willing_touch_freight: "",
   });
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export default function DriverStoryForm({ uuid }) {
           max_commute_miles: data.max_commute_miles || "",
           min_weekly_pay: data.min_weekly_pay?.toString() || "",
           target_weekly_pay: data.target_weekly_pay?.toString() || "",
-          willing_touch_freight: data.willing_touch_freight || false,
+          willing_touch_freight: data.willing_touch_freight || "",
         });
         setLoading(false);
       })
@@ -211,10 +211,11 @@ export default function DriverStoryForm({ uuid }) {
               onChange={(v) => handleChange("max_commute_miles", v)}
               options={["", "25 miles", "50 miles", "75 miles", "100+ miles"]}
             />
-            <Checkbox
-              label="I'm willing to handle touch freight (loading/unloading)"
-              checked={form.willing_touch_freight}
+            <Select
+              label="Willing to handle touch freight?"
+              value={form.willing_touch_freight}
               onChange={(v) => handleChange("willing_touch_freight", v)}
+              options={["", "Very Light (No-Touch Freight)", "Light (Pallet Jack)", "Medium (Dolly/Liftgate)", "Heavy (Very Physical Work)"]}
             />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <Input
@@ -287,20 +288,6 @@ function Select({ label, value, onChange, options }) {
         ))}
       </select>
     </div>
-  );
-}
-
-function Checkbox({ label, checked, onChange }) {
-  return (
-    <label style={styles.checkboxLabel}>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        style={styles.checkbox}
-      />
-      <span>{label}</span>
-    </label>
   );
 }
 
@@ -377,19 +364,6 @@ const styles = {
     background: "#FAFBFB",
     color: "#1A2A30",
     boxSizing: "border-box",
-  },
-  checkboxLabel: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    fontSize: 15,
-    color: "#1A2A30",
-    cursor: "pointer",
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    cursor: "pointer",
   },
   submitButton: {
     width: "100%",

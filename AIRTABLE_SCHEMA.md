@@ -25,7 +25,7 @@ Driver profiles created from Free Agents or manual entry.
 | `home_time_preference` | singleSelect | Daily, Weekly, OTR, Flexible |
 | `min_weekly_pay` | number | |
 | `target_weekly_pay` | number | |
-| `willing_touch_freight` | checkbox | |
+| `willing_touch_freight` | singleSelect | Very Light (No-Touch Freight), Light (Pallet Jack), Medium (Dolly/Liftgate), Heavy (Very Physical Work) |
 | `mvr_status` | singleSelect | Clear, Has Violations |
 | `mvr_violations_3yr` | number | |
 | `mvr_accidents_3yr` | number | |
@@ -76,7 +76,7 @@ Source table synced from external system. Many fields available.
 | `home_time_preference` | singleSelect | Daily, Weekly, OTR, Flexible |
 | `min_weekly_pay` | number | |
 | `target_weekly_pay` | number | |
-| `willing_touch_freight` | checkbox | |
+| `willing_touch_freight` | singleSelect | Very Light (No-Touch Freight), Light (Pallet Jack), Medium (Dolly/Liftgate), Heavy (Very Physical Work) |
 | `mvr_status` | singleSelect | Clear, Has Violations |
 | `mvr_violations_3yr` | number | |
 | `mvr_accidents_3yr` | number | |

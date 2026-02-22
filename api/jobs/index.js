@@ -70,6 +70,7 @@ async function createJob(req, res) {
 
   // Set defaults
   fields.status = fields.status || 'Active';
+  fields.received_date = fields.received_date || new Date().toISOString().split('T')[0];
 
   const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(REQUISITIONS_TABLE)}`;
 
