@@ -169,13 +169,19 @@ export default function VideoRecorder({ uuid }) {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       console.log('[getStream] getUserMedia succeeded');
       streamRef.current = stream;
-      // Delay srcObject assignment to prevent Chrome crash
-      await new Promise(r => setTimeout(r, 100));
-      if (videoRef.current) {
-        console.log('[getStream] assigning srcObject...');
-        videoRef.current.srcObject = stream;
-        console.log('[getStream] srcObject assigned');
-      }
+      // Use double-RAF to safely assign srcObject after layout/paint
+      await new Promise(resolve => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (videoRef.current) {
+              console.log('[getStream] assigning srcObject...');
+              videoRef.current.srcObject = stream;
+              console.log('[getStream] srcObject assigned');
+            }
+            resolve();
+          });
+        });
+      });
       return stream;
     } finally {
       gettingStreamRef.current = false;
@@ -211,9 +217,20 @@ export default function VideoRecorder({ uuid }) {
   }, [getStream]);
 
   // Reconnect video element to existing stream when UI changes
+  // Use requestAnimationFrame + setTimeout to avoid Chrome crashes
   useEffect(() => {
     if (videoRef.current && streamRef.current) {
-      videoRef.current.srcObject = streamRef.current;
+      // Chrome can crash if we assign srcObject during layout/paint
+      // Use double-RAF to ensure we're past the current frame
+      const raf1 = requestAnimationFrame(() => {
+        const raf2 = requestAnimationFrame(() => {
+          if (videoRef.current && streamRef.current) {
+            videoRef.current.srcObject = streamRef.current;
+          }
+        });
+        return () => cancelAnimationFrame(raf2);
+      });
+      return () => cancelAnimationFrame(raf1);
     }
   }, [showIntro, showCoaching, recordingState, currentQuestion]);
 
@@ -221,6 +238,10 @@ export default function VideoRecorder({ uuid }) {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     if (mediaRecorderRef.current?.state !== 'inactive') mediaRecorderRef.current?.stop();
     if (audioRecorderRef.current?.state !== 'inactive') audioRecorderRef.current?.stop();
+    // Clear srcObject before video element switches to prevent Chrome crash
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
   }, []);
 
   const startRecording = useCallback(async () => {
@@ -396,6 +417,12 @@ export default function VideoRecorder({ uuid }) {
     });
     setFeedback(null);
     setRecordingState('idle');
+    // Reconnect stream to video element after returning from preview
+    requestAnimationFrame(() => {
+      if (videoRef.current && streamRef.current) {
+        videoRef.current.srcObject = streamRef.current;
+      }
+    });
   }, [currentQuestion]);
 
   const acceptClip = useCallback(() => {
@@ -574,11 +601,21 @@ export default function VideoRecorder({ uuid }) {
 
         {/* Video */}
         <div className="video-container">
-          {recordingState === 'preview' && hasCurrentClip ? (
-            <video ref={previewRef} src={clips[currentQuestion + 1]?.url} controls playsInline />
-          ) : (
-            <video ref={videoRef} autoPlay playsInline muted />
-          )}
+          {/* Always render both videos to prevent Chrome crash from unmounting video with srcObject */}
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            style={{ display: recordingState === 'preview' && hasCurrentClip ? 'none' : 'block' }}
+          />
+          <video
+            ref={previewRef}
+            src={recordingState === 'preview' && hasCurrentClip ? clips[currentQuestion + 1]?.url : undefined}
+            controls
+            playsInline
+            style={{ display: recordingState === 'preview' && hasCurrentClip ? 'block' : 'none' }}
+          />
 
           {recordingState === 'countdown' && (
             <div className="countdown-overlay">
