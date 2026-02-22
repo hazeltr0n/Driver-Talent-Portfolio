@@ -18,6 +18,7 @@
     "@aws-sdk/client-iam": "^3.995.0",
     "@aws-sdk/client-s3": "^3.995.0",
     "@aws-sdk/s3-request-presigner": "^3.995.0",
+    "@babel/parser": "^7.29.0",
     "@mediapipe/camera_utils": "^0.3.1675466862",
     "@mediapipe/selfie_segmentation": "^0.1.1675465747",
     "@remotion/cli": "^4.0.427",
