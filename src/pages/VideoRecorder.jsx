@@ -169,8 +169,12 @@ export default function VideoRecorder({ uuid }) {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       console.log('[getStream] getUserMedia succeeded');
       streamRef.current = stream;
+      // Delay srcObject assignment to prevent Chrome crash
+      await new Promise(r => setTimeout(r, 100));
       if (videoRef.current) {
+        console.log('[getStream] assigning srcObject...');
         videoRef.current.srcObject = stream;
+        console.log('[getStream] srcObject assigned');
       }
       return stream;
     } finally {
