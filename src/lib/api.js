@@ -166,7 +166,11 @@ export async function getUploadUrl(uuid, questionNumber) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ uuid, questionNumber }),
   });
-  if (!response.ok) throw new Error('Failed to get upload URL');
+  if (!response.ok) {
+    const text = await response.text();
+    console.error('Upload URL API error:', response.status, text);
+    throw new Error(`Upload URL failed: ${response.status}`);
+  }
   return response.json();
 }
 
@@ -225,7 +229,11 @@ export async function getClipFeedback(clipUrl, questionNumber) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ clipUrl, questionNumber }),
   });
-  if (!response.ok) throw new Error('Failed to get feedback');
+  if (!response.ok) {
+    const text = await response.text();
+    console.error('Feedback API error:', response.status, text);
+    throw new Error(`Feedback failed: ${response.status} - ${text.slice(0, 100)}`);
+  }
   return response.json();
 }
 

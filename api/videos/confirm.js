@@ -57,6 +57,7 @@ export default async function handler(req, res) {
         videoClips[`q${clip.questionNumber}`] = {
           key: actualClipKey,
           url: clipUrl,
+          transcript: clip.transcript || '',
           uploadedAt: new Date().toISOString(),
         };
       }
@@ -101,8 +102,8 @@ export default async function handler(req, res) {
 
     res.status(200).json({
       success: true,
-      questionNumber,
-      clipUrl,
+      questionNumber: questionNumber || null,
+      clips: videoClips,
       totalUploaded: uploadedQuestions,
       videoStatus,
     });

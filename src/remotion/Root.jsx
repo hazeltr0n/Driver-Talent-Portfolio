@@ -12,8 +12,8 @@ export const RemotionRoot = () => {
         width={1080}
         height={1920}
         defaultProps={{
-          driverName: 'James H.',
-          driverLocation: 'Dallas, TX',
+          driverName: 'Driver Name',
+          driverLocation: 'City, State',
           clips: [],
         }}
       />

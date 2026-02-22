@@ -1,18 +1,21 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getCandidate, uploadVideoClip, confirmAllClips, transcribeVideoClips, triggerVideoAssembly, getClipFeedback, getUploadUrl } from '../lib/api';
+// Background blur disabled for now - too laggy
+// import * as tf from '@tensorflow/tfjs';
+// import * as bodyPix from '@tensorflow-models/body-pix';
+import { getCandidate, uploadVideoClip, confirmAllClips, triggerVideoAssembly } from '../lib/api';
+import './VideoRecorder.css';
 
 const QUESTIONS = [
   {
     id: 1,
     title: "Who are you?",
     prompt: "Tell me about yourself",
-    cardImage: "/cards/card_01_question.png",
     coaching: {
       why: "This is your first impression. Help them see the person behind the resume.",
       tips: [
         "Start with your name and where you're from",
-        "Share something personal - family, hobbies, what you're about",
-        "Keep it warm and genuine, like meeting someone new",
+        "Mention your years of driving experience",
+        "Keep it warm and genuine",
       ],
       example: "\"I'm Marcus from Memphis. Father of two girls, been driving for 8 years. I'm the guy who shows up early and stays late.\"",
     },
@@ -21,9 +24,8 @@ const QUESTIONS = [
     id: 2,
     title: "What is your why?",
     prompt: "What drives you every day?",
-    cardImage: "/cards/card_02_question.png",
     coaching: {
-      why: "This is powerful. Employers remember drivers who know their purpose.",
+      why: "Employers remember drivers who know their purpose. This shows commitment.",
       tips: [
         "What gets you out of bed every morning?",
         "Who are you doing this for?",
@@ -36,13 +38,12 @@ const QUESTIONS = [
     id: 3,
     title: "Your turning point",
     prompt: "Tell me about a turning point in your life",
-    cardImage: "/cards/card_03_question.png",
     coaching: {
-      why: "Your story is your strength. Focus on the moment you decided to change, not the past.",
+      why: "Your story is your strength. Focus on the decision to change, not the past.",
       tips: [
         "You don't need to share details of your past",
         "Focus on the DECISION to do things differently",
-        "Show growth and accountability - \"I realized...\" \"I decided...\"",
+        "Show growth - \"I realized...\" \"I decided...\"",
       ],
       example: "\"There came a point where I had to ask myself who I wanted to be. I chose to be someone my family could count on.\"",
     },
@@ -51,42 +52,39 @@ const QUESTIONS = [
     id: 4,
     title: "Why trucking?",
     prompt: "What do you love about this career?",
-    cardImage: "/cards/card_04_question.png",
     coaching: {
       why: "Employers want drivers who love the craft, not just anyone looking for a job.",
       tips: [
         "What do you genuinely enjoy about driving?",
-        "The independence? The open road? The pride in hauling freight?",
+        "The independence? The open road? The pride?",
         "Show passion - it sets you apart",
       ],
-      example: "\"There's nothing like being out on the open road, knowing I'm keeping the country moving. I take pride in every load I deliver.\"",
+      example: "\"There's nothing like being out on the open road, knowing I'm keeping the country moving. I take pride in every load.\"",
     },
   },
   {
     id: 5,
     title: "Your next chapter",
     prompt: "What are you looking for in your next company?",
-    cardImage: "/cards/card_05_question.png",
     coaching: {
       why: "This shows you're selective and serious about finding the right fit.",
       tips: [
-        "What matters to you? (Safety culture, respect, home time, growth)",
+        "What matters to you? (Safety, respect, home time)",
         "Be honest about what you need to succeed",
         "This helps match you with the right company",
       ],
-      example: "\"I'm looking for a company that values safety and treats drivers with respect. Somewhere I can build a long-term career.\"",
+      example: "\"I'm looking for a company that values safety and treats drivers with respect. Somewhere I can build a career.\"",
     },
   },
   {
     id: 6,
     title: "Your reputation",
-    prompt: "What would a former manager or dispatcher say about you?",
-    cardImage: "/cards/card_06_question.png",
+    prompt: "What would a former manager say about you?",
     coaching: {
-      why: "Specific examples beat vague promises. This is what hiring managers really want to hear.",
+      why: "Specific examples beat vague promises. This is what hiring managers want.",
       tips: [
         "Think of a real person who supervised you",
-        "Give a SPECIFIC example of your reliability or work ethic",
+        "Give a SPECIFIC example of your reliability",
         "\"They knew they could count on me to...\"",
       ],
       example: "\"My last dispatcher knew he could call me at 3am for an emergency load and I'd be there. I never missed a pickup.\"",
@@ -100,22 +98,19 @@ export default function VideoRecorder({ uuid }) {
   const [driver, setDriver] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Recording state
   const [showIntro, setShowIntro] = useState(true);
   const [showCoaching, setShowCoaching] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [recordingState, setRecordingState] = useState('idle'); // idle, countdown, recording, preview, uploading
+  const [recordingState, setRecordingState] = useState('idle');
   const [countdown, setCountdown] = useState(3);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [clips, setClips] = useState({}); // { 1: { blob, url }, 2: { blob, url }, ... }
+  const [clips, setClips] = useState({});
   const [uploadProgress, setUploadProgress] = useState({});
-  const [processingStep, setProcessingStep] = useState(null); // null, 'uploading', 'transcribing', 'complete'
-  const [seenCoaching, setSeenCoaching] = useState({}); // Track which questions we've seen coaching for
-  const [feedback, setFeedback] = useState(null); // Coaching feedback for current clip
+  const [processingStep, setProcessingStep] = useState(null);
+  const [seenCoaching, setSeenCoaching] = useState({});
+  const [feedback, setFeedback] = useState(null);
   const [gettingFeedback, setGettingFeedback] = useState(false);
 
-  // Refs
   const videoRef = useRef(null);
   const previewRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -123,6 +118,8 @@ export default function VideoRecorder({ uuid }) {
   const chunksRef = useRef([]);
   const timerRef = useRef(null);
   const countdownRef = useRef(null);
+  const deepgramSocketRef = useRef(null);
+  const transcriptRef = useRef('');
 
   // Load driver data
   useEffect(() => {
@@ -131,44 +128,45 @@ export default function VideoRecorder({ uuid }) {
       setLoading(false);
       return;
     }
-
     getCandidate(uuid)
-      .then((data) => {
-        setDriver(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message);
-        setLoading(false);
-      });
+      .then(data => { setDriver(data); setLoading(false); })
+      .catch(err => { setError(err.message); setLoading(false); });
   }, [uuid]);
 
-  // Setup camera on mount
+  // Helper to get/refresh camera stream
+  const getStream = useCallback(async () => {
+    // Check if existing stream is still active
+    if (streamRef.current) {
+      const tracks = streamRef.current.getTracks();
+      const allActive = tracks.length > 0 && tracks.every(t => t.readyState === 'live');
+      if (allActive) return streamRef.current;
+      // Clean up dead stream
+      tracks.forEach(t => t.stop());
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    streamRef.current = stream;
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+    }
+    return stream;
+  }, []);
+
+  // Setup camera
   useEffect(() => {
     let mounted = true;
 
     async function setupCamera() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: 'user',
-            width: { ideal: 1080 },
-            height: { ideal: 1920 },
-            aspectRatio: { ideal: 9/16 },
-          },
-          audio: true,
-        });
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setError('Camera API not available');
+        return;
+      }
 
-        if (mounted) {
-          streamRef.current = stream;
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-          }
-        }
+      try {
+        await getStream();
       } catch (err) {
-        if (mounted) {
-          setError('Camera access denied. Please enable camera permissions.');
-        }
+        console.error('Camera setup failed:', err);
+        if (mounted) setError('Camera access denied. Please enable camera permissions.');
       }
     }
 
@@ -176,151 +174,161 @@ export default function VideoRecorder({ uuid }) {
 
     return () => {
       mounted = false;
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
+      streamRef.current?.getTracks().forEach(track => track.stop());
       if (timerRef.current) clearInterval(timerRef.current);
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
-  }, []);
+  }, [getStream]);
 
-  // Connect stream to video element when it becomes available
+  // Reconnect video when UI changes
   useEffect(() => {
-    if (videoRef.current && streamRef.current && !videoRef.current.srcObject) {
-      videoRef.current.srcObject = streamRef.current;
+    async function reconnect() {
+      if (videoRef.current) {
+        try {
+          const stream = await getStream();
+          videoRef.current.srcObject = stream;
+        } catch (err) {
+          console.error('Failed to reconnect video:', err);
+        }
+      }
     }
-  }, [showIntro, showCoaching, recordingState]); // Only re-check when UI state changes
+    reconnect();
+  }, [showIntro, showCoaching, recordingState, currentQuestion, getStream]);
 
   const stopRecording = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-    }
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (mediaRecorderRef.current?.state !== 'inactive') mediaRecorderRef.current?.stop();
   }, []);
 
-  const startRecording = useCallback(() => {
-    if (!streamRef.current) return;
+  const startRecording = useCallback(async () => {
+    // Ensure we have an active stream
+    let stream;
+    try {
+      stream = await getStream();
+    } catch (err) {
+      console.error('Failed to get stream:', err);
+      setError('Camera access lost. Please refresh and try again.');
+      return;
+    }
+    if (!stream) return;
 
     chunksRef.current = [];
+    transcriptRef.current = '';
     setRecordingTime(0);
     setRecordingState('recording');
 
-    const options = { mimeType: 'video/webm;codecs=vp9,opus' };
-    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-      options.mimeType = 'video/webm';
+    // Start Deepgram streaming - wait for connection before recording
+    try {
+      const tokenRes = await fetch('/api/deepgram-token');
+      const { apiKey } = await tokenRes.json();
+      const socket = new WebSocket(
+        'wss://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&punctuate=true',
+        ['token', apiKey]
+      );
+      socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        const transcript = data.channel?.alternatives?.[0]?.transcript;
+        if (transcript && data.is_final) transcriptRef.current += transcript + ' ';
+      };
+      deepgramSocketRef.current = socket;
+
+      // Wait for socket to open (max 3 seconds)
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => resolve(), 3000);
+        socket.onopen = () => { clearTimeout(timeout); resolve(); };
+        socket.onerror = () => { clearTimeout(timeout); resolve(); }; // Continue anyway
+      });
+    } catch (err) {
+      console.error('Deepgram failed:', err);
     }
 
-    const recorder = new MediaRecorder(streamRef.current, options);
+    const recorder = new MediaRecorder(stream);
     mediaRecorderRef.current = recorder;
 
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         chunksRef.current.push(event.data);
+        if (deepgramSocketRef.current?.readyState === WebSocket.OPEN) {
+          deepgramSocketRef.current.send(event.data);
+        }
       }
     };
 
     recorder.onstop = async () => {
+      deepgramSocketRef.current?.close();
+      deepgramSocketRef.current = null;
+
       const blob = new Blob(chunksRef.current, { type: 'video/webm' });
       const localUrl = URL.createObjectURL(blob);
       const questionNum = currentQuestion + 1;
 
-      setClips((prev) => ({
-        ...prev,
-        [questionNum]: { blob, url: localUrl },
-      }));
-
-      // Get coaching feedback
-      setGettingFeedback(true);
+      setClips(prev => ({ ...prev, [questionNum]: { blob, url: localUrl, transcript } }));
       setRecordingState('preview');
 
+      const transcript = transcriptRef.current.trim();
+      if (!transcript || transcript.length < 10) {
+        setFeedback({ encouragement: "I couldn't hear much. Try again in a quiet spot and speak clearly.", isGoodToGo: false });
+        return;
+      }
+
+      setGettingFeedback(true);
       try {
-        // Upload to R2 to get a URL for transcription
-        const { uploadUrl, clipKey } = await getUploadUrl(uuid, questionNum);
-        await fetch(uploadUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'video/webm' },
-          body: blob,
+        const res = await fetch('/api/videos/feedback-from-transcript', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript, questionNumber: questionNum }),
         });
-
-        const R2_PUBLIC_URL = 'https://pub-8b36f76f7271d135b183f7a7a7d0cb80.r2.dev';
-        const clipUrl = `${R2_PUBLIC_URL}/${clipKey}`;
-
-        // Get feedback from coach
-        const { transcript, feedback: coachFeedback } = await getClipFeedback(clipUrl, questionNum);
+        if (!res.ok) throw new Error('Feedback failed');
+        const coachFeedback = await res.json();
         setFeedback({ transcript, ...coachFeedback });
       } catch (err) {
-        console.error('Failed to get feedback:', err);
-        setFeedback(null);
+        setFeedback({ transcript, encouragement: 'Good effort!', isGoodToGo: true });
       } finally {
         setGettingFeedback(false);
       }
     };
 
-    recorder.start(1000); // Collect data every second
-
+    recorder.start(250);
     timerRef.current = setInterval(() => {
-      setRecordingTime((prev) => {
-        if (prev >= MAX_RECORDING_SECONDS - 1) {
-          stopRecording();
-          return MAX_RECORDING_SECONDS;
-        }
+      setRecordingTime(prev => {
+        if (prev >= MAX_RECORDING_SECONDS - 1) { stopRecording(); return MAX_RECORDING_SECONDS; }
         return prev + 1;
       });
     }, 1000);
-  }, [currentQuestion, stopRecording]);
+  }, [currentQuestion, stopRecording, getStream]);
 
   const startCountdown = useCallback(() => {
     setRecordingState('countdown');
     setCountdown(3);
     let count = 3;
-
     countdownRef.current = setInterval(() => {
       count -= 1;
       setCountdown(count);
-
-      if (count <= 0) {
-        clearInterval(countdownRef.current);
-        startRecording();
-      }
+      if (count <= 0) { clearInterval(countdownRef.current); startRecording(); }
     }, 1000);
   }, [startRecording]);
 
   const handleStartRecording = useCallback(() => {
-    // Show coaching if we haven't seen it for this question yet
     if (!seenCoaching[currentQuestion]) {
       setSeenCoaching(prev => ({ ...prev, [currentQuestion]: true }));
       setShowCoaching(true);
       return;
     }
-    // If coaching already seen, start countdown directly
     startCountdown();
   }, [currentQuestion, seenCoaching, startCountdown]);
 
   const cancelRecording = useCallback(() => {
-    if (countdownRef.current) {
-      clearInterval(countdownRef.current);
-    }
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-    }
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (mediaRecorderRef.current?.state !== 'inactive') mediaRecorderRef.current?.stop();
     setRecordingState('idle');
   }, []);
 
   const retakeRecording = useCallback(() => {
-    // Remove current clip and go back to idle
     const questionId = currentQuestion + 1;
-    setClips((prev) => {
+    setClips(prev => {
       const newClips = { ...prev };
-      if (newClips[questionId]?.url) {
-        URL.revokeObjectURL(newClips[questionId].url);
-      }
+      if (newClips[questionId]?.url) URL.revokeObjectURL(newClips[questionId].url);
       delete newClips[questionId];
       return newClips;
     });
@@ -330,66 +338,47 @@ export default function VideoRecorder({ uuid }) {
 
   const acceptClip = useCallback(() => {
     setFeedback(null);
-    // Move to next question or finish
     if (currentQuestion < QUESTIONS.length - 1) {
-      setCurrentQuestion((prev) => prev + 1);
+      const nextQuestion = currentQuestion + 1;
+      setCurrentQuestion(nextQuestion);
       setRecordingState('idle');
+      // Auto-show coaching for next question
+      if (!seenCoaching[nextQuestion]) {
+        setSeenCoaching(prev => ({ ...prev, [nextQuestion]: true }));
+        setShowCoaching(true);
+      }
     } else {
-      // All questions done - trigger uploads
-      // Pass current clips to avoid stale closure
       uploadAllClips(clips);
     }
-  }, [currentQuestion, clips]);
+  }, [currentQuestion, clips, seenCoaching]);
 
   const uploadAllClips = async (clipsToUpload) => {
     setRecordingState('uploading');
     setProcessingStep('uploading');
     const uploadPromises = [];
 
-    console.log('Uploading clips:', Object.keys(clipsToUpload));
-
     for (let i = 1; i <= QUESTIONS.length; i++) {
       const clip = clipsToUpload[i];
       if (clip?.blob) {
-        console.log(`Uploading Q${i}, blob size:`, clip.blob.size);
-        setUploadProgress((prev) => ({ ...prev, [i]: 'uploading' }));
-
+        setUploadProgress(prev => ({ ...prev, [i]: 'uploading' }));
         const promise = uploadVideoClip(uuid, i, clip.blob)
-          .then((clipInfo) => {
-            console.log(`Q${i} upload complete`);
-            setUploadProgress((prev) => ({ ...prev, [i]: 'done' }));
-            return clipInfo; // Return clip info for batch confirm
+          .then(clipInfo => {
+            setUploadProgress(prev => ({ ...prev, [i]: 'done' }));
+            // Include transcript captured during recording
+            return { ...clipInfo, transcript: clip.transcript || '' };
           })
-          .catch((err) => {
-            console.error(`Q${i} upload failed:`, err);
-            setUploadProgress((prev) => ({ ...prev, [i]: 'error' }));
-            throw err;
-          });
-
+          .catch(err => { setUploadProgress(prev => ({ ...prev, [i]: 'error' })); throw err; });
         uploadPromises.push(promise);
-      } else {
-        console.warn(`Q${i} missing - no clip found`);
       }
     }
 
     try {
-      // Wait for all uploads to R2
       const uploadedClips = await Promise.all(uploadPromises);
-      console.log('All uploads complete, confirming:', uploadedClips);
-
-      // Confirm all clips at once (avoids race condition)
+      // Pass transcripts to confirm - no need to re-transcribe
       await confirmAllClips(uuid, uploadedClips);
-
-      // Now transcribe the clips
-      setProcessingStep('transcribing');
-      await transcribeVideoClips(uuid);
-
-      // Trigger video assembly in background (don't wait)
       triggerVideoAssembly(uuid).catch(console.error);
-
       setProcessingStep('complete');
     } catch (err) {
-      console.error('Processing error:', err);
       setError('Failed to process videos. Please try again.');
       setRecordingState('preview');
       setProcessingStep(null);
@@ -403,73 +392,56 @@ export default function VideoRecorder({ uuid }) {
     }
   };
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  const formatTime = (seconds) => `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`;
 
+  // Loading
   if (loading) {
     return (
-      <div style={styles.container}>
-        <div style={styles.loadingScreen}>
-          <img src="/fw-logo.svg" alt="FreeWorld" style={styles.logo} />
-          <p style={styles.loadingText}>Loading...</p>
+      <div className="recorder">
+        <div className="loading-screen">
+          <img src="/fw-logo.svg" alt="FreeWorld" />
+          <p className="loading-text">Loading...</p>
         </div>
       </div>
     );
   }
 
+  // Error
   if (error) {
     return (
-      <div style={styles.container}>
-        <div style={styles.errorScreen}>
-          <img src="/fw-logo.svg" alt="FreeWorld" style={styles.logo} />
-          <h2 style={styles.errorTitle}>Error</h2>
-          <p style={styles.errorText}>{error}</p>
+      <div className="recorder">
+        <div className="error-screen">
+          <img src="/fw-logo.svg" alt="FreeWorld" />
+          <h2 className="error-title">Error</h2>
+          <p className="error-text">{error}</p>
         </div>
       </div>
     );
   }
 
-  // Intro Screen (first time only)
+  // Intro
   if (showIntro) {
     return (
-      <div style={styles.container}>
-        <div style={styles.introScreen}>
-          <img src="/fw-logo-white.svg" alt="FreeWorld" style={styles.introLogo} />
-          <h1 style={styles.introTitle}>Record Your Story</h1>
-          <p style={styles.introSubtitle}>
+      <div className="recorder">
+        <div className="intro-screen">
+          <img src="/fw-logo-white.svg" alt="FreeWorld" className="intro-logo" />
+          <h1 className="intro-title">Record Your Story</h1>
+          <p className="intro-subtitle">
             You're about to record 6 short video answers. This is your chance to show employers who you really are.
           </p>
-
-          <div style={styles.introSection}>
-            <h3 style={styles.introSectionTitle}>Before You Start</h3>
-            <div style={styles.introTips}>
-              <div style={styles.introTip}>
-                <span style={styles.introTipBullet}>•</span>
-                <span><strong>Lighting:</strong> Face a window or light source.</span>
-              </div>
-              <div style={styles.introTip}>
-                <span style={styles.introTipBullet}>•</span>
-                <span><strong>Quiet space:</strong> No background noise.</span>
-              </div>
-              <div style={styles.introTip}>
-                <span style={styles.introTipBullet}>•</span>
-                <span><strong>Look at the camera:</strong> Not at yourself.</span>
-              </div>
-              <div style={styles.introTip}>
-                <span style={styles.introTipBullet}>•</span>
-                <span><strong>Be yourself:</strong> Speak naturally.</span>
-              </div>
+          <div className="intro-section">
+            <h3 className="intro-section-title">Before You Start</h3>
+            <div className="intro-tips">
+              <div className="intro-tip"><span className="intro-tip-bullet">•</span><span><strong>Lighting:</strong> Face a window or light source.</span></div>
+              <div className="intro-tip"><span className="intro-tip-bullet">•</span><span><strong>Quiet space:</strong> No background noise.</span></div>
+              <div className="intro-tip"><span className="intro-tip-bullet">•</span><span><strong>Look at the camera:</strong> Not at yourself.</span></div>
+              <div className="intro-tip"><span className="intro-tip-bullet">•</span><span><strong>Be yourself:</strong> Speak naturally.</span></div>
             </div>
           </div>
-
-          <div style={styles.introReminder}>
+          <div className="intro-reminder">
             <strong>Remember:</strong> Your story is your strength. Focus on who you are today, not where you've been.
           </div>
-
-          <button onClick={() => { setShowIntro(false); setShowCoaching(true); setSeenCoaching({ 0: true }); }} style={styles.introButton}>
+          <button onClick={() => { setShowIntro(false); setShowCoaching(true); setSeenCoaching({ 0: true }); }} className="intro-btn">
             I'm Ready
           </button>
         </div>
@@ -477,36 +449,24 @@ export default function VideoRecorder({ uuid }) {
     );
   }
 
+  // Success
   if (processingStep === 'complete') {
     return (
-      <div style={styles.container}>
-        <div style={styles.successScreen}>
-          <div style={styles.successIcon}>
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#CDF95C" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <div className="recorder">
+        <div className="success-screen">
+          <div className="success-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9EF01A" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 6L9 17l-5-5" />
             </svg>
           </div>
-          <h1 style={styles.successTitle}>You're All Set!</h1>
-          <p style={styles.successText}>
-            Your story video has been recorded and your responses have been saved to your profile.
-          </p>
-          <div style={styles.successDetails}>
-            <div style={styles.successDetailItem}>
-              <span style={styles.successCheck}>✓</span>
-              <span>6 video clips uploaded</span>
-            </div>
-            <div style={styles.successDetailItem}>
-              <span style={styles.successCheck}>✓</span>
-              <span>Story responses saved</span>
-            </div>
-            <div style={styles.successDetailItem}>
-              <span style={styles.successCheck}>✓</span>
-              <span>Video assembly started</span>
-            </div>
+          <h1 className="success-title">You're All Set!</h1>
+          <p className="success-text">Your story video has been recorded and saved to your profile.</p>
+          <div className="success-details">
+            <div className="success-detail-item"><span className="success-check">✓</span><span>6 video clips uploaded</span></div>
+            <div className="success-detail-item"><span className="success-check">✓</span><span>Story responses saved</span></div>
+            <div className="success-detail-item"><span className="success-check">✓</span><span>Video assembly started</span></div>
           </div>
-          <p style={styles.successSubtext}>
-            Your Career Agent will review your profile soon. You can close this page now.
-          </p>
+          <p className="success-subtext">Your Career Agent will review your profile soon.</p>
         </div>
       </div>
     );
@@ -516,841 +476,162 @@ export default function VideoRecorder({ uuid }) {
   const hasCurrentClip = !!clips[currentQuestion + 1];
 
   return (
-    <div style={styles.container}>
+    <div className="recorder">
       {/* Header */}
-      <div style={styles.header}>
-        <img src="/fw-logo-white.svg" alt="FreeWorld" style={styles.headerLogo} />
-        <span style={styles.headerTitle}>Record Your Story</span>
+      <div className="recorder-header">
+        <img src="/fw-logo-white.svg" alt="FreeWorld" />
+        <span>Record Your Story</span>
       </div>
 
       {/* Progress */}
-      <div style={styles.progressContainer}>
+      <div className="progress-bar">
         {QUESTIONS.map((q, idx) => (
           <button
             key={q.id}
             onClick={() => goToQuestion(idx)}
-            style={{
-              ...styles.progressDot,
-              ...(idx === currentQuestion ? styles.progressDotActive : {}),
-              ...(clips[idx + 1] ? styles.progressDotComplete : {}),
-            }}
+            className={`progress-dot ${idx === currentQuestion ? 'active' : ''} ${clips[idx + 1] ? 'complete' : ''}`}
           >
             {clips[idx + 1] ? '✓' : idx + 1}
           </button>
         ))}
       </div>
 
-      {/* Main Content */}
-      <div style={styles.mainContent}>
-        {/* Question Card */}
-        <div style={styles.questionCard}>
-          <div style={styles.questionNumber}>Question {currentQuestion + 1} of {QUESTIONS.length}</div>
-          <h2 style={styles.questionTitle}>{question.title}</h2>
-          <p style={styles.questionPrompt}>{question.prompt}</p>
+      {/* Main */}
+      <div className="recorder-main">
+        {/* Question */}
+        <div className="question-card">
+          <div className="question-number">Question {currentQuestion + 1} of {QUESTIONS.length}</div>
+          <h2 className="question-title">{question.title}</h2>
+          <p className="question-prompt">{question.prompt}</p>
         </div>
 
-        {/* Video Area */}
-        <div style={styles.videoContainer}>
+        {/* Video */}
+        <div className="video-container">
           {recordingState === 'preview' && hasCurrentClip ? (
-            <video
-              ref={previewRef}
-              src={clips[currentQuestion + 1]?.url}
-              style={styles.video}
-              controls
-              playsInline
-            />
+            <video ref={previewRef} src={clips[currentQuestion + 1]?.url} controls playsInline />
           ) : (
-            <video
-              ref={videoRef}
-              style={styles.video}
-              autoPlay
-              playsInline
-              muted
-            />
+            <video ref={videoRef} autoPlay playsInline muted />
           )}
 
-          {/* Countdown Overlay */}
           {recordingState === 'countdown' && (
-            <div style={styles.countdownOverlay}>
-              <div style={styles.countdownNumber}>{countdown}</div>
+            <div className="countdown-overlay">
+              <div className="countdown-number">{countdown}</div>
             </div>
           )}
 
-          {/* Recording Indicator */}
           {recordingState === 'recording' && (
-            <div style={styles.recordingIndicator}>
-              <div style={styles.recordingDot} />
-              <span style={styles.recordingTime}>{formatTime(recordingTime)}</span>
-              <span style={styles.recordingMax}> / {formatTime(MAX_RECORDING_SECONDS)}</span>
+            <div className="recording-indicator">
+              <div className="recording-dot" />
+              <span className="recording-time">{formatTime(recordingTime)}</span>
+              <span className="recording-max"> / {formatTime(MAX_RECORDING_SECONDS)}</span>
             </div>
           )}
         </div>
 
         {/* Controls */}
-        <div style={styles.controls}>
+        <div className="controls">
           {recordingState === 'idle' && (
-            <button onClick={handleStartRecording} style={styles.recordButton}>
-              <div style={styles.recordButtonInner} />
-              <span style={styles.recordButtonText}>Tap to Record</span>
+            <button onClick={handleStartRecording} className="record-btn">
+              <div className="record-btn-circle" />
+              <span className="record-btn-text">Tap to Record</span>
             </button>
           )}
 
           {recordingState === 'countdown' && (
-            <button onClick={cancelRecording} style={styles.cancelButton}>
-              Cancel
-            </button>
+            <button onClick={cancelRecording} className="cancel-btn">Cancel</button>
           )}
 
           {recordingState === 'recording' && (
-            <button onClick={stopRecording} style={styles.stopButton}>
-              <div style={styles.stopButtonInner} />
-              <span style={styles.recordButtonText}>Stop Recording</span>
+            <button onClick={stopRecording} className="record-btn">
+              <div className="stop-btn-square" />
+              <span className="record-btn-text">Stop Recording</span>
             </button>
           )}
 
-          {recordingState === 'preview' && (
-            <div style={styles.previewSection}>
-              {gettingFeedback ? (
-                <div style={styles.feedbackLoading}>
-                  <div style={styles.uploadingSpinner} />
-                  <p style={styles.feedbackLoadingText}>Getting feedback from your coach...</p>
-                </div>
-              ) : feedback ? (
-                <div style={styles.feedbackCard}>
-                  <p style={styles.feedbackEncouragement}>{feedback.encouragement}</p>
-                  {feedback.growthNote && (
-                    <p style={styles.feedbackGrowth}>{feedback.growthNote}</p>
-                  )}
-                  {feedback.example && (
-                    <p style={styles.feedbackExample}>
-                      <em>You could say something like: "{feedback.example}"</em>
-                      <br />
-                      <span style={styles.feedbackExampleNote}>(But use your own words!)</span>
-                    </p>
-                  )}
-                </div>
-              ) : null}
-              <div style={styles.previewControls}>
-                <button onClick={retakeRecording} style={styles.retakeButton}>
-                  Re-record
-                </button>
-                <button onClick={acceptClip} style={styles.acceptButton} disabled={gettingFeedback}>
-                  {feedback?.isGoodToGo === false ? 'Keep Anyway' :
-                   currentQuestion < QUESTIONS.length - 1 ? 'Next Question' : 'Finish & Upload'}
-                </button>
-              </div>
+          {recordingState === 'preview' && !gettingFeedback && !feedback && (
+            <div className="preview-controls">
+              <button onClick={retakeRecording} className="retake-btn">Re-record</button>
+              <button onClick={acceptClip} className="accept-btn">
+                {currentQuestion < QUESTIONS.length - 1 ? 'Next Question' : 'Finish'}
+              </button>
+            </div>
+          )}
+
+          {recordingState === 'preview' && gettingFeedback && (
+            <div className="feedback-loading">
+              <div className="spinner" />
+              <p className="feedback-loading-text">AI Coach is reviewing...</p>
             </div>
           )}
 
           {recordingState === 'uploading' && (
-            <div style={styles.uploadingContainer}>
-              <div style={styles.uploadingSpinner} />
-              <p style={styles.uploadingText}>
+            <div className="uploading-container">
+              <div className="spinner" />
+              <p className="uploading-text">
                 {processingStep === 'uploading' && 'Uploading your videos...'}
-                {processingStep === 'transcribing' && 'Transcribing your responses...'}
+                {processingStep === 'transcribing' && 'Processing responses...'}
               </p>
-              <div style={styles.uploadProgress}>
-                {processingStep === 'uploading' && QUESTIONS.map((q, idx) => (
-                  <div key={q.id} style={styles.uploadProgressItem}>
-                    <span>Q{idx + 1}</span>
-                    <span style={{
-                      color: uploadProgress[idx + 1] === 'done' ? '#CDF95C' :
-                             uploadProgress[idx + 1] === 'error' ? '#EF4444' :
-                             uploadProgress[idx + 1] === 'uploading' ? '#FFFFFF' : '#5A7A82'
-                    }}>
-                      {uploadProgress[idx + 1] === 'done' ? '✓' :
-                       uploadProgress[idx + 1] === 'error' ? '✗' :
-                       uploadProgress[idx + 1] === 'uploading' ? '...' : '○'}
-                    </span>
-                  </div>
-                ))}
-                {processingStep === 'transcribing' && (
-                  <p style={styles.transcribingNote}>
-                    Converting your spoken answers to text...
-                  </p>
-                )}
-              </div>
+              {processingStep === 'uploading' && (
+                <div className="upload-progress">
+                  {QUESTIONS.map((q, idx) => (
+                    <div key={q.id} className={`upload-progress-item ${uploadProgress[idx + 1] || ''}`}>
+                      <span>Q{idx + 1}</span>
+                      <span>{uploadProgress[idx + 1] === 'done' ? '✓' : uploadProgress[idx + 1] === 'error' ? '✗' : uploadProgress[idx + 1] === 'uploading' ? '...' : '○'}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      {/* Coaching Modal Overlay */}
+      {/* Coaching Modal */}
       {showCoaching && (
-        <div style={styles.coachingOverlay}>
-          <div style={styles.coachingModal}>
-            <div style={styles.coachingHeader}>
-              <span style={styles.coachingQuestionNum}>Question {currentQuestion + 1} of {QUESTIONS.length}</span>
-              <h2 style={styles.coachingTitle}>{question.title}</h2>
+        <div className="coaching-overlay">
+          <div className="coaching-modal">
+            <div className="coaching-header">
+              <span className="coaching-question-num">Question {currentQuestion + 1} of {QUESTIONS.length}</span>
+              <h2 className="coaching-title">{question.title}</h2>
             </div>
-
-            <div style={styles.coachingWhy}>
-              <p style={styles.coachingWhyText}>{question.coaching.why}</p>
+            <p className="coaching-why">{question.coaching.why}</p>
+            <span className="coaching-tips-label">Tips:</span>
+            <ul className="coaching-tips-list">
+              {question.coaching.tips.map((tip, idx) => (
+                <li key={idx} className="coaching-tip-item">{tip}</li>
+              ))}
+            </ul>
+            <div className="coaching-example">
+              <span className="coaching-example-label">Example:</span>
+              <p className="coaching-example-text">{question.coaching.example}</p>
             </div>
+            <button onClick={() => setShowCoaching(false)} className="coaching-btn">Got It</button>
+          </div>
+        </div>
+      )}
 
-            <div style={styles.coachingTips}>
-              <span style={styles.coachingTipsLabel}>Tips:</span>
-              <ul style={styles.coachingTipsList}>
-                {question.coaching.tips.map((tip, idx) => (
-                  <li key={idx} style={styles.coachingTipItem}>{tip}</li>
-                ))}
-              </ul>
+      {/* AI Coach Feedback Modal */}
+      {feedback && recordingState === 'preview' && (
+        <div className="coaching-overlay">
+          <div className="coaching-modal">
+            <div className="feedback-header">
+              <span className="feedback-badge">AI Coach</span>
+              <h2 className="coaching-title">Feedback</h2>
             </div>
-
-            <div style={styles.coachingExample}>
-              <span style={styles.coachingExampleLabel}>Example:</span>
-              <p style={styles.coachingExampleText}>{question.coaching.example}</p>
+            <div className={`feedback-content ${feedback.isGoodToGo === false ? 'needs-work' : ''}`}>
+              <p className="feedback-encouragement">{feedback.encouragement}</p>
+              {feedback.growthNote && <p className="feedback-growth">{feedback.growthNote}</p>}
+              {feedback.example && <p className="feedback-example">Try: "{feedback.example}"</p>}
             </div>
-
-            <button onClick={() => setShowCoaching(false)} style={styles.coachingButton}>
-              Got It
-            </button>
+            <div className="feedback-modal-buttons">
+              <button onClick={retakeRecording} className="retake-btn">Re-record</button>
+              <button onClick={acceptClip} className="accept-btn">
+                {feedback.isGoodToGo === false ? 'Keep Anyway' : currentQuestion < QUESTIONS.length - 1 ? 'Next Question' : 'Finish'}
+              </button>
+            </div>
           </div>
         </div>
       )}
     </div>
   );
-}
-
-const styles = {
-  container: {
-    minHeight: '100vh',
-    background: '#004751',
-    display: 'flex',
-    flexDirection: 'column',
-    fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif",
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    padding: '16px 20px',
-    background: 'rgba(0, 0, 0, 0.2)',
-  },
-  headerLogo: {
-    height: 28,
-    width: 28,
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 600,
-  },
-  progressContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    gap: 8,
-    padding: '12px 20px',
-  },
-  progressDot: {
-    width: 32,
-    height: 32,
-    borderRadius: '50%',
-    border: '2px solid #5A7A82',
-    background: 'transparent',
-    color: '#5A7A82',
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  progressDotActive: {
-    borderColor: '#FFFFFF',
-    color: '#FFFFFF',
-  },
-  progressDotComplete: {
-    borderColor: '#CDF95C',
-    background: '#CDF95C',
-    color: '#004751',
-  },
-  mainContent: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    padding: '0 20px 20px',
-    gap: 16,
-    maxWidth: 500,
-    margin: '0 auto',
-    width: '100%',
-  },
-  questionCard: {
-    background: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    padding: 20,
-    textAlign: 'center',
-  },
-  questionNumber: {
-    fontSize: 12,
-    color: '#CDF95C',
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-    fontWeight: 600,
-    marginBottom: 8,
-  },
-  questionTitle: {
-    margin: 0,
-    fontSize: 24,
-    fontWeight: 700,
-    color: '#FFFFFF',
-    fontFamily: 'Georgia, serif',
-  },
-  questionPrompt: {
-    margin: '8px 0 0',
-    fontSize: 15,
-    color: '#B0CDD4',
-  },
-  videoContainer: {
-    flex: 1,
-    position: 'relative',
-    borderRadius: 16,
-    overflow: 'hidden',
-    background: '#000',
-    minHeight: 300,
-    maxHeight: 500,
-  },
-  video: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
-    transform: 'scaleX(-1)', // Mirror for selfie view
-  },
-  countdownOverlay: {
-    position: 'absolute',
-    inset: 0,
-    background: 'rgba(0, 0, 0, 0.7)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  countdownNumber: {
-    fontSize: 120,
-    fontWeight: 800,
-    color: '#FFFFFF',
-    fontFamily: 'Georgia, serif',
-  },
-  recordingIndicator: {
-    position: 'absolute',
-    top: 16,
-    left: '50%',
-    transform: 'translateX(-50%)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    background: 'rgba(0, 0, 0, 0.6)',
-    padding: '8px 16px',
-    borderRadius: 20,
-  },
-  recordingDot: {
-    width: 12,
-    height: 12,
-    borderRadius: '50%',
-    background: '#EF4444',
-    animation: 'pulse 1s infinite',
-  },
-  recordingTime: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 600,
-    fontVariantNumeric: 'tabular-nums',
-  },
-  recordingMax: {
-    color: '#9CA3AF',
-    fontSize: 14,
-  },
-  controls: {
-    display: 'flex',
-    justifyContent: 'center',
-    padding: '16px 0',
-  },
-  recordButton: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 8,
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    padding: 0,
-  },
-  recordButtonInner: {
-    width: 72,
-    height: 72,
-    borderRadius: '50%',
-    background: '#EF4444',
-    border: '4px solid #FFFFFF',
-  },
-  recordButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 500,
-  },
-  cancelButton: {
-    padding: '14px 32px',
-    fontSize: 16,
-    fontWeight: 600,
-    background: 'rgba(255, 255, 255, 0.2)',
-    color: '#FFFFFF',
-    border: 'none',
-    borderRadius: 8,
-    cursor: 'pointer',
-  },
-  stopButton: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 8,
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    padding: 0,
-  },
-  stopButtonInner: {
-    width: 72,
-    height: 72,
-    borderRadius: 12,
-    background: '#EF4444',
-    border: '4px solid #FFFFFF',
-  },
-  previewControls: {
-    display: 'flex',
-    gap: 12,
-    width: '100%',
-    justifyContent: 'center',
-  },
-  retakeButton: {
-    flex: 1,
-    maxWidth: 150,
-    padding: '14px 24px',
-    fontSize: 16,
-    fontWeight: 600,
-    background: 'rgba(255, 255, 255, 0.2)',
-    color: '#FFFFFF',
-    border: 'none',
-    borderRadius: 8,
-    cursor: 'pointer',
-  },
-  acceptButton: {
-    flex: 1,
-    maxWidth: 200,
-    padding: '14px 24px',
-    fontSize: 16,
-    fontWeight: 600,
-    background: '#CDF95C',
-    color: '#004751',
-    border: 'none',
-    borderRadius: 8,
-    cursor: 'pointer',
-  },
-  previewSection: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 16,
-    width: '100%',
-    maxWidth: 400,
-  },
-  feedbackLoading: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 12,
-    padding: 20,
-  },
-  feedbackLoadingText: {
-    color: '#B0CDD4',
-    fontSize: 14,
-    margin: 0,
-  },
-  feedbackCard: {
-    background: 'rgba(205, 249, 92, 0.1)',
-    borderRadius: 12,
-    padding: 16,
-    borderLeft: '4px solid #CDF95C',
-  },
-  feedbackEncouragement: {
-    margin: 0,
-    fontSize: 15,
-    color: '#FFFFFF',
-    lineHeight: 1.5,
-  },
-  feedbackGrowth: {
-    margin: '12px 0 0',
-    fontSize: 14,
-    color: '#B0CDD4',
-    lineHeight: 1.5,
-  },
-  feedbackExample: {
-    margin: '12px 0 0',
-    fontSize: 13,
-    color: '#B0CDD4',
-    lineHeight: 1.5,
-    fontStyle: 'italic',
-  },
-  feedbackExampleNote: {
-    fontSize: 12,
-    color: '#5A7A82',
-    fontStyle: 'normal',
-  },
-  uploadingContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 16,
-  },
-  uploadingSpinner: {
-    width: 48,
-    height: 48,
-    border: '4px solid rgba(255, 255, 255, 0.2)',
-    borderTopColor: '#CDF95C',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite',
-  },
-  uploadingText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    margin: 0,
-  },
-  uploadProgress: {
-    display: 'flex',
-    gap: 16,
-  },
-  uploadProgressItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 4,
-    color: '#5A7A82',
-    fontSize: 12,
-  },
-  tips: {
-    padding: '12px 20px',
-    background: 'rgba(205, 249, 92, 0.1)',
-    borderRadius: 8,
-    margin: '0 20px 20px',
-  },
-  tipText: {
-    margin: 0,
-    fontSize: 14,
-    color: '#B0CDD4',
-    textAlign: 'center',
-  },
-  loadingScreen: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 20,
-  },
-  logo: {
-    height: 48,
-    width: 48,
-  },
-  loadingText: {
-    color: '#B0CDD4',
-    fontSize: 16,
-    margin: 0,
-  },
-  errorScreen: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-    padding: 20,
-    textAlign: 'center',
-  },
-  errorTitle: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    margin: 0,
-    fontFamily: 'Georgia, serif',
-  },
-  errorText: {
-    color: '#B0CDD4',
-    fontSize: 16,
-    margin: 0,
-  },
-  successScreen: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 20,
-    padding: 20,
-    textAlign: 'center',
-  },
-  successIcon: {
-    width: 100,
-    height: 100,
-    borderRadius: '50%',
-    background: 'rgba(205, 249, 92, 0.2)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  successTitle: {
-    color: '#FFFFFF',
-    fontSize: 32,
-    margin: 0,
-    fontFamily: 'Georgia, serif',
-  },
-  successText: {
-    color: '#B0CDD4',
-    fontSize: 16,
-    margin: 0,
-    maxWidth: 300,
-  },
-  successSubtext: {
-    color: '#5A7A82',
-    fontSize: 14,
-    margin: 0,
-  },
-  successDetails: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 12,
-    background: 'rgba(205, 249, 92, 0.1)',
-    borderRadius: 12,
-    padding: 20,
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  successDetailItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    color: '#B0CDD4',
-    fontSize: 15,
-  },
-  successCheck: {
-    color: '#CDF95C',
-    fontSize: 18,
-    fontWeight: 700,
-  },
-  transcribingNote: {
-    color: '#B0CDD4',
-    fontSize: 14,
-    margin: 0,
-    textAlign: 'center',
-  },
-  // Intro Screen
-  introScreen: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    padding: 24,
-    maxWidth: 500,
-    margin: '0 auto',
-    overflowY: 'auto',
-  },
-  introLogo: {
-    height: 48,
-    width: 48,
-    marginBottom: 16,
-  },
-  introTitle: {
-    margin: 0,
-    fontSize: 28,
-    fontWeight: 700,
-    color: '#FFFFFF',
-    fontFamily: 'Georgia, serif',
-  },
-  introSubtitle: {
-    margin: '12px 0 24px',
-    fontSize: 16,
-    color: '#B0CDD4',
-    lineHeight: 1.5,
-  },
-  introSection: {
-    marginBottom: 24,
-  },
-  introSectionTitle: {
-    margin: '0 0 12px',
-    fontSize: 16,
-    fontWeight: 600,
-    color: '#CDF95C',
-  },
-  introTips: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 12,
-  },
-  introTip: {
-    display: 'flex',
-    gap: 12,
-    fontSize: 14,
-    color: '#FFFFFF',
-    lineHeight: 1.4,
-  },
-  introTipBullet: {
-    fontSize: 18,
-    color: '#CDF95C',
-    flexShrink: 0,
-    fontWeight: 700,
-  },
-  introText: {
-    margin: 0,
-    fontSize: 14,
-    color: '#B0CDD4',
-    lineHeight: 1.5,
-  },
-  introReminder: {
-    background: 'rgba(205, 249, 92, 0.15)',
-    borderLeft: '4px solid #CDF95C',
-    padding: 16,
-    borderRadius: '0 8px 8px 0',
-    fontSize: 14,
-    color: '#FFFFFF',
-    lineHeight: 1.5,
-    marginBottom: 24,
-  },
-  introButton: {
-    padding: '16px 32px',
-    fontSize: 18,
-    fontWeight: 700,
-    background: '#CDF95C',
-    color: '#004751',
-    border: 'none',
-    borderRadius: 12,
-    cursor: 'pointer',
-    marginTop: 'auto',
-  },
-  // Coaching Modal Overlay
-  coachingOverlay: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(0, 0, 0, 0.85)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    zIndex: 100,
-  },
-  coachingModal: {
-    background: '#004751',
-    borderRadius: 16,
-    padding: 24,
-    maxWidth: 400,
-    width: '100%',
-    maxHeight: '80vh',
-    overflowY: 'auto',
-    border: '1px solid rgba(205, 249, 92, 0.3)',
-  },
-  coachingHeader: {
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  coachingQuestionNum: {
-    fontSize: 12,
-    color: '#CDF95C',
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-    fontWeight: 600,
-  },
-  coachingTitle: {
-    margin: '8px 0 0',
-    fontSize: 22,
-    fontWeight: 700,
-    color: '#FFFFFF',
-    fontFamily: 'Georgia, serif',
-  },
-  coachingPrompt: {
-    margin: 0,
-    fontSize: 16,
-    color: '#B0CDD4',
-  },
-  coachingWhy: {
-    marginBottom: 12,
-  },
-  coachingWhyLabel: {
-    display: 'block',
-    fontSize: 12,
-    fontWeight: 600,
-    color: '#CDF95C',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 6,
-  },
-  coachingWhyText: {
-    margin: 0,
-    fontSize: 15,
-    color: '#FFFFFF',
-    lineHeight: 1.5,
-  },
-  coachingTips: {
-    marginBottom: 12,
-  },
-  coachingTipsLabel: {
-    display: 'block',
-    fontSize: 12,
-    fontWeight: 600,
-    color: '#CDF95C',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 8,
-  },
-  coachingTipsList: {
-    margin: 0,
-    padding: '0 0 0 20px',
-    listStyle: 'disc',
-  },
-  coachingTipItem: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    lineHeight: 1.6,
-    marginBottom: 6,
-  },
-  coachingExample: {
-    background: 'rgba(205, 249, 92, 0.1)',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-  },
-  coachingExampleLabel: {
-    display: 'block',
-    fontSize: 12,
-    fontWeight: 600,
-    color: '#CDF95C',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 8,
-  },
-  coachingExampleText: {
-    margin: 0,
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontStyle: 'italic',
-    lineHeight: 1.5,
-  },
-  coachingButton: {
-    width: '100%',
-    padding: '14px 24px',
-    fontSize: 16,
-    fontWeight: 700,
-    background: '#CDF95C',
-    color: '#004751',
-    border: 'none',
-    borderRadius: 10,
-    cursor: 'pointer',
-    marginTop: 16,
-  },
-};
-
-// Add CSS animations via style tag
-if (typeof document !== 'undefined') {
-  const styleEl = document.createElement('style');
-  styleEl.textContent = `
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-  `;
-  document.head.appendChild(styleEl);
 }

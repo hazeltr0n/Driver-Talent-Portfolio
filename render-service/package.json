@@ -1,0 +1,14 @@
+{
+  "name": "driver-story-render",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.0",
+    "@remotion/renderer": "^4.0.0",
+    "express": "^4.18.2",
+    "@aws-sdk/client-s3": "^3.0.0"
+  }
+}
