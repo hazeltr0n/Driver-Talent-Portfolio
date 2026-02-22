@@ -311,21 +311,32 @@ export default function VideoRecorder({ uuid }) {
     };
 
     recorder.onstop = async () => {
+      // Stop audio recorder first to flush final chunks
+      if (audioRecorderRef.current?.state !== 'inactive') {
+        audioRecorderRef.current.stop();
+      }
+
+      // Give Deepgram time to process final audio chunks
+      await new Promise(r => setTimeout(r, 500));
+
       // Wait for Deepgram to finish processing remaining audio
       const socket = deepgramSocketRef.current;
       if (socket && socket.readyState === WebSocket.OPEN) {
         // Send close frame and wait for final transcriptions
         await new Promise((resolve) => {
           const timeout = setTimeout(() => {
-            socket.close();
+            if (socket.readyState === WebSocket.OPEN) socket.close();
             resolve();
-          }, 2000); // Max 2 seconds to get final results
+          }, 3000); // 3 seconds to get final results
 
           socket.onclose = () => {
             clearTimeout(timeout);
             resolve();
           };
-          socket.close();
+          // Don't close immediately - let pending messages come through
+          setTimeout(() => {
+            if (socket.readyState === WebSocket.OPEN) socket.close();
+          }, 2500);
         });
       }
       deepgramSocketRef.current = null;
@@ -336,10 +347,18 @@ export default function VideoRecorder({ uuid }) {
       const transcript = transcriptRef.current.trim();
       const speechStart = speechTimingRef.current.start;
       const speechEnd = speechTimingRef.current.end;
-      // Capture the actual recording duration in seconds
-      const durationSeconds = timerRef.current ? recordingTime + 1 : recordingTime;
 
-      setClips(prev => ({ ...prev, [questionNum]: { blob, url: localUrl, transcript, speechStart, speechEnd, durationSeconds } }));
+      // Get actual duration from the video blob
+      const tempVideo = document.createElement('video');
+      tempVideo.src = localUrl;
+      tempVideo.onloadedmetadata = () => {
+        const durationSeconds = Math.ceil(tempVideo.duration);
+        setClips(prev => ({ ...prev, [questionNum]: { blob, url: localUrl, transcript, speechStart, speechEnd, durationSeconds } }));
+      };
+      // Fallback if metadata doesn't load
+      tempVideo.onerror = () => {
+        setClips(prev => ({ ...prev, [questionNum]: { blob, url: localUrl, transcript, speechStart, speechEnd, durationSeconds: 60 } }));
+      };
       setRecordingState('preview');
       if (!transcript || transcript.length < 10) {
         setFeedback({ encouragement: "I couldn't hear much. Try again in a quiet spot and speak clearly.", isGoodToGo: false });

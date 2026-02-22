@@ -23,6 +23,7 @@
     "@mediapipe/selfie_segmentation": "^0.1.1675465747",
     "@remotion/cli": "^4.0.427",
     "@remotion/lambda": "^4.0.427",
+    "@remotion/media-utils": "^4.0.427",
     "@tensorflow-models/body-pix": "^2.2.1",
     "@tensorflow/tfjs": "^4.22.0",
     "dotenv": "^17.3.1",

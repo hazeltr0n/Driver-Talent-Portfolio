@@ -64,10 +64,13 @@ export default async function handler(req, res) {
       ? `${fields.city}, ${fields.state}`
       : 'United States';
 
-    const clips = requiredClips.map((key, index) => {
+    // Build clips - use speechEnd + buffer as duration (when speech ended + 2s)
+    const clips = requiredClips.map((key) => {
       const clip = videoClips[key];
-      // Use actual recorded duration, fallback to 60 seconds
-      const durationSeconds = clip.durationSeconds || 60;
+      // Priority: stored duration > speechEnd + 2s buffer > 30s default
+      const durationSeconds = clip.durationSeconds
+        || (clip.speechEnd ? Math.ceil(clip.speechEnd + 2) : 30);
+
       return {
         url: clip.url,
         durationInFrames: Math.ceil(durationSeconds * 30), // 30fps

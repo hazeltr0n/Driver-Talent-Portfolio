@@ -1,4 +1,5 @@
 import { Composition } from 'remotion';
+import { getVideoMetadata } from '@remotion/media-utils';
 import { DriverStoryVideo } from './DriverStoryVideo.jsx';
 
 const FPS = 30;
@@ -7,30 +8,36 @@ const CARD_DURATION = 4 * FPS; // 4 seconds for question cards
 const OUTRO_DURATION = 4 * FPS;
 const TRANSITION_FRAMES = 30; // 1 second overlap
 
-const calculateDuration = ({ props }) => {
+const calculateDuration = async ({ props }) => {
   const { clips } = props;
+
+  // Get actual video durations from files
+  const clipsWithDuration = await Promise.all(
+    clips.map(async (clip) => {
+      try {
+        const metadata = await getVideoMetadata(clip.url);
+        return {
+          ...clip,
+          durationInFrames: Math.ceil(metadata.durationInSeconds * FPS),
+        };
+      } catch (e) {
+        // Fallback if can't read metadata
+        return {
+          ...clip,
+          durationInFrames: clip.durationInFrames || FPS * 30,
+        };
+      }
+    })
+  );
 
   // Intro (minus overlap with first card)
   let totalFrames = INTRO_DURATION - TRANSITION_FRAMES;
 
-  for (const clip of clips) {
+  for (const clip of clipsWithDuration) {
     // Question card (minus overlap with clip)
     totalFrames += CARD_DURATION - TRANSITION_FRAMES;
-
-    // Clip duration based on speech timing or default
-    const trimStart = clip.trimStart ?? 0;
-    const trimEnd = clip.trimEnd ?? null;
-
-    let clipDuration;
-    if (trimEnd !== null && trimEnd > trimStart) {
-      const speechDuration = trimEnd - trimStart;
-      clipDuration = Math.ceil((speechDuration + 3) * FPS); // +3s buffer
-    } else {
-      clipDuration = clip.durationInFrames || FPS * 45;
-    }
-
     // Clip (minus overlap with next card)
-    totalFrames += clipDuration - TRANSITION_FRAMES;
+    totalFrames += clip.durationInFrames - TRANSITION_FRAMES;
   }
 
   // Outro (full duration, no overlap after)
@@ -38,6 +45,10 @@ const calculateDuration = ({ props }) => {
 
   return {
     durationInFrames: totalFrames,
+    props: {
+      ...props,
+      clips: clipsWithDuration, // Pass clips with actual durations
+    },
   };
 };
 
