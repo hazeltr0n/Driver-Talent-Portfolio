@@ -1,5 +1,4 @@
 import { Composition } from 'remotion';
-import { getVideoMetadata } from '@remotion/media-utils';
 import { DriverStoryVideo } from './DriverStoryVideo.jsx';
 
 const FPS = 30;
@@ -11,17 +10,11 @@ const TRANSITION_FRAMES = 30; // 1 second overlap
 const calculateDuration = async ({ props }) => {
   const { clips } = props;
 
-  // Get actual video durations from the files
-  const clipsWithDuration = await Promise.all(
-    clips.map(async (clip, index) => {
-      const metadata = await getVideoMetadata(clip.url);
-      console.log(`[Clip ${index + 1}] ${metadata.durationInSeconds.toFixed(1)}s`);
-      return {
-        ...clip,
-        durationInFrames: Math.ceil(metadata.durationInSeconds * FPS),
-      };
-    })
-  );
+  // Duration already set by render-service using ffprobe
+  const clipsWithDuration = clips.map((clip, index) => {
+    console.log(`[Clip ${index + 1}] ${(clip.durationInFrames / FPS).toFixed(1)}s (${clip.durationInFrames} frames)`);
+    return clip;
+  });
 
   // Intro (minus overlap with first card)
   let totalFrames = INTRO_DURATION - TRANSITION_FRAMES;
