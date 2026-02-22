@@ -138,51 +138,26 @@ export default function VideoRecorder({ uuid }) {
 
   // Helper to get/refresh camera stream
   const getStream = useCallback(async () => {
-    console.log('[getStream] called');
-    // Check if existing stream is still active
+    // Reuse existing active stream
     if (streamRef.current) {
       const tracks = streamRef.current.getTracks();
       const allActive = tracks.length > 0 && tracks.every(t => t.readyState === 'live');
-      if (allActive) {
-        console.log('[getStream] reusing existing stream');
-        return streamRef.current;
-      }
-      // Clean up dead stream
-      console.log('[getStream] cleaning up dead stream');
+      if (allActive) return streamRef.current;
       tracks.forEach(t => t.stop());
     }
 
-    // Prevent concurrent getUserMedia calls (crashes Chrome)
+    // Prevent concurrent getUserMedia calls
     if (gettingStreamRef.current) {
-      console.log('[getStream] waiting for existing request');
-      // Wait for existing request to complete
       while (gettingStreamRef.current) {
         await new Promise(r => setTimeout(r, 50));
       }
-      console.log('[getStream] returning after wait');
       return streamRef.current;
     }
 
-    console.log('[getStream] calling getUserMedia...');
     gettingStreamRef.current = true;
     try {
-      // Request audio permission first, stop it, delay, then get combined stream
-      // This prevents Chrome from crashing on the permission dialog
-      console.log('[getStream] requesting audio permission first...');
-      const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioStream.getTracks().forEach(track => track.stop());
-      console.log('[getStream] audio permission granted, waiting before video...');
-
-      // Wait for browser to settle before video permission request
-      await new Promise(r => setTimeout(r, 500));
-
-      // Now get the actual combined stream (video permission will be requested here)
-      console.log('[getStream] requesting video+audio...');
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      console.log('[getStream] getUserMedia succeeded');
       streamRef.current = stream;
-      // Don't assign srcObject here - let the useEffect handle it after intro
-      // This prevents Chrome from crashing when permission dialog shows with video element
       return stream;
     } finally {
       gettingStreamRef.current = false;
@@ -214,9 +189,18 @@ export default function VideoRecorder({ uuid }) {
     }
 
     // Connect stream to video element after intro dismissed
-    if (!showIntro && streamRef.current && videoRef.current) {
-      videoRef.current.srcObject = streamRef.current;
-      videoRef.current.play().catch(() => {});
+    // Use setTimeout to ensure DOM has rendered the video element
+    if (!showIntro && streamRef.current) {
+      const connectStream = () => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = streamRef.current;
+          videoRef.current.play().catch(() => {});
+        } else {
+          // Video element not ready yet, try again
+          setTimeout(connectStream, 50);
+        }
+      };
+      setTimeout(connectStream, 0);
     }
 
     return () => {
