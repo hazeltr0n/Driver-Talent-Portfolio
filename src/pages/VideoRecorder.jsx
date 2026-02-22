@@ -311,13 +311,12 @@ export default function VideoRecorder({ uuid }) {
     };
 
     recorder.onstop = async () => {
-      // Wait for Deepgram to finish processing audio
+      // Wait for Deepgram to finish processing remaining audio
       const socket = deepgramSocketRef.current;
       if (socket && socket.readyState === WebSocket.OPEN) {
         await new Promise((resolve) => {
-          // Wait up to 4 seconds for final transcriptions
+          // Timeout fallback - resolve after 4 seconds max
           const timeout = setTimeout(() => {
-            socket.close();
             resolve();
           }, 4000);
 
@@ -325,6 +324,10 @@ export default function VideoRecorder({ uuid }) {
             clearTimeout(timeout);
             resolve();
           };
+
+          // Send close signal to Deepgram - this triggers it to flush
+          // remaining transcriptions before closing
+          socket.close();
         });
       }
       deepgramSocketRef.current = null;
