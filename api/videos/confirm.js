@@ -1,8 +1,11 @@
 // Confirm video clip upload and update Airtable
+import OpenAI from 'openai';
 
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 const CANDIDATES_TABLE_ID = process.env.AIRTABLE_CANDIDATES_TABLE_ID;
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID || '8b36f76f7271d135b183f7a7a7d0cb80';
 const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || 'driver-story-videos';
@@ -98,6 +101,65 @@ export default async function handler(req, res) {
       }
     }
 
+    // Generate AI narrative when all 6 clips are uploaded
+    let aiFields = {};
+    if (uploadedQuestions >= 6) {
+      try {
+        const driverName = record.fields.fullName || 'This driver';
+        const transcripts = {
+          whoAreYou: videoClips.q1?.transcript || '',
+          whatIsYourWhy: videoClips.q2?.transcript || '',
+          turningPoint: videoClips.q3?.transcript || '',
+          whyTrucking: videoClips.q4?.transcript || '',
+          lookingFor: videoClips.q5?.transcript || '',
+          reputation: videoClips.q6?.transcript || '',
+        };
+
+        // Generate factual narrative
+        const narrativeResponse = await openai.chat.completions.create({
+          model: 'gpt-4o',
+          messages: [
+            {
+              role: 'system',
+              content: `Write a 3-4 sentence factual summary about this CDL driver for recruiters.
+Present facts in the best light without exaggeration or fabrication.
+Include: who they are, their experience/background, what they're looking for in an employer.
+Third person, professional tone. Use their actual words and facts from the transcripts.
+Do not invent details not mentioned in the transcripts.`,
+            },
+            {
+              role: 'user',
+              content: `Driver: ${driverName}\n\nTheir responses:\n${JSON.stringify(transcripts, null, 2)}`,
+            },
+          ],
+          max_tokens: 300,
+        });
+        aiFields.ai_narrative = narrativeResponse.choices[0].message.content;
+
+        // Generate pull quote - use their actual words
+        const quoteResponse = await openai.chat.completions.create({
+          model: 'gpt-4o',
+          messages: [
+            {
+              role: 'system',
+              content: `Extract a direct 1-2 sentence quote from the driver's responses that best represents who they are or what they want.
+Use their actual words as closely as possible. Choose something genuine and compelling.
+Return only the quote text, no quotation marks.`,
+            },
+            {
+              role: 'user',
+              content: JSON.stringify(transcripts),
+            },
+          ],
+          max_tokens: 100,
+        });
+        aiFields.ai_pull_quote = quoteResponse.choices[0].message.content;
+      } catch (aiError) {
+        console.error('AI generation failed:', aiError);
+        // Continue without AI fields - not critical
+      }
+    }
+
     // Update Airtable
     const updateUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${CANDIDATES_TABLE_ID}/${recordId}`;
     const updateResponse = await fetch(updateUrl, {
@@ -111,6 +173,7 @@ export default async function handler(req, res) {
           video_clips: JSON.stringify(videoClips),
           video_status: videoStatus,
           ...storyFields,
+          ...aiFields,
         },
       }),
     });
