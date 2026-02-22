@@ -311,38 +311,23 @@ export default function VideoRecorder({ uuid }) {
     };
 
     recorder.onstop = async () => {
-      // Stop audio recorder first to flush final chunks
-      if (audioRecorderRef.current?.state !== 'inactive') {
-        audioRecorderRef.current.stop();
-      }
-
-      // Give Deepgram time to process final audio chunks
-      await new Promise(r => setTimeout(r, 500));
-
-      // Wait for Deepgram to finish processing remaining audio
+      // Wait for Deepgram to finish processing audio
       const socket = deepgramSocketRef.current;
       if (socket && socket.readyState === WebSocket.OPEN) {
-        // Send close frame and wait for final transcriptions
         await new Promise((resolve) => {
+          // Wait up to 4 seconds for final transcriptions
           const timeout = setTimeout(() => {
-            if (socket.readyState === WebSocket.OPEN) socket.close();
+            socket.close();
             resolve();
-          }, 3000); // 3 seconds to get final results
+          }, 4000);
 
           socket.onclose = () => {
             clearTimeout(timeout);
             resolve();
           };
-          // Don't close immediately - let pending messages come through
-          setTimeout(() => {
-            if (socket.readyState === WebSocket.OPEN) socket.close();
-          }, 2500);
         });
       }
       deepgramSocketRef.current = null;
-
-      // Small delay to ensure all transcript messages are processed
-      await new Promise(r => setTimeout(r, 300));
 
       const blob = new Blob(chunksRef.current, { type: 'video/webm' });
       const localUrl = URL.createObjectURL(blob);
