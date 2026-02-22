@@ -121,6 +121,7 @@ export default function VideoRecorder({ uuid }) {
   const deepgramSocketRef = useRef(null);
   const transcriptRef = useRef('');
   const speechTimingRef = useRef({ start: null, end: null });
+  const gettingStreamRef = useRef(false); // Lock to prevent concurrent getUserMedia calls
 
   // Load driver data
   useEffect(() => {
@@ -145,12 +146,26 @@ export default function VideoRecorder({ uuid }) {
       tracks.forEach(t => t.stop());
     }
 
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    streamRef.current = stream;
-    if (videoRef.current) {
-      videoRef.current.srcObject = stream;
+    // Prevent concurrent getUserMedia calls (crashes Chrome)
+    if (gettingStreamRef.current) {
+      // Wait for existing request to complete
+      while (gettingStreamRef.current) {
+        await new Promise(r => setTimeout(r, 50));
+      }
+      return streamRef.current;
     }
-    return stream;
+
+    gettingStreamRef.current = true;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      return stream;
+    } finally {
+      gettingStreamRef.current = false;
+    }
   }, []);
 
   // Setup camera
