@@ -42,26 +42,37 @@ app.post('/render', async (req, res) => {
   });
 });
 
-// Get video duration using ffprobe
-async function getVideoDuration(url) {
-  return new Promise((resolve, reject) => {
+// Get video duration using ffprobe (download, re-mux to fix metadata, then probe)
+async function getVideoDuration(url, localPath) {
+  // Download the video
+  const response = await fetch(url);
+  const buffer = await response.arrayBuffer();
+  const rawPath = localPath.replace('.webm', '-raw.webm');
+  fs.writeFileSync(rawPath, Buffer.from(buffer));
+
+  // Re-mux with ffmpeg to fix duration metadata (webm from MediaRecorder lacks header duration)
+  await new Promise((resolve) => {
+    const ffmpeg = spawn('ffmpeg', ['-y', '-i', rawPath, '-c', 'copy', localPath]);
+    ffmpeg.on('close', resolve);
+  });
+
+  // Clean up raw file
+  fs.unlinkSync(rawPath);
+
+  // Now ffprobe can read the duration
+  return new Promise((resolve) => {
     const child = spawn('ffprobe', [
       '-v', 'error',
       '-show_entries', 'format=duration',
       '-of', 'default=noprint_wrappers=1:nokey=1',
-      url
+      localPath
     ]);
 
     let output = '';
     child.stdout.on('data', (data) => { output += data.toString(); });
-    child.stderr.on('data', (data) => { console.error('ffprobe stderr:', data.toString()); });
     child.on('close', (code) => {
-      if (code === 0) {
-        const duration = parseFloat(output.trim());
-        resolve(isNaN(duration) ? null : duration);
-      } else {
-        resolve(null);
-      }
+      const duration = parseFloat(output.trim());
+      resolve(code === 0 && !isNaN(duration) ? duration : null);
     });
   });
 }
@@ -73,22 +84,26 @@ async function processRender({ uuid, driverName, driverLocation, clips, musicUrl
   const outputPath = `/tmp/${uuid}-final.mp4`;
   const propsPath = `/tmp/${uuid}-props.json`;
 
-  // Get actual durations using ffprobe
-  console.log('Getting video durations with ffprobe...');
-  const clipsWithDuration = await Promise.all(
-    clips.map(async (c, i) => {
-      const duration = await getVideoDuration(c.url);
-      const frames = duration ? Math.ceil(duration * 30) : null;
-      console.log(`[Clip ${i + 1}] ${duration?.toFixed(1)}s (${frames} frames)`);
-      return { url: c.url, durationInFrames: frames };
-    })
-  );
+  // Download clips and get durations using ffprobe
+  console.log('Downloading clips and getting durations...');
+  const clipsWithDuration = [];
+  for (let i = 0; i < clips.length; i++) {
+    const c = clips[i];
+    const localPath = `/tmp/${uuid}-q${i + 1}.webm`;
+    const duration = await getVideoDuration(c.url, localPath);
+    const frames = duration ? Math.ceil(duration * 30) : null;
+    console.log(`[Clip ${i + 1}] ${duration?.toFixed(1)}s (${frames} frames)`);
+    clipsWithDuration.push({ url: c.url, durationInFrames: frames, localPath });
+  }
 
-  // Write props to file
+  // Write props to file (use local paths for faster rendering)
   const props = {
     driverName: driverName || 'Driver',
     driverLocation: driverLocation || 'United States',
-    clips: clipsWithDuration,
+    clips: clipsWithDuration.map(c => ({
+      url: c.localPath,  // Use local file instead of URL
+      durationInFrames: c.durationInFrames,
+    })),
     musicUrl: musicUrl || null,
   };
 
