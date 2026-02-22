@@ -30,7 +30,7 @@ export default async function handler(req, res) {
   "min_experience_years": number (0 if entry-level or not specified),
   "pay_min": number (weekly, estimate if only hourly/annual given),
   "pay_max": number (weekly, estimate if only hourly/annual given),
-  "equipment_types": "comma-separated list of equipment",
+  "equipment_types": "comma-separated list (use: Dry Van, Reefer, Flatbed, Tanker, Box Truck, Straight Truck, End Dump, Tractor-Trailer)",
   "home_time": "Home Daily" or "Home Weekly" or "Home Bi-weekly" or "Out 2-3 weeks",
   "touch_freight": "Yes" or "No" or "Light" (look for loading/unloading, physical requirements, "no touch", "drop and hook"),
   "endorsements_required": "comma-separated list: Hazmat, Tanker, Doubles/Triples, or empty if none",
@@ -47,6 +47,8 @@ For touch freight:
 For pay conversion:
 - Hourly: multiply by 50 hours/week
 - Annual: divide by 52 weeks
+
+For equipment_types, also check the job title (e.g., "Flatbed Driver" means Flatbed equipment).
 
 If information is not available, use null for strings and 0 for numbers.
 Only return valid JSON.`,

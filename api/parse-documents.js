@@ -194,7 +194,8 @@ async function parseTenstreet(pdfText) {
   "equipment_experience": [{"type": "equipment name", "level": "experience level"}]
 }
 
-For equipment, extract ALL types with experience levels. Include: Tractor-Trailer, Box Truck, Straight Truck, Dry Van, Flatbed, Tanker, Reefer, etc.
+For equipment, extract ALL types with experience levels. Include: Tractor-Trailer, Box Truck, Straight Truck, Dry Van, Flatbed, Tanker, Reefer, End Dump, etc.
+Check BOTH the "Driving Experience" section AND the "Most common trailer" field in employment history.
 Only include equipment where they have actual experience (not "None").
 Only return valid JSON.`,
       },
