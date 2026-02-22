@@ -263,30 +263,20 @@ const BrandedVideoFrame = ({ name, location, videoUrl }) => {
   };
 
   return (
-    <AbsoluteFill style={{ backgroundColor: '#000' }}>
-      {/* Video */}
-      <OffthreadVideo
-        src={videoUrl}
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-        }}
-      />
-
-      {/* Top gradient + logo */}
+    <AbsoluteFill style={{ backgroundColor: '#004751' }}>
+      {/* Top bar - solid */}
       <div
         style={{
           position: 'absolute',
           top: 0,
           left: 0,
           right: 0,
-          height: 120,
-          background: 'linear-gradient(to bottom, rgba(0,71,81,0.8) 0%, rgba(0,71,81,0) 100%)',
+          height: 80,
+          backgroundColor: '#004751',
           display: 'flex',
-          alignItems: 'flex-start',
+          alignItems: 'center',
           justifyContent: 'center',
-          paddingTop: 24,
+          zIndex: 10,
         }}
       >
         <Img
@@ -295,20 +285,40 @@ const BrandedVideoFrame = ({ name, location, videoUrl }) => {
         />
       </div>
 
-      {/* Bottom gradient + name/location */}
+      {/* Video container - inset from frame */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 80,
+          left: 0,
+          right: 0,
+          bottom: 100,
+          overflow: 'hidden',
+        }}
+      >
+        <OffthreadVideo
+          src={videoUrl}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+          }}
+        />
+      </div>
+
+      {/* Bottom bar - solid */}
       <div
         style={{
           position: 'absolute',
           bottom: 0,
           left: 0,
           right: 0,
-          height: 140,
-          background: 'linear-gradient(to top, rgba(0,71,81,0.9) 0%, rgba(0,71,81,0) 100%)',
+          height: 100,
+          backgroundColor: '#004751',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'flex-end',
-          paddingBottom: 32,
+          justifyContent: 'center',
         }}
       >
         <div
@@ -317,7 +327,6 @@ const BrandedVideoFrame = ({ name, location, videoUrl }) => {
             fontWeight: 700,
             color: '#FFFFFF',
             fontFamily: 'Georgia, serif',
-            textShadow: '0 2px 4px rgba(0,0,0,0.5)',
           }}
         >
           {formatName(name)}
@@ -329,7 +338,6 @@ const BrandedVideoFrame = ({ name, location, videoUrl }) => {
               color: '#CDF95C',
               fontWeight: 600,
               marginTop: 4,
-              textShadow: '0 1px 3px rgba(0,0,0,0.5)',
             }}
           >
             {location}

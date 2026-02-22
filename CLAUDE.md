@@ -28,19 +28,33 @@ Tables:
 
 Driver Story Video flow:
 1. Driver visits `/record/{uuid}`
-2. Records 6 video answers in browser
+2. Records 6 video answers in browser (with live Deepgram transcription)
 3. Clips uploaded to Cloudflare R2
-4. Remotion Lambda assembles final video
+4. Railway render service assembles final video with Remotion
 5. Video URL saved to Airtable `video_url` field
+
+To re-render a video:
+```bash
+curl -X POST "https://driver-story-render-production.up.railway.app/render" \
+  -H "Content-Type: application/json" \
+  -d '{"uuid": "THE-UUID-HERE"}'
+```
+Or call `/api/videos/assemble` with `{"uuid": "..."}`
+
+## Deployments
+
+Both services **auto-deploy from git pushes to main**:
+- **Vercel** - Frontend + API (`src/`, `api/`)
+- **Railway** - Video render service (`render-service/`)
 
 ## External Services
 
 - **Airtable** - Database
-- **Cloudflare R2** - Video clip storage
-- **AWS Lambda + Remotion** - Video assembly
+- **Cloudflare R2** - Video clip storage + public assets
+- **Railway + Remotion** - Video assembly (render-service)
 - **OpenAI GPT-4** - Document parsing, AI content generation
 - **Deepgram** - Speech-to-text transcription for video clips
-- **Vercel** - Hosting
+- **Vercel** - Frontend hosting + serverless API
 
 ## Environment Variables
 

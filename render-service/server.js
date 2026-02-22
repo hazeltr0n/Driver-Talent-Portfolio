@@ -55,9 +55,7 @@ async function processRender({ uuid, driverName, driverLocation, clips, musicUrl
     driverLocation: driverLocation || 'United States',
     clips: clips.map(c => ({
       url: c.url,
-      trimStart: c.trimStart || 0,
-      trimEnd: c.trimEnd || null,
-      durationInFrames: c.durationInFrames || 30 * 45,
+      durationInFrames: c.durationInFrames || 30 * 60, // fallback 60 seconds at 30fps
     })),
     musicUrl: musicUrl || null,
   };

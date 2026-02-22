@@ -66,12 +66,11 @@ export default async function handler(req, res) {
 
     const clips = requiredClips.map((key, index) => {
       const clip = videoClips[key];
+      // Use actual recorded duration, fallback to 60 seconds
+      const durationSeconds = clip.durationSeconds || 60;
       return {
         url: clip.url,
-        // Trim data from speech detection (in seconds)
-        trimStart: clip.speechStart ?? 0,
-        trimEnd: clip.speechEnd ?? null,
-        durationInFrames: 30 * 45, // 45 seconds default at 30fps
+        durationInFrames: Math.ceil(durationSeconds * 30), // 30fps
       };
     });
 

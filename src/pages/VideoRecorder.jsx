@@ -336,8 +336,10 @@ export default function VideoRecorder({ uuid }) {
       const transcript = transcriptRef.current.trim();
       const speechStart = speechTimingRef.current.start;
       const speechEnd = speechTimingRef.current.end;
+      // Capture the actual recording duration in seconds
+      const durationSeconds = timerRef.current ? recordingTime + 1 : recordingTime;
 
-      setClips(prev => ({ ...prev, [questionNum]: { blob, url: localUrl, transcript, speechStart, speechEnd } }));
+      setClips(prev => ({ ...prev, [questionNum]: { blob, url: localUrl, transcript, speechStart, speechEnd, durationSeconds } }));
       setRecordingState('preview');
       if (!transcript || transcript.length < 10) {
         setFeedback({ encouragement: "I couldn't hear much. Try again in a quiet spot and speak clearly.", isGoodToGo: false });
@@ -445,12 +447,13 @@ export default function VideoRecorder({ uuid }) {
         const promise = uploadVideoClip(uuid, i, clip.blob)
           .then(clipInfo => {
             setUploadProgress(prev => ({ ...prev, [i]: 'done' }));
-            // Include transcript and speech timing captured during recording
+            // Include transcript, timing, and duration captured during recording
             return {
               ...clipInfo,
               transcript: clip.transcript || '',
               speechStart: clip.speechStart,
               speechEnd: clip.speechEnd,
+              durationSeconds: clip.durationSeconds || 60,
             };
           })
           .catch(err => { setUploadProgress(prev => ({ ...prev, [i]: 'error' })); throw err; });
