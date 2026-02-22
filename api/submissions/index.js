@@ -116,9 +116,6 @@ async function createSubmission(req, res) {
     status: 'Submitted',
     portfolio_slug: portfolioSlug,
     ...fitData,
-    // Linked records for Airtable relationships
-    requisition: [requisition_id], // Link to Job Requisitions
-    candidate: candidate ? [candidate.id] : [], // Link to Candidates
   };
 
   const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(SUBMISSIONS_TABLE)}`;
