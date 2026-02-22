@@ -58,6 +58,8 @@ export default async function handler(req, res) {
           key: actualClipKey,
           url: clipUrl,
           transcript: clip.transcript || '',
+          speechStart: clip.speechStart ?? null,
+          speechEnd: clip.speechEnd ?? null,
           uploadedAt: new Date().toISOString(),
         };
       }

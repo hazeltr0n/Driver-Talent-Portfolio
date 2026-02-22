@@ -68,10 +68,10 @@ export default async function handler(req, res) {
       const clip = videoClips[key];
       return {
         url: clip.url,
-        // Trim data from VAD (in seconds)
+        // Trim data from speech detection (in seconds)
         trimStart: clip.speechStart ?? 0,
         trimEnd: clip.speechEnd ?? null,
-        durationInFrames: 30 * 60, // 60 seconds max at 30fps
+        durationInFrames: 30 * 30, // 30 seconds default at 30fps
       };
     });
 

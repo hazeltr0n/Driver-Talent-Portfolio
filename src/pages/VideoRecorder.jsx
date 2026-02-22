@@ -120,6 +120,7 @@ export default function VideoRecorder({ uuid }) {
   const countdownRef = useRef(null);
   const deepgramSocketRef = useRef(null);
   const transcriptRef = useRef('');
+  const speechTimingRef = useRef({ start: null, end: null });
 
   // Load driver data
   useEffect(() => {
@@ -214,6 +215,7 @@ export default function VideoRecorder({ uuid }) {
 
     chunksRef.current = [];
     transcriptRef.current = '';
+    speechTimingRef.current = { start: null, end: null };
     setRecordingTime(0);
     setRecordingState('recording');
 
@@ -227,8 +229,19 @@ export default function VideoRecorder({ uuid }) {
       );
       socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        const transcript = data.channel?.alternatives?.[0]?.transcript;
-        if (transcript && data.is_final) transcriptRef.current += transcript + ' ';
+        const alt = data.channel?.alternatives?.[0];
+        const transcript = alt?.transcript;
+        if (transcript && data.is_final) {
+          transcriptRef.current += transcript + ' ';
+          // Capture speech timing from words
+          const words = alt?.words;
+          if (words && words.length > 0) {
+            if (speechTimingRef.current.start === null) {
+              speechTimingRef.current.start = words[0].start;
+            }
+            speechTimingRef.current.end = words[words.length - 1].end;
+          }
+        }
       };
       deepgramSocketRef.current = socket;
 
@@ -261,11 +274,12 @@ export default function VideoRecorder({ uuid }) {
       const blob = new Blob(chunksRef.current, { type: 'video/webm' });
       const localUrl = URL.createObjectURL(blob);
       const questionNum = currentQuestion + 1;
-
-      setClips(prev => ({ ...prev, [questionNum]: { blob, url: localUrl, transcript } }));
-      setRecordingState('preview');
-
       const transcript = transcriptRef.current.trim();
+      const speechStart = speechTimingRef.current.start;
+      const speechEnd = speechTimingRef.current.end;
+
+      setClips(prev => ({ ...prev, [questionNum]: { blob, url: localUrl, transcript, speechStart, speechEnd } }));
+      setRecordingState('preview');
       if (!transcript || transcript.length < 10) {
         setFeedback({ encouragement: "I couldn't hear much. Try again in a quiet spot and speak clearly.", isGoodToGo: false });
         return;
@@ -364,8 +378,13 @@ export default function VideoRecorder({ uuid }) {
         const promise = uploadVideoClip(uuid, i, clip.blob)
           .then(clipInfo => {
             setUploadProgress(prev => ({ ...prev, [i]: 'done' }));
-            // Include transcript captured during recording
-            return { ...clipInfo, transcript: clip.transcript || '' };
+            // Include transcript and speech timing captured during recording
+            return {
+              ...clipInfo,
+              transcript: clip.transcript || '',
+              speechStart: clip.speechStart,
+              speechEnd: clip.speechEnd,
+            };
           })
           .catch(err => { setUploadProgress(prev => ({ ...prev, [i]: 'error' })); throw err; });
         uploadPromises.push(promise);

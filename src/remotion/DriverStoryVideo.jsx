@@ -55,14 +55,15 @@ export const DriverStoryVideo = ({ driverName, driverLocation, clips, musicUrl }
     const bufferFrames = trimStart > 0 ? Math.floor(0.3 * fps) : 0;
     const adjustedStartFrame = Math.max(0, startFromFrame - bufferFrames);
 
-    // Calculate duration: if we have trimEnd, use that; otherwise use full clip
+    // Calculate duration: if we have trimEnd, use that; otherwise use default
     let clipDuration;
     if (trimEnd !== null && trimEnd > trimStart) {
       // Duration = (speech end + buffer) - (speech start - buffer)
       const speechDuration = trimEnd - trimStart;
-      clipDuration = Math.ceil((speechDuration + 0.6) * fps); // 0.3s buffer on each side
+      clipDuration = Math.ceil((speechDuration + 1) * fps); // 0.5s buffer on each side
     } else {
-      clipDuration = clip.durationInFrames || fps * 60;
+      // Default to 30 seconds if no timing data (typical answer length)
+      clipDuration = clip.durationInFrames || fps * 30;
     }
 
     sequences.push(
