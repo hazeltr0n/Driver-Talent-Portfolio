@@ -101,6 +101,18 @@ export const DriverStoryVideo = ({ driverName, driverLocation, clips, musicUrl }
 };
 
 const IntroCard = ({ name, location }) => {
+  // Format name as "First L." (first name + last initial)
+  const formatName = (fullName) => {
+    if (!fullName) return 'Driver';
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0];
+    const firstName = parts[0];
+    const lastInitial = parts[parts.length - 1][0];
+    return `${firstName} ${lastInitial}.`;
+  };
+
+  const displayName = formatName(name);
+
   return (
     <AbsoluteFill
       style={{
@@ -112,23 +124,14 @@ const IntroCard = ({ name, location }) => {
         padding: 60,
       }}
     >
-      <div
+      <Img
+        src="https://pub-422282bc0284434c83ea29192d0e301c.r2.dev/assets/FW-Logo-White.png"
         style={{
-          width: 80,
-          height: 80,
+          width: 120,
+          height: 120,
           marginBottom: 48,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
         }}
-      >
-        <svg width="80" height="80" viewBox="0 0 100 100" fill="none">
-          <circle cx="50" cy="50" r="45" stroke="#CDF95C" strokeWidth="4" />
-          <text x="50" y="58" textAnchor="middle" fill="#CDF95C" fontSize="24" fontWeight="bold">
-            FW
-          </text>
-        </svg>
-      </div>
+      />
 
       <div
         style={{
@@ -140,7 +143,7 @@ const IntroCard = ({ name, location }) => {
           marginBottom: 16,
         }}
       >
-        {name}
+        {displayName}
       </div>
 
       <div
@@ -181,6 +184,15 @@ const QuestionCard = ({ number, title, subtitle }) => {
         padding: 60,
       }}
     >
+      <Img
+        src="https://pub-422282bc0284434c83ea29192d0e301c.r2.dev/assets/FW-Logo-White.png"
+        style={{
+          width: 80,
+          height: 80,
+          marginBottom: 32,
+        }}
+      />
+
       <div
         style={{
           fontSize: 64,
@@ -234,27 +246,18 @@ const OutroCard = () => {
         padding: 60,
       }}
     >
-      <div
+      <Img
+        src="https://pub-422282bc0284434c83ea29192d0e301c.r2.dev/assets/FW-Logo-White.png"
         style={{
-          width: 120,
-          height: 120,
+          width: 240,
+          height: 240,
           marginBottom: 48,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
         }}
-      >
-        <svg width="120" height="120" viewBox="0 0 100 100" fill="none">
-          <circle cx="50" cy="50" r="45" stroke="#CDF95C" strokeWidth="4" />
-          <text x="50" y="58" textAnchor="middle" fill="#CDF95C" fontSize="24" fontWeight="bold">
-            FW
-          </text>
-        </svg>
-      </div>
+      />
 
       <div
         style={{
-          fontSize: 48,
+          fontSize: 56,
           fontWeight: 700,
           color: '#FFFFFF',
           fontFamily: 'Georgia, serif',
@@ -267,7 +270,7 @@ const OutroCard = () => {
 
       <div
         style={{
-          fontSize: 24,
+          fontSize: 28,
           color: '#B0CDD4',
           textAlign: 'center',
           marginBottom: 32,
@@ -278,11 +281,12 @@ const OutroCard = () => {
 
       <div
         style={{
-          fontSize: 20,
-          color: '#5A7A82',
+          fontSize: 32,
+          color: '#CDF95C',
+          fontWeight: 600,
         }}
       >
-        freeworld.co
+        www.freeworld.org
       </div>
     </AbsoluteFill>
   );
