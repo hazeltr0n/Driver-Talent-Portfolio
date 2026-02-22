@@ -110,12 +110,29 @@ export const DriverStoryVideo = ({ driverName, driverLocation, clips, musicUrl }
 const FadeInOut = ({ children, durationInFrames, fadeInFrames = 0, fadeOutFrames = 0 }) => {
   const frame = useCurrentFrame();
 
-  const opacity = interpolate(
-    frame,
-    [0, fadeInFrames, durationInFrames - fadeOutFrames, durationInFrames],
-    [fadeInFrames > 0 ? 0 : 1, 1, 1, fadeOutFrames > 0 ? 0 : 1],
-    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
-  );
+  // Build input/output ranges avoiding duplicates
+  const inputRange = [];
+  const outputRange = [];
+
+  if (fadeInFrames > 0) {
+    inputRange.push(0, fadeInFrames);
+    outputRange.push(0, 1);
+  } else {
+    inputRange.push(0);
+    outputRange.push(1);
+  }
+
+  if (fadeOutFrames > 0) {
+    const fadeOutStart = durationInFrames - fadeOutFrames;
+    if (fadeOutStart > inputRange[inputRange.length - 1]) {
+      inputRange.push(fadeOutStart, durationInFrames);
+      outputRange.push(1, 0);
+    }
+  }
+
+  const opacity = inputRange.length > 1
+    ? interpolate(frame, inputRange, outputRange, { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+    : 1;
 
   return (
     <AbsoluteFill style={{ opacity }}>
