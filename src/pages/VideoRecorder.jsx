@@ -166,46 +166,32 @@ export default function VideoRecorder({ uuid }) {
     console.log('[getStream] calling getUserMedia...');
     gettingStreamRef.current = true;
     try {
-      // Request permissions separately first, then stop - prevents Chrome crash
-      // Pattern from InterviewAgent project
+      // Request audio permission first, stop it, delay, then get combined stream
+      // This prevents Chrome from crashing on the permission dialog
       console.log('[getStream] requesting audio permission first...');
       const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioStream.getTracks().forEach(track => track.stop());
-      console.log('[getStream] audio permission granted, requesting video...');
-      const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-      videoStream.getTracks().forEach(track => track.stop());
-      console.log('[getStream] video permission granted, getting combined stream...');
+      console.log('[getStream] audio permission granted, waiting before video...');
 
-      // Now get the actual combined stream
+      // Wait for browser to settle before video permission request
+      await new Promise(r => setTimeout(r, 500));
+
+      // Now get the actual combined stream (video permission will be requested here)
+      console.log('[getStream] requesting video+audio...');
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       console.log('[getStream] getUserMedia succeeded');
       streamRef.current = stream;
-      // Use double-RAF to safely assign srcObject after layout/paint
-      await new Promise(resolve => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if (videoRef.current) {
-              console.log('[getStream] assigning srcObject...');
-              videoRef.current.srcObject = stream;
-              // Manually call play() instead of autoPlay to avoid Chrome crash
-              videoRef.current.play().catch(() => {});
-              console.log('[getStream] srcObject assigned and play() called');
-            }
-            resolve();
-          });
-        });
-      });
+      // Don't assign srcObject here - let the useEffect handle it after intro
+      // This prevents Chrome from crashing when permission dialog shows with video element
       return stream;
     } finally {
       gettingStreamRef.current = false;
     }
   }, []);
 
-  // Setup camera - only after intro is dismissed so video element exists
+  // Setup camera - request during intro (no video element = no Chrome crash)
+  // Then connect stream to video element after intro dismissed
   useEffect(() => {
-    // Don't request camera while intro is showing (video element doesn't exist)
-    if (showIntro) return;
-
     let mounted = true;
 
     async function setupCamera() {
@@ -222,7 +208,16 @@ export default function VideoRecorder({ uuid }) {
       }
     }
 
-    setupCamera();
+    // Request camera during intro - permission dialog won't conflict with video element
+    if (showIntro && !streamRef.current) {
+      setupCamera();
+    }
+
+    // Connect stream to video element after intro dismissed
+    if (!showIntro && streamRef.current && videoRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch(() => {});
+    }
 
     return () => {
       mounted = false;
