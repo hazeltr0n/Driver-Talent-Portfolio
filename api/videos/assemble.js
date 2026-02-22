@@ -1,14 +1,11 @@
-// Video assembly endpoint - triggers Remotion Lambda to stitch clips
-import { renderMediaOnLambda, getRenderProgress } from '@remotion/lambda/client';
+// Video assembly endpoint - triggers render service to stitch clips
 
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 const CANDIDATES_TABLE_ID = process.env.AIRTABLE_CANDIDATES_TABLE_ID;
 
-// Remotion Lambda config
-const REMOTION_REGION = process.env.REMOTION_AWS_REGION || 'us-east-1';
-const REMOTION_FUNCTION_NAME = process.env.REMOTION_FUNCTION_NAME || 'remotion-render-4-0-427-mem2048mb-disk2048mb-900sec';
-const REMOTION_SERVE_URL = process.env.REMOTION_SERVE_URL || 'https://remotionlambda-useast1-vw9j7zavih.s3.us-east-1.amazonaws.com/sites/driver-story/index.html';
+// Railway render service
+const RENDER_SERVICE_URL = process.env.RENDER_SERVICE_URL || 'https://driver-story-render-production.up.railway.app';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -93,47 +90,33 @@ export default async function handler(req, res) {
       }),
     });
 
-    // Trigger Remotion Lambda render
-    const { renderId, bucketName } = await renderMediaOnLambda({
-      region: REMOTION_REGION,
-      functionName: REMOTION_FUNCTION_NAME,
-      serveUrl: REMOTION_SERVE_URL,
-      composition: 'DriverStoryVideo',
-      inputProps: {
-        driverName,
-        driverLocation,
-        clips,
-        musicUrl: null, // Add background music URL if available
-      },
-      codec: 'h264',
-      imageFormat: 'jpeg',
-      maxRetries: 1,
-      privacy: 'public',
-      outName: `${uuid}-final.mp4`,
-    });
-
-    // Store render ID for status checking
-    await fetch(updateUrl, {
-      method: 'PATCH',
+    // Trigger Railway render service
+    const renderResponse = await fetch(`${RENDER_SERVICE_URL}/render`, {
+      method: 'POST',
       headers: {
-        Authorization: `Bearer ${AIRTABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        fields: {
-          video_render_id: renderId,
-        },
+        uuid,
+        driverName,
+        driverLocation,
+        clips,
       }),
     });
+
+    if (!renderResponse.ok) {
+      const errorData = await renderResponse.json();
+      throw new Error(errorData.error || 'Render service error');
+    }
+
+    await renderResponse.json();
 
     res.status(200).json({
       success: true,
       message: 'Video assembly started',
       uuid,
-      renderId,
-      bucketName,
       status: 'processing',
-      note: 'Video processing has started. Check /api/videos/render-status for progress.',
+      note: 'Video processing has started. The service will update Airtable when complete.',
     });
   } catch (error) {
     console.error('Assembly error:', error);
