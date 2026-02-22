@@ -252,6 +252,20 @@ export async function shortenUrl(url, title) {
   return response.json();
 }
 
+// Regenerate AI fields for a candidate or submission
+export async function regenerateAI({ uuid, submissionId, fields }) {
+  const response = await fetch('/api/candidates/regenerate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uuid, submissionId, fields }),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Regeneration failed');
+  }
+  return response.json();
+}
+
 // Helper to convert File to base64
 export function fileToBase64(file) {
   return new Promise((resolve, reject) => {

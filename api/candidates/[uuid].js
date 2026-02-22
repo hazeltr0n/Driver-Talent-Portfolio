@@ -72,8 +72,11 @@ async function updateCandidate(uuid, updates, res) {
     'zipcode', 'home_time_preference', 'shift_preference', 'willing_overtime',
     'max_commute_miles', 'min_weekly_pay', 'target_weekly_pay', 'willing_touch_freight',
     // Compliance/Safety
-    'mvr_status', 'mvr_violations_3yr', 'mvr_accidents_3yr',
+    'mvr_status', 'mvr_violations_3yr', 'mvr_accidents_3yr', 'mvr_suspensions_3yr',
+    'mvr_last_pull', 'mvr_summary', 'medical_card_status',
     'clearinghouse_status', 'psp_crashes_5yr', 'psp_inspections_3yr', 'psp_driver_oos',
+    // Training
+    'training_school', 'training_location', 'training_graduated', 'training_hours',
     // AI Generated
     'ai_recruiter_notes', 'ai_narrative', 'ai_pull_quote',
     // Portfolio

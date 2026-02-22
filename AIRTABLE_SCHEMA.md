@@ -32,6 +32,10 @@ Driver profiles created from Free Agents or manual entry.
 | `mvr_status` | singleSelect | Clear, Has Violations |
 | `mvr_violations_3yr` | number | |
 | `mvr_accidents_3yr` | number | |
+| `mvr_suspensions_3yr` | number | |
+| `mvr_last_pull` | singleLineText | |
+| `mvr_summary` | multilineText | Override auto-generated summary |
+| `medical_card_status` | singleSelect | Valid, Expired, Pending |
 | `clearinghouse_status` | singleSelect | Clear, Not Clear |
 | `psp_crashes_5yr` | number | |
 | `psp_inspections_3yr` | number | |
@@ -43,6 +47,10 @@ Driver profiles created from Free Agents or manual entry.
 | `notes` | multilineText | |
 | `employment_history` | multilineText | JSON array |
 | `equipment_experience` | multilineText | JSON array |
+| `training_school` | singleLineText | |
+| `training_location` | singleLineText | |
+| `training_graduated` | singleLineText | |
+| `training_hours` | number | |
 | `ai_recruiter_notes` | multilineText | |
 | `ai_narrative` | multilineText | |
 | `ai_pull_quote` | multilineText | |

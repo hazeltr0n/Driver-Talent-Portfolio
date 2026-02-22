@@ -77,6 +77,20 @@ const FIELDS_TO_ADD = [
   { name: 'story_why_trucking', type: 'multilineText' },
   { name: 'story_looking_for', type: 'multilineText' },
   { name: 'story_what_others_say', type: 'multilineText' },
+
+  // Training (for portfolio display)
+  { name: 'training_school', type: 'singleLineText' },
+  { name: 'training_location', type: 'singleLineText' },
+  { name: 'training_graduated', type: 'singleLineText' },
+  { name: 'training_hours', type: 'number', options: { precision: 0 } },
+
+  // Additional compliance fields
+  { name: 'medical_card_status', type: 'singleSelect', options: { choices: [
+    { name: 'Valid' }, { name: 'Expired' }, { name: 'Pending' }
+  ]}},
+  { name: 'mvr_suspensions_3yr', type: 'number', options: { precision: 0 } },
+  { name: 'mvr_last_pull', type: 'singleLineText' },
+  { name: 'mvr_summary', type: 'multilineText' },
 ];
 
 async function addField(field) {

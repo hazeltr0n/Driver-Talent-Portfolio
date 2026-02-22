@@ -149,8 +149,9 @@ function transformToPortfolio(id, f) {
     })),
 
     training: {
-      school: f['Trucking School Name'] || '',
-      graduated: f['CDL Month'] || '',
+      school: f.training_school || f['Trucking School Name'] || '',
+      location: f.training_location || '',
+      graduated: f.training_graduated || f['CDL Month'] || '',
       hours: f.training_hours || 160,
     },
 
@@ -171,9 +172,9 @@ function transformToPortfolio(id, f) {
     mvrDetails: {
       violations: f.mvr_violations_3yr || 0,
       accidents: f.mvr_accidents_3yr || 0,
-      suspensions: 0,
-      lastPull: 'On File',
-      summary: buildMVRSummary(f),
+      suspensions: f.mvr_suspensions_3yr || 0,
+      lastPull: f.mvr_last_pull || 'On File',
+      summary: f.mvr_summary || buildMVRSummary(f),
     },
 
     pspDetails: {
@@ -184,6 +185,7 @@ function transformToPortfolio(id, f) {
 
     license: {
       medicalCardStatus: f.medical_card_status || 'Valid',
+      medicalCardExpiry: f.medical_card_expiry || '',
     },
 
     jobFit: parseJSON(f.job_fit_data, null),
