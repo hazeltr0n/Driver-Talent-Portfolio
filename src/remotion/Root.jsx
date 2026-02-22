@@ -3,9 +3,9 @@ import { DriverStoryVideo } from './DriverStoryVideo.jsx';
 
 const FPS = 30;
 const INTRO_DURATION = 3 * FPS;
-const CARD_DURATION = 2 * FPS;
+const CARD_DURATION = 4 * FPS; // 4 seconds for question cards
 const OUTRO_DURATION = 4 * FPS;
-const TRANSITION_FRAMES = 15; // 0.5 second overlap
+const TRANSITION_FRAMES = 30; // 1 second overlap
 
 const calculateDuration = ({ props }) => {
   const { clips } = props;

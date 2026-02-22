@@ -10,9 +10,9 @@ const QUESTIONS = [
 ];
 
 const INTRO_DURATION_SECONDS = 3;
-const CARD_DURATION_SECONDS = 2;
+const CARD_DURATION_SECONDS = 4; // 4 seconds for question cards
 const OUTRO_DURATION_SECONDS = 4;
-const TRANSITION_FRAMES = 15; // 0.5 second transition at 30fps
+const TRANSITION_FRAMES = 30; // 1 second transition at 30fps
 
 export const DriverStoryVideo = ({ driverName, driverLocation, clips, musicUrl }) => {
   const { fps } = useVideoConfig();
@@ -100,7 +100,7 @@ export const DriverStoryVideo = ({ driverName, driverLocation, clips, musicUrl }
     <AbsoluteFill style={{ backgroundColor: '#004751' }}>
       {sequences}
       {musicUrl && (
-        <Audio src={musicUrl} volume={0.15} />
+        <Audio src={musicUrl} volume={0.10} />
       )}
     </AbsoluteFill>
   );
