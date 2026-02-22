@@ -50,8 +50,8 @@ export const DriverStoryVideo = ({ driverName, driverLocation, clips, musicUrl }
     );
     currentFrame += cardDuration - TRANSITION_FRAMES; // Overlap card with clip start
 
-    // Use full clip duration - no trimming
-    const clipDuration = clip.durationInFrames || fps * 60;
+    // Use full clip duration from metadata (set by calculateDuration in Root.jsx)
+    const clipDuration = clip.durationInFrames;
 
     sequences.push(
       <Sequence key={`clip-${index}`} from={currentFrame} durationInFrames={clipDuration}>

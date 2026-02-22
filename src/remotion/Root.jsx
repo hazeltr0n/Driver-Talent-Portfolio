@@ -11,22 +11,15 @@ const TRANSITION_FRAMES = 30; // 1 second overlap
 const calculateDuration = async ({ props }) => {
   const { clips } = props;
 
-  // Get actual video durations from files
+  // Get actual video durations from the files
   const clipsWithDuration = await Promise.all(
-    clips.map(async (clip) => {
-      try {
-        const metadata = await getVideoMetadata(clip.url);
-        return {
-          ...clip,
-          durationInFrames: Math.ceil(metadata.durationInSeconds * FPS),
-        };
-      } catch (e) {
-        // Fallback if can't read metadata
-        return {
-          ...clip,
-          durationInFrames: clip.durationInFrames || FPS * 30,
-        };
-      }
+    clips.map(async (clip, index) => {
+      const metadata = await getVideoMetadata(clip.url);
+      console.log(`[Clip ${index + 1}] ${metadata.durationInSeconds.toFixed(1)}s`);
+      return {
+        ...clip,
+        durationInFrames: Math.ceil(metadata.durationInSeconds * FPS),
+      };
     })
   );
 

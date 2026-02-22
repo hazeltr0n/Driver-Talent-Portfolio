@@ -53,10 +53,7 @@ async function processRender({ uuid, driverName, driverLocation, clips, musicUrl
   const props = {
     driverName: driverName || 'Driver',
     driverLocation: driverLocation || 'United States',
-    clips: clips.map(c => ({
-      url: c.url,
-      durationInFrames: c.durationInFrames || 30 * 60, // fallback 60 seconds at 30fps
-    })),
+    clips: clips.map(c => ({ url: c.url })),
     musicUrl: musicUrl || null,
   };
 

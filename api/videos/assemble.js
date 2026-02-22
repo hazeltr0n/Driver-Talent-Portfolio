@@ -64,18 +64,10 @@ export default async function handler(req, res) {
       ? `${fields.city}, ${fields.state}`
       : 'United States';
 
-    // Build clips - use speechEnd + buffer as duration (when speech ended + 2s)
-    const clips = requiredClips.map((key) => {
-      const clip = videoClips[key];
-      // Priority: stored duration > speechEnd + 2s buffer > 30s default
-      const durationSeconds = clip.durationSeconds
-        || (clip.speechEnd ? Math.ceil(clip.speechEnd + 2) : 30);
-
-      return {
-        url: clip.url,
-        durationInFrames: Math.ceil(durationSeconds * 30), // 30fps
-      };
-    });
+    // Just pass URLs - Remotion will read duration from the video files
+    const clips = requiredClips.map((key) => ({
+      url: videoClips[key].url,
+    }));
 
     // Background music
     const musicUrl = 'https://pub-422282bc0284434c83ea29192d0e301c.r2.dev/assets/UpbeatInspiration.mp3';

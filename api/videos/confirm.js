@@ -63,7 +63,6 @@ export default async function handler(req, res) {
           transcript: clip.transcript || '',
           speechStart: clip.speechStart ?? null,
           speechEnd: clip.speechEnd ?? null,
-          durationSeconds: clip.durationSeconds ?? 60,
           uploadedAt: new Date().toISOString(),
         };
       }

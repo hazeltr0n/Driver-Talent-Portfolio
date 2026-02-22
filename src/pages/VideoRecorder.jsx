@@ -118,11 +118,8 @@ export default function VideoRecorder({ uuid }) {
   const chunksRef = useRef([]);
   const timerRef = useRef(null);
   const countdownRef = useRef(null);
-  const deepgramSocketRef = useRef(null);
-  const transcriptRef = useRef('');
-  const speechTimingRef = useRef({ start: null, end: null });
   const gettingStreamRef = useRef(false); // Lock to prevent concurrent getUserMedia calls
-  const audioRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
 
   // Load driver data
   useEffect(() => {
@@ -228,7 +225,6 @@ export default function VideoRecorder({ uuid }) {
   const stopRecording = useCallback(() => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     if (mediaRecorderRef.current?.state !== 'inactive') mediaRecorderRef.current?.stop();
-    if (audioRecorderRef.current?.state !== 'inactive') audioRecorderRef.current?.stop();
     // Clear srcObject before video element switches to prevent Chrome crash
     if (videoRef.current) {
       videoRef.current.srcObject = null;
@@ -248,55 +244,17 @@ export default function VideoRecorder({ uuid }) {
     if (!stream) return;
 
     chunksRef.current = [];
-    transcriptRef.current = '';
-    speechTimingRef.current = { start: null, end: null };
+    audioChunksRef.current = [];
     setRecordingTime(0);
     setRecordingState('recording');
-
-    // Start Deepgram streaming - wait for connection before recording
-    try {
-      const tokenRes = await fetch('/api/deepgram-token');
-      const { apiKey } = await tokenRes.json();
-      const socket = new WebSocket(
-        'wss://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&punctuate=true',
-        ['token', apiKey]
-      );
-      socket.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        const alt = data.channel?.alternatives?.[0];
-        const transcript = alt?.transcript;
-        if (transcript && data.is_final) {
-          transcriptRef.current += transcript + ' ';
-          // Capture speech timing from words
-          const words = alt?.words;
-          if (words && words.length > 0) {
-            if (speechTimingRef.current.start === null) {
-              speechTimingRef.current.start = words[0].start;
-            }
-            speechTimingRef.current.end = words[words.length - 1].end;
-          }
-        }
-      };
-      deepgramSocketRef.current = socket;
-
-      // Wait for socket to open (max 3 seconds)
-      await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => resolve(), 3000);
-        socket.onopen = () => { clearTimeout(timeout); resolve(); };
-        socket.onerror = () => { clearTimeout(timeout); resolve(); }; // Continue anyway
-      });
-    } catch (err) {
-      console.error('Deepgram failed:', err);
-    }
 
     const recorder = new MediaRecorder(stream);
     mediaRecorderRef.current = recorder;
 
-    // Create audio-only stream for Deepgram
+    // Create audio-only recorder for transcription
     const audioTracks = stream.getAudioTracks();
     const audioStream = new MediaStream(audioTracks);
     const audioRecorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm' });
-    audioRecorderRef.current = audioRecorder;
 
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
@@ -305,59 +263,61 @@ export default function VideoRecorder({ uuid }) {
     };
 
     audioRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0 && deepgramSocketRef.current?.readyState === WebSocket.OPEN) {
-        deepgramSocketRef.current.send(event.data);
+      console.log('Audio chunk received:', event.data.size);
+      if (event.data.size > 0) {
+        audioChunksRef.current.push(event.data);
       }
     };
 
     recorder.onstop = async () => {
-      // Wait for Deepgram to finish processing remaining audio
-      const socket = deepgramSocketRef.current;
-      if (socket && socket.readyState === WebSocket.OPEN) {
+      // Stop audio recorder and wait for final chunk
+      if (audioRecorder.state !== 'inactive') {
         await new Promise((resolve) => {
-          // Timeout fallback - resolve after 4 seconds max
-          const timeout = setTimeout(() => {
-            resolve();
-          }, 4000);
-
-          socket.onclose = () => {
-            clearTimeout(timeout);
-            resolve();
-          };
-
-          // Send close signal to Deepgram - this triggers it to flush
-          // remaining transcriptions before closing
-          socket.close();
+          audioRecorder.onstop = resolve;
+          audioRecorder.stop();
         });
       }
-      deepgramSocketRef.current = null;
 
       const blob = new Blob(chunksRef.current, { type: 'video/webm' });
       const localUrl = URL.createObjectURL(blob);
       const questionNum = currentQuestion + 1;
-      const transcript = transcriptRef.current.trim();
-      const speechStart = speechTimingRef.current.start;
-      const speechEnd = speechTimingRef.current.end;
 
-      // Get actual duration from the video blob
-      const durationSeconds = await new Promise((resolve) => {
-        const tempVideo = document.createElement('video');
-        tempVideo.src = localUrl;
-        tempVideo.onloadedmetadata = () => resolve(Math.ceil(tempVideo.duration));
-        tempVideo.onerror = () => resolve(60);
-        // Timeout fallback
-        setTimeout(() => resolve(60), 2000);
-      });
+      // Transcribe audio using REST API
+      setGettingFeedback(true);
+      let transcript = '';
+      let speechStart = null;
+      let speechEnd = null;
 
-      setClips(prev => ({ ...prev, [questionNum]: { blob, url: localUrl, transcript, speechStart, speechEnd, durationSeconds } }));
+      try {
+        console.log('Audio chunks collected:', audioChunksRef.current.length);
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        console.log('Audio blob size:', audioBlob.size);
+        const transcribeRes = await fetch('/api/transcribe', {
+          method: 'POST',
+          body: audioBlob,
+        });
+        console.log('Transcribe response status:', transcribeRes.status);
+        if (transcribeRes.ok) {
+          const data = await transcribeRes.json();
+          transcript = data.transcript || '';
+          if (data.words && data.words.length > 0) {
+            speechStart = data.words[0].start;
+            speechEnd = data.words[data.words.length - 1].end;
+          }
+        }
+      } catch (err) {
+        console.error('Transcription failed:', err);
+      }
+
+      setClips(prev => ({ ...prev, [questionNum]: { blob, url: localUrl, transcript, speechStart, speechEnd } }));
       setRecordingState('preview');
 
       if (!transcript || transcript.length < 10) {
         setFeedback({ encouragement: "I couldn't hear much. Try again in a quiet spot and speak clearly.", isGoodToGo: false });
+        setGettingFeedback(false);
         return;
       }
 
-      setGettingFeedback(true);
       try {
         const res = await fetch('/api/videos/feedback-from-transcript', {
           method: 'POST',
@@ -464,7 +424,6 @@ export default function VideoRecorder({ uuid }) {
               transcript: clip.transcript || '',
               speechStart: clip.speechStart,
               speechEnd: clip.speechEnd,
-              durationSeconds: clip.durationSeconds || 60,
             };
           })
           .catch(err => { setUploadProgress(prev => ({ ...prev, [i]: 'error' })); throw err; });
