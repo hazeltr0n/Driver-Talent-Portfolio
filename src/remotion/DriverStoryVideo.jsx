@@ -187,8 +187,8 @@ const QuestionCard = ({ number, title, subtitle }) => {
       <Img
         src="https://pub-422282bc0284434c83ea29192d0e301c.r2.dev/assets/FW-Logo-White.png"
         style={{
-          width: 80,
-          height: 80,
+          width: 120,
+          height: 120,
           marginBottom: 32,
         }}
       />
@@ -221,7 +221,7 @@ const QuestionCard = ({ number, title, subtitle }) => {
       {subtitle && (
         <div
           style={{
-            fontSize: 28,
+            fontSize: 32,
             color: '#B0CDD4',
             textAlign: 'center',
             maxWidth: 800,
@@ -249,15 +249,15 @@ const OutroCard = () => {
       <Img
         src="https://pub-422282bc0284434c83ea29192d0e301c.r2.dev/assets/FW-Logo-White.png"
         style={{
-          width: 240,
-          height: 240,
+          width: 120,
+          height: 120,
           marginBottom: 48,
         }}
       />
 
       <div
         style={{
-          fontSize: 56,
+          fontSize: 72,
           fontWeight: 700,
           color: '#FFFFFF',
           fontFamily: 'Georgia, serif',
@@ -270,7 +270,7 @@ const OutroCard = () => {
 
       <div
         style={{
-          fontSize: 28,
+          fontSize: 32,
           color: '#B0CDD4',
           textAlign: 'center',
           marginBottom: 32,
