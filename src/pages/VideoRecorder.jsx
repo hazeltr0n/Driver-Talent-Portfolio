@@ -14,10 +14,10 @@ const QUESTIONS = [
       why: "This is your first impression. Help them see the person behind the resume.",
       tips: [
         "Start with your name and where you're from",
-        "Mention your years of driving experience",
+        "Share what matters to you - family, goals, values",
         "Keep it warm and genuine",
       ],
-      example: "\"I'm Marcus from Memphis. Father of two girls, been driving for 8 years. I'm the guy who shows up early and stays late.\"",
+      example: "\"I'm Marcus from Memphis. Father of two girls. I'm the kind of person who shows up early and stays late - that's just how I was raised.\"",
     },
   },
   {

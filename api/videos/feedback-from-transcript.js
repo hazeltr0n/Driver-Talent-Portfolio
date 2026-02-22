@@ -6,7 +6,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const QUESTIONS = {
   1: {
     title: 'Who are you?',
-    weSuggested: 'Name, where from, years driving, something personal like family',
+    weSuggested: 'Name, where from, something personal like family or values',
   },
   2: {
     title: 'What is your why?',
