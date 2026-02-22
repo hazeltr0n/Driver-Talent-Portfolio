@@ -14,7 +14,7 @@ const VALID_FIELDS = [
   'cdl_class', 'years_experience', 'endorsements',
   'equipment_experience', 'employment_history',
   // Preferences
-  'home_time_preference', 'min_weekly_pay', 'target_weekly_pay', 'willing_touch_freight',
+  'home_time_preference', 'min_weekly_pay', 'target_weekly_pay',
   // Compliance/Safety
   'mvr_status', 'mvr_violations_3yr', 'mvr_accidents_3yr',
   'clearinghouse_status', 'psp_crashes_5yr', 'psp_inspections_3yr', 'psp_driver_oos',
@@ -69,7 +69,6 @@ export default async function handler(req, res) {
         cdl_class: data.cdl_class,
         endorsements: data.endorsements,
         years_experience: data.years_experience,
-        willing_touch_freight: data.willing_touch_freight,
         employment_history: JSON.stringify(data.employment_history || []),
         equipment_experience: JSON.stringify(data.equipment_experience || []),
       });
@@ -205,12 +204,10 @@ async function parseTenstreet(pdfText) {
   "license_state": "string",
   "license_expiration": "YYYY-MM-DD or null",
   "years_experience": number,
-  "willing_touch_freight": true/false (look for questions about loading/unloading, handling freight, physical labor),
   "employment_history": [{"company": "", "role": "Company Driver", "tenure": "X months", "verified": true, "regulated": true}],
   "equipment_experience": [{"type": "equipment name", "level": "experience level"}]
 }
 
-For touch freight: Look for questions like "Are you willing to load/unload?", "Touch freight?", "Physical requirements", etc. Default to true if not found.
 For equipment, extract ALL types with experience levels. Include: Tractor-Trailer, Box Truck, Straight Truck, Dry Van, Flatbed, Tanker, Reefer, etc.
 Only include equipment where they have actual experience (not "None").
 Only return valid JSON.`,
