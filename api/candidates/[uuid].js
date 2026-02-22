@@ -70,7 +70,7 @@ async function updateCandidate(uuid, updates, res) {
     'equipment_experience', 'employment_history',
     // Preferences
     'zipcode', 'home_time_preference', 'shift_preference', 'willing_overtime',
-    'min_weekly_pay', 'target_weekly_pay', 'willing_touch_freight',
+    'max_commute_miles', 'min_weekly_pay', 'target_weekly_pay', 'willing_touch_freight',
     // Compliance/Safety
     'mvr_status', 'mvr_violations_3yr', 'mvr_accidents_3yr',
     'clearinghouse_status', 'psp_crashes_5yr', 'psp_inspections_3yr', 'psp_driver_oos',
