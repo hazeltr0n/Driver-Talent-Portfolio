@@ -142,7 +142,14 @@ export default function VideoRecorder({ uuid }) {
     if (streamRef.current) {
       const tracks = streamRef.current.getTracks();
       const allActive = tracks.length > 0 && tracks.every(t => t.readyState === 'live');
-      if (allActive) return streamRef.current;
+      if (allActive) {
+        // Ensure video element has the stream
+        if (videoRef.current && videoRef.current.srcObject !== streamRef.current) {
+          videoRef.current.srcObject = streamRef.current;
+          videoRef.current.play().catch(() => {});
+        }
+        return streamRef.current;
+      }
       tracks.forEach(t => t.stop());
     }
 
@@ -158,15 +165,21 @@ export default function VideoRecorder({ uuid }) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       streamRef.current = stream;
+      // Assign to video element if it exists
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(() => {});
+      }
       return stream;
     } finally {
       gettingStreamRef.current = false;
     }
   }, []);
 
-  // Setup camera - request during intro (no video element = no Chrome crash)
-  // Then connect stream to video element after intro dismissed
+  // Setup camera after intro dismissed (video element exists)
   useEffect(() => {
+    if (showIntro) return; // Wait until intro is dismissed
+
     let mounted = true;
 
     async function setupCamera() {
@@ -183,25 +196,7 @@ export default function VideoRecorder({ uuid }) {
       }
     }
 
-    // Request camera during intro - permission dialog won't conflict with video element
-    if (showIntro && !streamRef.current) {
-      setupCamera();
-    }
-
-    // Connect stream to video element after intro dismissed
-    // Use setTimeout to ensure DOM has rendered the video element
-    if (!showIntro && streamRef.current) {
-      const connectStream = () => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = streamRef.current;
-          videoRef.current.play().catch(() => {});
-        } else {
-          // Video element not ready yet, try again
-          setTimeout(connectStream, 50);
-        }
-      };
-      setTimeout(connectStream, 0);
-    }
+    setupCamera();
 
     return () => {
       mounted = false;
