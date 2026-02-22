@@ -355,7 +355,7 @@ function AddDriverModal({ onClose, onSuccess, onSelectExisting }) {
   const [parsing, setParsing] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
-  const [shortLinks, setShortLinks] = useState({ record: null, portfolio: null });
+  const [shortLinks, setShortLinks] = useState({ form: null, record: null, portfolio: null });
   const [shortening, setShortening] = useState(null);
 
   const handleShorten = async (type, url, title) => {
@@ -642,6 +642,27 @@ function AddDriverModal({ onClose, onSuccess, onSelectExisting }) {
             <>
               <div style={styles.successIcon}>✓</div>
               <p style={styles.stepDesc}>Profile created for {selectedCandidate.name}!</p>
+              <div style={styles.linkBox}>
+                <div style={styles.linkLabel}>Preferences Form (send to driver):</div>
+                <div style={styles.linkValue}>
+                  {shortLinks.form || `${window.location.origin}${result.formUrl}`}
+                  <button
+                    onClick={() => navigator.clipboard.writeText(shortLinks.form || window.location.origin + result.formUrl)}
+                    style={styles.copyButton}
+                  >
+                    Copy
+                  </button>
+                  {!shortLinks.form && (
+                    <button
+                      onClick={() => handleShorten('form', window.location.origin + result.formUrl, `Preferences Form - ${selectedCandidate.name}`)}
+                      disabled={shortening === 'form'}
+                      style={{ ...styles.copyButton, background: '#059669' }}
+                    >
+                      {shortening === 'form' ? '...' : 'Shorten'}
+                    </button>
+                  )}
+                </div>
+              </div>
               <div style={styles.linkBox}>
                 <div style={styles.linkLabel}>Video Recording Link (send to driver):</div>
                 <div style={styles.linkValue}>

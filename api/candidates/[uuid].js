@@ -62,14 +62,15 @@ async function updateCandidate(uuid, updates, res) {
 
   const recordId = searchData.records[0].id;
 
-  // Valid fields that can be updated (excludes synced fields like fullName, email, phone, city, state, zipcode)
+  // Valid fields that can be updated (excludes synced fields like fullName, email, phone, city, state)
   // Keep in sync with AIRTABLE_SCHEMA.md
   const VALID_FIELDS = [
     // CDL/Professional
     'cdl_class', 'years_experience', 'endorsements',
     'equipment_experience', 'employment_history',
     // Preferences
-    'home_time_preference', 'min_weekly_pay', 'target_weekly_pay', 'willing_touch_freight',
+    'zipcode', 'home_time_preference', 'shift_preference', 'willing_overtime',
+    'min_weekly_pay', 'target_weekly_pay', 'willing_touch_freight',
     // Compliance/Safety
     'mvr_status', 'mvr_violations_3yr', 'mvr_accidents_3yr',
     'clearinghouse_status', 'psp_crashes_5yr', 'psp_inspections_3yr', 'psp_driver_oos',
