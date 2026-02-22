@@ -824,7 +824,7 @@ function DriverModal({ driver, collaborators, onClose, onSave }) {
     { key: 'home_time_preference', label: 'Home Time Preference', type: 'select', options: ['Daily', 'Weekly', 'OTR', 'Flexible'] },
     { key: 'min_weekly_pay', label: 'Min Weekly Pay', type: 'number' },
     { key: 'target_weekly_pay', label: 'Target Weekly Pay', type: 'number' },
-    { key: 'willing_touch_freight', label: 'Willing Touch Freight', type: 'checkbox' },
+    { key: 'willing_touch_freight', label: 'Willing Touch Freight', type: 'select', options: ['Very Light (No-Touch Freight)', 'Light (Pallet Jack)', 'Medium (Dolly/Liftgate)', 'Heavy (Very Physical Work)'] },
     { key: 'mvr_status', label: 'MVR Status', type: 'select', options: ['Clear', 'Has Violations'] },
     { key: 'mvr_violations_3yr', label: 'MVR Violations (3yr)', type: 'number' },
     { key: 'mvr_accidents_3yr', label: 'MVR Accidents (3yr)', type: 'number' },
