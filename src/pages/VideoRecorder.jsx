@@ -122,6 +122,7 @@ export default function VideoRecorder({ uuid }) {
   const transcriptRef = useRef('');
   const speechTimingRef = useRef({ start: null, end: null });
   const gettingStreamRef = useRef(false); // Lock to prevent concurrent getUserMedia calls
+  const audioRecorderRef = useRef(null);
 
   // Load driver data
   useEffect(() => {
@@ -137,27 +138,36 @@ export default function VideoRecorder({ uuid }) {
 
   // Helper to get/refresh camera stream
   const getStream = useCallback(async () => {
+    console.log('[getStream] called');
     // Check if existing stream is still active
     if (streamRef.current) {
       const tracks = streamRef.current.getTracks();
       const allActive = tracks.length > 0 && tracks.every(t => t.readyState === 'live');
-      if (allActive) return streamRef.current;
+      if (allActive) {
+        console.log('[getStream] reusing existing stream');
+        return streamRef.current;
+      }
       // Clean up dead stream
+      console.log('[getStream] cleaning up dead stream');
       tracks.forEach(t => t.stop());
     }
 
     // Prevent concurrent getUserMedia calls (crashes Chrome)
     if (gettingStreamRef.current) {
+      console.log('[getStream] waiting for existing request');
       // Wait for existing request to complete
       while (gettingStreamRef.current) {
         await new Promise(r => setTimeout(r, 50));
       }
+      console.log('[getStream] returning after wait');
       return streamRef.current;
     }
 
+    console.log('[getStream] calling getUserMedia...');
     gettingStreamRef.current = true;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      console.log('[getStream] getUserMedia succeeded');
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -196,24 +206,17 @@ export default function VideoRecorder({ uuid }) {
     };
   }, [getStream]);
 
-  // Reconnect video when UI changes
+  // Reconnect video element to existing stream when UI changes
   useEffect(() => {
-    async function reconnect() {
-      if (videoRef.current) {
-        try {
-          const stream = await getStream();
-          videoRef.current.srcObject = stream;
-        } catch (err) {
-          console.error('Failed to reconnect video:', err);
-        }
-      }
+    if (videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
     }
-    reconnect();
-  }, [showIntro, showCoaching, recordingState, currentQuestion, getStream]);
+  }, [showIntro, showCoaching, recordingState, currentQuestion]);
 
   const stopRecording = useCallback(() => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     if (mediaRecorderRef.current?.state !== 'inactive') mediaRecorderRef.current?.stop();
+    if (audioRecorderRef.current?.state !== 'inactive') audioRecorderRef.current?.stop();
   }, []);
 
   const startRecording = useCallback(async () => {
@@ -273,12 +276,21 @@ export default function VideoRecorder({ uuid }) {
     const recorder = new MediaRecorder(stream);
     mediaRecorderRef.current = recorder;
 
+    // Create audio-only stream for Deepgram
+    const audioTracks = stream.getAudioTracks();
+    const audioStream = new MediaStream(audioTracks);
+    const audioRecorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm' });
+    audioRecorderRef.current = audioRecorder;
+
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         chunksRef.current.push(event.data);
-        if (deepgramSocketRef.current?.readyState === WebSocket.OPEN) {
-          deepgramSocketRef.current.send(event.data);
-        }
+      }
+    };
+
+    audioRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0 && deepgramSocketRef.current?.readyState === WebSocket.OPEN) {
+        deepgramSocketRef.current.send(event.data);
       }
     };
 
@@ -334,6 +346,7 @@ export default function VideoRecorder({ uuid }) {
     };
 
     recorder.start(250);
+    audioRecorder.start(250);
     timerRef.current = setInterval(() => {
       setRecordingTime(prev => {
         if (prev >= MAX_RECORDING_SECONDS - 1) { stopRecording(); return MAX_RECORDING_SECONDS; }
