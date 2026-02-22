@@ -268,7 +268,23 @@ export default function VideoRecorder({ uuid }) {
     };
 
     recorder.onstop = async () => {
-      deepgramSocketRef.current?.close();
+      // Wait for Deepgram to finish processing remaining audio
+      const socket = deepgramSocketRef.current;
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        // Send close frame and wait for final transcriptions
+        await new Promise((resolve) => {
+          const timeout = setTimeout(() => {
+            socket.close();
+            resolve();
+          }, 2000); // Max 2 seconds to get final results
+
+          socket.onclose = () => {
+            clearTimeout(timeout);
+            resolve();
+          };
+          socket.close();
+        });
+      }
       deepgramSocketRef.current = null;
 
       const blob = new Blob(chunksRef.current, { type: 'video/webm' });

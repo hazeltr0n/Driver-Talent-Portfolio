@@ -5,28 +5,35 @@ const FPS = 30;
 const INTRO_DURATION = 3 * FPS;
 const CARD_DURATION = 2 * FPS;
 const OUTRO_DURATION = 4 * FPS;
+const TRANSITION_FRAMES = 15; // 0.5 second overlap
 
 const calculateDuration = ({ props }) => {
   const { clips } = props;
 
-  let totalFrames = INTRO_DURATION;
+  // Intro (minus overlap with first card)
+  let totalFrames = INTRO_DURATION - TRANSITION_FRAMES;
 
   for (const clip of clips) {
-    // Question card
-    totalFrames += CARD_DURATION;
+    // Question card (minus overlap with clip)
+    totalFrames += CARD_DURATION - TRANSITION_FRAMES;
 
     // Clip duration based on speech timing or default
     const trimStart = clip.trimStart ?? 0;
     const trimEnd = clip.trimEnd ?? null;
 
+    let clipDuration;
     if (trimEnd !== null && trimEnd > trimStart) {
       const speechDuration = trimEnd - trimStart;
-      totalFrames += Math.ceil((speechDuration + 1) * FPS);
+      clipDuration = Math.ceil((speechDuration + 3) * FPS); // +3s buffer
     } else {
-      totalFrames += clip.durationInFrames || FPS * 30;
+      clipDuration = clip.durationInFrames || FPS * 45;
     }
+
+    // Clip (minus overlap with next card)
+    totalFrames += clipDuration - TRANSITION_FRAMES;
   }
 
+  // Outro (full duration, no overlap after)
   totalFrames += OUTRO_DURATION;
 
   return {
@@ -48,6 +55,7 @@ export const RemotionRoot = () => {
           driverName: 'Driver Name',
           driverLocation: 'City, State',
           clips: [],
+          musicUrl: null,
         }}
         calculateMetadata={calculateDuration}
       />

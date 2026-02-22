@@ -71,9 +71,12 @@ export default async function handler(req, res) {
         // Trim data from speech detection (in seconds)
         trimStart: clip.speechStart ?? 0,
         trimEnd: clip.speechEnd ?? null,
-        durationInFrames: 30 * 30, // 30 seconds default at 30fps
+        durationInFrames: 30 * 45, // 45 seconds default at 30fps
       };
     });
+
+    // Background music
+    const musicUrl = 'https://pub-422282bc0284434c83ea29192d0e301c.r2.dev/assets/UpbeatInspiration.mp3';
 
     // Update status to processing
     const updateUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${CANDIDATES_TABLE_ID}/${recordId}`;
@@ -101,6 +104,7 @@ export default async function handler(req, res) {
         driverName,
         driverLocation,
         clips,
+        musicUrl,
       }),
     });
 

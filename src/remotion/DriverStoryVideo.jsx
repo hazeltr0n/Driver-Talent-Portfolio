@@ -1,4 +1,4 @@
-import { AbsoluteFill, Sequence, OffthreadVideo, useVideoConfig, Img, Audio } from 'remotion';
+import { AbsoluteFill, Sequence, OffthreadVideo, useVideoConfig, Img, Audio, useCurrentFrame, interpolate } from 'remotion';
 
 const QUESTIONS = [
   { title: 'Who are you?', subtitle: 'Tell me about yourself' },
@@ -12,6 +12,7 @@ const QUESTIONS = [
 const INTRO_DURATION_SECONDS = 3;
 const CARD_DURATION_SECONDS = 2;
 const OUTRO_DURATION_SECONDS = 4;
+const TRANSITION_FRAMES = 15; // 0.5 second transition at 30fps
 
 export const DriverStoryVideo = ({ driverName, driverLocation, clips, musicUrl }) => {
   const { fps } = useVideoConfig();
@@ -23,71 +24,75 @@ export const DriverStoryVideo = ({ driverName, driverLocation, clips, musicUrl }
   let currentFrame = 0;
   const sequences = [];
 
-  // Intro
+  // Intro with fade out
   sequences.push(
     <Sequence key="intro" from={currentFrame} durationInFrames={introDuration}>
-      <IntroCard name={driverName} location={driverLocation} />
+      <FadeInOut durationInFrames={introDuration} fadeOutFrames={TRANSITION_FRAMES}>
+        <IntroCard name={driverName} location={driverLocation} />
+      </FadeInOut>
     </Sequence>
   );
-  currentFrame += introDuration;
+  currentFrame += introDuration - TRANSITION_FRAMES; // Overlap with first card
 
   // Questions + Clips
   clips.forEach((clip, index) => {
-    // Question card
+    // Question card - overlaps with end of previous clip/intro
     sequences.push(
       <Sequence key={`card-${index}`} from={currentFrame} durationInFrames={cardDuration}>
-        <QuestionCard
-          number={index + 1}
-          title={QUESTIONS[index]?.title || `Question ${index + 1}`}
-          subtitle={QUESTIONS[index]?.subtitle || ''}
-        />
+        <FadeInOut durationInFrames={cardDuration} fadeInFrames={TRANSITION_FRAMES} fadeOutFrames={TRANSITION_FRAMES}>
+          <QuestionCard
+            number={index + 1}
+            title={QUESTIONS[index]?.title || `Question ${index + 1}`}
+            subtitle={QUESTIONS[index]?.subtitle || ''}
+          />
+        </FadeInOut>
       </Sequence>
     );
-    currentFrame += cardDuration;
+    currentFrame += cardDuration - TRANSITION_FRAMES; // Overlap card with clip start
 
-    // Video clip with VAD-based trimming
+    // Video clip - use full clip, add buffer for speech timing
     const trimStart = clip.trimStart ?? 0;
     const trimEnd = clip.trimEnd ?? null;
 
-    // Calculate frames to skip at start and actual duration
-    const startFromFrame = Math.floor(trimStart * fps);
-    // Add 0.3s buffer before speech starts (if we have trim data)
-    const bufferFrames = trimStart > 0 ? Math.floor(0.3 * fps) : 0;
-    const adjustedStartFrame = Math.max(0, startFromFrame - bufferFrames);
+    // Start slightly before detected speech
+    const startFromFrame = Math.max(0, Math.floor((trimStart - 0.5) * fps));
 
-    // Calculate duration: if we have trimEnd, use that; otherwise use default
+    // Calculate duration with generous buffer after speech ends
     let clipDuration;
     if (trimEnd !== null && trimEnd > trimStart) {
-      // Duration = (speech end + buffer) - (speech start - buffer)
+      // Speech duration + 3 seconds buffer (captures trailing words Deepgram missed)
       const speechDuration = trimEnd - trimStart;
-      clipDuration = Math.ceil((speechDuration + 1) * fps); // 0.5s buffer on each side
+      clipDuration = Math.ceil((speechDuration + 3) * fps);
     } else {
-      // Default to 30 seconds if no timing data (typical answer length)
-      clipDuration = clip.durationInFrames || fps * 30;
+      clipDuration = clip.durationInFrames || fps * 45;
     }
 
     sequences.push(
       <Sequence key={`clip-${index}`} from={currentFrame} durationInFrames={clipDuration}>
-        <AbsoluteFill style={{ backgroundColor: '#000' }}>
-          <OffthreadVideo
-            src={clip.url}
-            startFrom={adjustedStartFrame}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-            }}
-          />
-        </AbsoluteFill>
+        <FadeInOut durationInFrames={clipDuration} fadeInFrames={TRANSITION_FRAMES} fadeOutFrames={TRANSITION_FRAMES}>
+          <AbsoluteFill style={{ backgroundColor: '#000' }}>
+            <OffthreadVideo
+              src={clip.url}
+              startFrom={startFromFrame}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }}
+            />
+          </AbsoluteFill>
+        </FadeInOut>
       </Sequence>
     );
-    currentFrame += clipDuration;
+    currentFrame += clipDuration - TRANSITION_FRAMES; // Overlap with next card
   });
 
-  // Outro
+  // Outro - overlaps with end of last clip
   sequences.push(
     <Sequence key="outro" from={currentFrame} durationInFrames={outroDuration}>
-      <OutroCard />
+      <FadeInOut durationInFrames={outroDuration} fadeInFrames={TRANSITION_FRAMES}>
+        <OutroCard />
+      </FadeInOut>
     </Sequence>
   );
 
@@ -95,8 +100,26 @@ export const DriverStoryVideo = ({ driverName, driverLocation, clips, musicUrl }
     <AbsoluteFill style={{ backgroundColor: '#004751' }}>
       {sequences}
       {musicUrl && (
-        <Audio src={musicUrl} volume={0.2} />
+        <Audio src={musicUrl} volume={0.15} />
       )}
+    </AbsoluteFill>
+  );
+};
+
+// Fade transition wrapper
+const FadeInOut = ({ children, durationInFrames, fadeInFrames = 0, fadeOutFrames = 0 }) => {
+  const frame = useCurrentFrame();
+
+  const opacity = interpolate(
+    frame,
+    [0, fadeInFrames, durationInFrames - fadeOutFrames, durationInFrames],
+    [fadeInFrames > 0 ? 0 : 1, 1, 1, fadeOutFrames > 0 ? 0 : 1],
+    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
+  );
+
+  return (
+    <AbsoluteFill style={{ opacity }}>
+      {children}
     </AbsoluteFill>
   );
 };

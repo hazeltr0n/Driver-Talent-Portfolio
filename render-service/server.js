@@ -1,8 +1,7 @@
 import express from 'express';
-import { execSync, spawn } from 'child_process';
+import { spawn } from 'child_process';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import fs from 'fs';
-import path from 'path';
 
 const app = express();
 app.use(express.json());
@@ -24,7 +23,7 @@ app.get('/health', (req, res) => {
 });
 
 app.post('/render', async (req, res) => {
-  const { uuid, driverName, driverLocation, clips } = req.body;
+  const { uuid, driverName, driverLocation, clips, musicUrl } = req.body;
 
   if (!uuid || !clips || clips.length === 0) {
     return res.status(400).json({ error: 'uuid and clips required' });
@@ -38,12 +37,12 @@ app.post('/render', async (req, res) => {
   });
 
   // Do the render in background
-  processRender({ uuid, driverName, driverLocation, clips }).catch(err => {
+  processRender({ uuid, driverName, driverLocation, clips, musicUrl }).catch(err => {
     console.error('Render failed:', err);
   });
 });
 
-async function processRender({ uuid, driverName, driverLocation, clips }) {
+async function processRender({ uuid, driverName, driverLocation, clips, musicUrl }) {
   const startTime = Date.now();
   console.log(`Starting render for ${uuid}...`);
 
@@ -58,22 +57,66 @@ async function processRender({ uuid, driverName, driverLocation, clips }) {
       url: c.url,
       trimStart: c.trimStart || 0,
       trimEnd: c.trimEnd || null,
-      durationInFrames: c.durationInFrames || 30 * 30, // 30 seconds default
+      durationInFrames: c.durationInFrames || 30 * 45,
     })),
-    musicUrl: null,
+    musicUrl: musicUrl || null,
   };
 
   fs.writeFileSync(propsPath, JSON.stringify(props));
 
   try {
-    // Run Remotion render
+    // Run Remotion render with spawn to capture output
     console.log('Running Remotion render...');
-    const remotionCmd = `npx remotion render ./src/remotion/index.js DriverStoryVideo ${outputPath} --props="${propsPath}" --concurrency=20 --quiet`;
 
-    execSync(remotionCmd, {
-      stdio: 'inherit',
-      cwd: '/app',
-      timeout: 15 * 60 * 1000, // 15 minute timeout
+    await new Promise((resolve, reject) => {
+      const child = spawn('npx', [
+        'remotion', 'render',
+        './src/remotion/index.js',
+        'DriverStoryVideo',
+        outputPath,
+        `--props=${propsPath}`,
+        '--concurrency=20',
+      ], {
+        cwd: '/app',
+        stdio: ['inherit', 'pipe', 'pipe'],
+      });
+
+      let lastLoggedFrame = 0;
+
+      child.stdout.on('data', (data) => {
+        const line = data.toString();
+        // Log progress every 1000 frames
+        const match = line.match(/Rendered (\d+)\/(\d+)/);
+        if (match) {
+          const current = parseInt(match[1]);
+          const total = parseInt(match[2]);
+          if (current - lastLoggedFrame >= 1000 || current === total) {
+            console.log(`Progress: ${current}/${total} (${Math.round(current/total*100)}%)`);
+            lastLoggedFrame = current;
+          }
+        } else if (!line.includes('Rendered ')) {
+          // Log non-progress lines
+          process.stdout.write(line);
+        }
+      });
+
+      child.stderr.on('data', (data) => {
+        const line = data.toString();
+        // Filter out noisy stderr but keep important messages
+        if (!line.includes('Rendered ') && !line.includes('time remaining')) {
+          process.stderr.write(line);
+        }
+      });
+
+      child.on('close', (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error(`Remotion exited with code ${code}`));
+        }
+      });
+
+      child.on('error', reject);
     });
 
     console.log('Render complete, uploading to R2...');
