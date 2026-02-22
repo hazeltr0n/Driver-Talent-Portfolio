@@ -96,12 +96,12 @@ async function processRender({ uuid, driverName, driverLocation, clips, musicUrl
     clipsWithDuration.push({ url: c.url, durationInFrames: frames, localPath });
   }
 
-  // Write props to file (use local paths for faster rendering)
+  // Write props to file (use original URLs - Remotion fetches them)
   const props = {
     driverName: driverName || 'Driver',
     driverLocation: driverLocation || 'United States',
     clips: clipsWithDuration.map(c => ({
-      url: c.localPath,  // Use local file instead of URL
+      url: c.url,  // Use R2 URL - Remotion can't access local paths
       durationInFrames: c.durationInFrames,
     })),
     musicUrl: musicUrl || null,
@@ -189,6 +189,9 @@ async function processRender({ uuid, driverName, driverLocation, clips, musicUrl
     // Cleanup
     fs.unlinkSync(outputPath);
     fs.unlinkSync(propsPath);
+    for (const c of clipsWithDuration) {
+      try { fs.unlinkSync(c.localPath); } catch {}
+    }
 
   } catch (err) {
     console.error('Render error:', err.message);
