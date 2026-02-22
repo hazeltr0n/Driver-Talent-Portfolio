@@ -96,25 +96,11 @@ export default async function handler(req, res) {
     }
 
     // Generate AI content
-    const storyResponses = {
-      whoAreYou: record.fields.story_who_are_you,
-      whatIsYourWhy: record.fields.story_what_is_your_why,
-      freeworldJourney: record.fields.story_freeworld_journey,
-      whyTrucking: record.fields.story_why_trucking,
-      lookingFor: record.fields.story_looking_for,
-      whatOthersSay: record.fields.story_what_others_say,
-    };
-
     const combinedData = { ...record.fields, ...updates };
 
-    console.log('Generating AI content...');
+    console.log('Generating AI recruiter notes...');
     updates.ai_recruiter_notes = await generateRecruiterNotes(combinedData);
-    updates.ai_narrative = await generateNarrative(combinedData, storyResponses);
-
-    const pullQuote = await generatePullQuote(storyResponses);
-    if (pullQuote) {
-      updates.ai_pull_quote = pullQuote;
-    }
+    // ai_narrative and ai_pull_quote are generated after video recording, not here
 
     // Set portfolio slug if not set
     if (!record.fields.portfolio_slug && record.fields.fullName) {
@@ -295,38 +281,6 @@ async function generateRecruiterNotes(driverData) {
       { role: 'user', content: JSON.stringify(driverData, null, 2) },
     ],
     max_tokens: 300,
-  });
-  return response.choices[0].message.content;
-}
-
-async function generateNarrative(driverData, storyResponses) {
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [
-      {
-        role: 'system',
-        content: `Write a 4-5 sentence narrative about this driver for recruiters. Cover: background, why trucking, what they want in an employer, what makes them stand out. Third person, warm but professional. Use their story responses if available.`,
-      },
-      { role: 'user', content: `Driver: ${JSON.stringify(driverData)}\n\nStory: ${JSON.stringify(storyResponses || {})}` },
-    ],
-    max_tokens: 400,
-  });
-  return response.choices[0].message.content;
-}
-
-async function generatePullQuote(storyResponses) {
-  if (!storyResponses || !Object.values(storyResponses).some(v => v)) return null;
-
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [
-      {
-        role: 'system',
-        content: `Extract a compelling 1-2 sentence quote from the driver's story responses. Return just the quote text, no quotation marks.`,
-      },
-      { role: 'user', content: JSON.stringify(storyResponses) },
-    ],
-    max_tokens: 100,
   });
   return response.choices[0].message.content;
 }

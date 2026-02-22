@@ -117,12 +117,20 @@ export default function DriverPortfolio({ slug }) {
 
   const d = driver;
 
-  // Build tabs - only show Job Fit if there's match data
+  // Check if driver has story content
+  const hasStoryContent = d.videoUrl || d.story || d.whyTrucking ||
+    (d.storyResponses && Object.values(d.storyResponses).some(v => v));
+
+  // Build tabs - only show tabs with content
   const tabs = [
     { id: "overview", label: "Overview" },
     { id: "compliance", label: "MVR & Compliance" },
-    { id: "story", label: "Driver Story" },
   ];
+
+  // Only show Driver Story tab if there's content
+  if (hasStoryContent) {
+    tabs.push({ id: "story", label: "Driver Story" });
+  }
 
   // If we have job fit data, add that tab
   if (d.jobFit) {
