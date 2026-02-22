@@ -50,37 +50,13 @@ export const DriverStoryVideo = ({ driverName, driverLocation, clips, musicUrl }
     );
     currentFrame += cardDuration - TRANSITION_FRAMES; // Overlap card with clip start
 
-    // Video clip - use full clip, add buffer for speech timing
-    const trimStart = clip.trimStart ?? 0;
-    const trimEnd = clip.trimEnd ?? null;
-
-    // Start slightly before detected speech
-    const startFromFrame = Math.max(0, Math.floor((trimStart - 0.5) * fps));
-
-    // Calculate duration with generous buffer after speech ends
-    let clipDuration;
-    if (trimEnd !== null && trimEnd > trimStart) {
-      // Speech duration + 3 seconds buffer (captures trailing words Deepgram missed)
-      const speechDuration = trimEnd - trimStart;
-      clipDuration = Math.ceil((speechDuration + 3) * fps);
-    } else {
-      clipDuration = clip.durationInFrames || fps * 45;
-    }
+    // Use full clip duration - no trimming
+    const clipDuration = clip.durationInFrames || fps * 60;
 
     sequences.push(
       <Sequence key={`clip-${index}`} from={currentFrame} durationInFrames={clipDuration}>
         <FadeInOut durationInFrames={clipDuration} fadeInFrames={TRANSITION_FRAMES} fadeOutFrames={TRANSITION_FRAMES}>
-          <AbsoluteFill style={{ backgroundColor: '#000' }}>
-            <OffthreadVideo
-              src={clip.url}
-              startFrom={startFromFrame}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-              }}
-            />
-          </AbsoluteFill>
+          <BrandedVideoFrame name={driverName} location={driverLocation} videoUrl={clip.url} />
         </FadeInOut>
       </Sequence>
     );
@@ -271,6 +247,95 @@ const QuestionCard = ({ number, title, subtitle }) => {
           {subtitle}
         </div>
       )}
+    </AbsoluteFill>
+  );
+};
+
+// Branded frame overlay on video clips
+const BrandedVideoFrame = ({ name, location, videoUrl }) => {
+  const formatName = (fullName) => {
+    if (!fullName) return 'Driver';
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0];
+    const firstName = parts[0];
+    const lastInitial = parts[parts.length - 1][0];
+    return `${firstName} ${lastInitial}.`;
+  };
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: '#000' }}>
+      {/* Video */}
+      <OffthreadVideo
+        src={videoUrl}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+        }}
+      />
+
+      {/* Top gradient + logo */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 120,
+          background: 'linear-gradient(to bottom, rgba(0,71,81,0.8) 0%, rgba(0,71,81,0) 100%)',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'center',
+          paddingTop: 24,
+        }}
+      >
+        <Img
+          src="https://pub-422282bc0284434c83ea29192d0e301c.r2.dev/assets/FW-Logo-White.png"
+          style={{ width: 48, height: 48 }}
+        />
+      </div>
+
+      {/* Bottom gradient + name/location */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 140,
+          background: 'linear-gradient(to top, rgba(0,71,81,0.9) 0%, rgba(0,71,81,0) 100%)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          paddingBottom: 32,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 36,
+            fontWeight: 700,
+            color: '#FFFFFF',
+            fontFamily: 'Georgia, serif',
+            textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+          }}
+        >
+          {formatName(name)}
+        </div>
+        {location && (
+          <div
+            style={{
+              fontSize: 22,
+              color: '#CDF95C',
+              fontWeight: 600,
+              marginTop: 4,
+              textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+            }}
+          >
+            {location}
+          </div>
+        )}
+      </div>
     </AbsoluteFill>
   );
 };
