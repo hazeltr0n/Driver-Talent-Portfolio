@@ -81,6 +81,23 @@ export default async function handler(req, res) {
       videoStatus = 'ready_for_assembly';
     }
 
+    // Map question transcripts to story fields
+    const storyFieldMap = {
+      q1: 'story_who_are_you',
+      q2: 'story_what_is_your_why',
+      q3: 'story_freeworld_journey',
+      q4: 'story_why_trucking',
+      q5: 'story_looking_for',
+      q6: 'story_what_others_say',
+    };
+
+    const storyFields = {};
+    for (const [qKey, fieldName] of Object.entries(storyFieldMap)) {
+      if (videoClips[qKey]?.transcript) {
+        storyFields[fieldName] = videoClips[qKey].transcript;
+      }
+    }
+
     // Update Airtable
     const updateUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${CANDIDATES_TABLE_ID}/${recordId}`;
     const updateResponse = await fetch(updateUrl, {
@@ -93,6 +110,7 @@ export default async function handler(req, res) {
         fields: {
           video_clips: JSON.stringify(videoClips),
           video_status: videoStatus,
+          ...storyFields,
         },
       }),
     });
