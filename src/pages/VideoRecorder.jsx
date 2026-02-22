@@ -176,7 +176,9 @@ export default function VideoRecorder({ uuid }) {
             if (videoRef.current) {
               console.log('[getStream] assigning srcObject...');
               videoRef.current.srcObject = stream;
-              console.log('[getStream] srcObject assigned');
+              // Manually call play() instead of autoPlay to avoid Chrome crash
+              videoRef.current.play().catch(() => {});
+              console.log('[getStream] srcObject assigned and play() called');
             }
             resolve();
           });
@@ -188,8 +190,11 @@ export default function VideoRecorder({ uuid }) {
     }
   }, []);
 
-  // Setup camera
+  // Setup camera - only after intro is dismissed so video element exists
   useEffect(() => {
+    // Don't request camera while intro is showing (video element doesn't exist)
+    if (showIntro) return;
+
     let mounted = true;
 
     async function setupCamera() {
@@ -214,7 +219,7 @@ export default function VideoRecorder({ uuid }) {
       if (timerRef.current) clearInterval(timerRef.current);
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
-  }, [getStream]);
+  }, [getStream, showIntro]);
 
   // Reconnect video element to existing stream when UI changes
   // Use requestAnimationFrame + setTimeout to avoid Chrome crashes
@@ -226,6 +231,7 @@ export default function VideoRecorder({ uuid }) {
         const raf2 = requestAnimationFrame(() => {
           if (videoRef.current && streamRef.current) {
             videoRef.current.srcObject = streamRef.current;
+            videoRef.current.play().catch(() => {});
           }
         });
         return () => cancelAnimationFrame(raf2);
@@ -421,6 +427,7 @@ export default function VideoRecorder({ uuid }) {
     requestAnimationFrame(() => {
       if (videoRef.current && streamRef.current) {
         videoRef.current.srcObject = streamRef.current;
+        videoRef.current.play().catch(() => {});
       }
     });
   }, [currentQuestion]);
@@ -602,9 +609,9 @@ export default function VideoRecorder({ uuid }) {
         {/* Video */}
         <div className="video-container">
           {/* Always render both videos to prevent Chrome crash from unmounting video with srcObject */}
+          {/* No autoPlay - we call play() manually after srcObject to avoid Chrome crash */}
           <video
             ref={videoRef}
-            autoPlay
             playsInline
             muted
             style={{ display: recordingState === 'preview' && hasCurrentClip ? 'none' : 'block' }}
