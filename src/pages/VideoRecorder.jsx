@@ -341,6 +341,9 @@ export default function VideoRecorder({ uuid }) {
       }
       deepgramSocketRef.current = null;
 
+      // Small delay to ensure all transcript messages are processed
+      await new Promise(r => setTimeout(r, 300));
+
       const blob = new Blob(chunksRef.current, { type: 'video/webm' });
       const localUrl = URL.createObjectURL(blob);
       const questionNum = currentQuestion + 1;
@@ -349,17 +352,18 @@ export default function VideoRecorder({ uuid }) {
       const speechEnd = speechTimingRef.current.end;
 
       // Get actual duration from the video blob
-      const tempVideo = document.createElement('video');
-      tempVideo.src = localUrl;
-      tempVideo.onloadedmetadata = () => {
-        const durationSeconds = Math.ceil(tempVideo.duration);
-        setClips(prev => ({ ...prev, [questionNum]: { blob, url: localUrl, transcript, speechStart, speechEnd, durationSeconds } }));
-      };
-      // Fallback if metadata doesn't load
-      tempVideo.onerror = () => {
-        setClips(prev => ({ ...prev, [questionNum]: { blob, url: localUrl, transcript, speechStart, speechEnd, durationSeconds: 60 } }));
-      };
+      const durationSeconds = await new Promise((resolve) => {
+        const tempVideo = document.createElement('video');
+        tempVideo.src = localUrl;
+        tempVideo.onloadedmetadata = () => resolve(Math.ceil(tempVideo.duration));
+        tempVideo.onerror = () => resolve(60);
+        // Timeout fallback
+        setTimeout(() => resolve(60), 2000);
+      });
+
+      setClips(prev => ({ ...prev, [questionNum]: { blob, url: localUrl, transcript, speechStart, speechEnd, durationSeconds } }));
       setRecordingState('preview');
+
       if (!transcript || transcript.length < 10) {
         setFeedback({ encouragement: "I couldn't hear much. Try again in a quiet spot and speak clearly.", isGoodToGo: false });
         return;
