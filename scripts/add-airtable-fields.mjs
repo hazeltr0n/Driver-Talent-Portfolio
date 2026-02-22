@@ -15,7 +15,19 @@ if (!AIRTABLE_API_KEY || !AIRTABLE_BASE_ID || !CANDIDATES_TABLE_ID) {
 
 const FIELDS_TO_ADD = [
   // Preferences
-  { name: 'willing_touch_freight', type: 'checkbox', options: {} },
+  { name: 'shift_preference', type: 'singleSelect', options: { choices: [
+    { name: 'Days' }, { name: 'Nights' }, { name: 'No Preference' }
+  ]}},
+  { name: 'willing_overtime', type: 'singleSelect', options: { choices: [
+    { name: 'Yes' }, { name: 'Sometimes' }, { name: 'No' }
+  ]}},
+  { name: 'max_commute_miles', type: 'singleSelect', options: { choices: [
+    { name: '25 miles' }, { name: '50 miles' }, { name: '75 miles' }, { name: '100+ miles' }
+  ]}},
+  { name: 'willing_touch_freight', type: 'singleSelect', options: { choices: [
+    { name: 'Very Light (No-Touch Freight)' }, { name: 'Light (Pallet Jack)' },
+    { name: 'Medium (Dolly/Liftgate)' }, { name: 'Heavy (Very Physical Work)' }
+  ]}},
   { name: 'home_time_preference', type: 'singleSelect', options: { choices: [
     { name: 'Daily' }, { name: 'Weekly' }, { name: 'OTR' }, { name: 'Flexible' }
   ]}},

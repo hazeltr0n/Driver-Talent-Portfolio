@@ -19,6 +19,9 @@ Driver profiles created from Free Agents or manual entry.
 | `city` | singleLineText | |
 | `state` | singleLineText | |
 | `zipcode` | singleLineText | |
+| `shift_preference` | singleSelect | Days, Nights, No Preference |
+| `willing_overtime` | singleSelect | Yes, Sometimes, No |
+| `max_commute_miles` | singleSelect | 25 miles, 50 miles, 75 miles, 100+ miles |
 | `cdl_class` | singleSelect | A, B |
 | `years_experience` | number | |
 | `endorsements` | singleLineText | |
