@@ -1,6 +1,16 @@
 import { useState, useEffect } from "react";
 import { getPortfolio } from "./lib/api";
 
+// Format name as "First L." for privacy
+function formatName(fullName) {
+  if (!fullName) return '';
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  const firstName = parts[0];
+  const lastInitial = parts[parts.length - 1][0];
+  return `${firstName} ${lastInitial}.`;
+}
+
 function ScoreBar({ score, color = "#004751" }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%" }}>
@@ -151,7 +161,7 @@ export default function DriverPortfolio({ slug }) {
               <img src="/fw-logo-white.svg" alt="FreeWorld" style={{ height: 32, width: 32 }} />
               <span style={{ fontSize: 12, color: "#8AAFB8", letterSpacing: 1.5, textTransform: "uppercase", fontWeight: 600 }}>Driver Fit Profile</span>
             </div>
-            <h1 style={{ margin: "12px 0 4px", fontSize: "clamp(24px, 6vw, 32px)", fontWeight: 700, fontFamily: "Georgia, serif" }}>{d.name}</h1>
+            <h1 style={{ margin: "12px 0 4px", fontSize: "clamp(24px, 6vw, 32px)", fontWeight: 700, fontFamily: "Georgia, serif" }}>{formatName(d.name)}</h1>
             <p style={{ margin: 0, fontSize: 15, color: "#B0CDD4" }}>
               {d.homeBase && `${d.homeBase} · `}{d.cdlClass}{d.yearsExp > 0 && ` · ${d.yearsExp} Years Experience`}
             </p>
@@ -438,7 +448,7 @@ export default function DriverPortfolio({ slug }) {
                 <p style={{ margin: 0, fontSize: "clamp(15px, 4vw, 17px)", lineHeight: 1.8, fontStyle: "italic", fontFamily: "Georgia, serif", color: "#E8EDF0" }}>
                   "{d.whyTrucking}"
                 </p>
-                <p style={{ margin: "12px 0 0", fontSize: 14, color: "#B0CDD4" }}>— {d.name}, CDL-{d.cdlClass.replace('Class ', '')} Driver</p>
+                <p style={{ margin: "12px 0 0", fontSize: 14, color: "#B0CDD4" }}>— {formatName(d.name)}, CDL-{d.cdlClass.replace('Class ', '')} Driver</p>
               </Card>
             )}
 
