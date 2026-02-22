@@ -68,7 +68,7 @@ async function processRender({ uuid, driverName, driverLocation, clips }) {
   try {
     // Run Remotion render
     console.log('Running Remotion render...');
-    const remotionCmd = `npx remotion render ./src/remotion/index.js DriverStoryVideo ${outputPath} --props="${propsPath}" --concurrency=16 --log=warn`;
+    const remotionCmd = `npx remotion render ./src/remotion/index.js DriverStoryVideo ${outputPath} --props="${propsPath}" --concurrency=20 --quiet`;
 
     execSync(remotionCmd, {
       stdio: 'inherit',
