@@ -46,12 +46,20 @@ async function getSubmission(id, res) {
 
 async function updateSubmission(id, updates, res) {
   // Only allow certain fields to be updated
-  const VALID_FIELDS = ['status', 'hire_date', 'rejection_reason', 'notes'];
+  const VALID_FIELDS = [
+    'status', 'hire_date', 'rejection_reason', 'notes',
+    'fit_score', 'fit_recommendation', 'fit_dimensions'
+  ];
 
   const fields = {};
   for (const key of VALID_FIELDS) {
     if (updates[key] !== undefined) {
-      fields[key] = updates[key];
+      // Handle fit_dimensions - store as JSON string if it's an array/object
+      if (key === 'fit_dimensions' && typeof updates[key] !== 'string') {
+        fields[key] = JSON.stringify(updates[key]);
+      } else {
+        fields[key] = updates[key];
+      }
     }
   }
 

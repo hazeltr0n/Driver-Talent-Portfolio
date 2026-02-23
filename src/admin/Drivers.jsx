@@ -825,14 +825,37 @@ function DriverModal({ driver, collaborators, onClose, onSave }) {
     { key: 'min_weekly_pay', label: 'Min Weekly Pay', type: 'number' },
     { key: 'target_weekly_pay', label: 'Target Weekly Pay', type: 'number' },
     { key: 'willing_touch_freight', label: 'Willing Touch Freight', type: 'select', options: ['Very Light (No-Touch Freight)', 'Light (Pallet Jack)', 'Medium (Dolly/Liftgate)', 'Heavy (Very Physical Work)'] },
-    { key: 'mvr_status', label: 'MVR Status', type: 'select', options: ['Clear', 'Has Violations'] },
-    { key: 'mvr_violations_3yr', label: 'MVR Violations (3yr)', type: 'number' },
-    { key: 'mvr_accidents_3yr', label: 'MVR Accidents (3yr)', type: 'number' },
-    { key: 'clearinghouse_status', label: 'Clearinghouse', type: 'select', options: ['Not Prohibited', 'Prohibited'] },
     { key: 'placement_status', label: 'Placement Status', type: 'select', options: PLACEMENT_STATUSES },
     { key: 'career_agent', label: 'Career Agent', type: 'collaborator' },
     { key: 'portfolio_slug', label: 'Portfolio Slug', type: 'text' },
     { key: 'portfolio_published', label: 'Published', type: 'checkbox' },
+  ];
+
+  const mvrFields = [
+    { key: 'mvr_status', label: 'MVR Status', type: 'select', options: ['Clear', 'Has Violations'] },
+    { key: 'mvr_violations_3yr', label: 'Violations (3yr)', type: 'number' },
+    { key: 'mvr_accidents_3yr', label: 'Accidents (3yr)', type: 'number' },
+    { key: 'mvr_suspensions_3yr', label: 'Suspensions (3yr)', type: 'number' },
+    { key: 'mvr_last_pull', label: 'Last MVR Pull', type: 'text' },
+    { key: 'mvr_summary', label: 'MVR Summary', type: 'textarea' },
+  ];
+
+  const pspFields = [
+    { key: 'psp_crashes_5yr', label: 'Crashes (5yr)', type: 'number' },
+    { key: 'psp_inspections_3yr', label: 'Inspections (3yr)', type: 'number' },
+    { key: 'psp_driver_oos', label: 'Driver OOS', type: 'number' },
+  ];
+
+  const complianceFields = [
+    { key: 'clearinghouse_status', label: 'Clearinghouse', type: 'select', options: ['Not Prohibited', 'Prohibited'] },
+    { key: 'medical_card_status', label: 'Medical Card', type: 'select', options: ['Valid', 'Expired', 'Pending'] },
+  ];
+
+  const trainingFields = [
+    { key: 'training_school', label: 'CDL School', type: 'text' },
+    { key: 'training_location', label: 'School Location', type: 'text' },
+    { key: 'training_graduated', label: 'Graduated', type: 'text' },
+    { key: 'training_hours', label: 'Training Hours', type: 'number' },
   ];
 
   const storyFields = [
@@ -842,6 +865,16 @@ function DriverModal({ driver, collaborators, onClose, onSave }) {
     { key: 'story_why_trucking', label: 'Why Trucking?' },
     { key: 'story_looking_for', label: 'What Are You Looking For?' },
     { key: 'story_what_others_say', label: 'What Others Say' },
+  ];
+
+  const aiFields = [
+    { key: 'ai_narrative', label: 'AI Narrative (About section)' },
+    { key: 'ai_pull_quote', label: 'AI Pull Quote (In Their Own Words)' },
+    { key: 'ai_recruiter_notes', label: 'AI Recruiter Notes' },
+  ];
+
+  const videoFields = [
+    { key: 'video_url', label: 'Final Video URL', type: 'text' },
   ];
 
   return (
@@ -930,8 +963,89 @@ function DriverModal({ driver, collaborators, onClose, onSave }) {
             </div>
           </div>
 
+          {/* MVR Section */}
           <div style={styles.section}>
-            <h3 style={styles.sectionTitle}>Story</h3>
+            <h3 style={styles.sectionTitle}>MVR (Motor Vehicle Record)</h3>
+            <div style={styles.fieldsGrid}>
+              {mvrFields.map(field => (
+                <div key={field.key} style={field.type === 'textarea' ? { ...styles.fieldItem, gridColumn: '1 / -1' } : styles.fieldItem}>
+                  <label style={styles.fieldLabel}>{field.label}</label>
+                  {editing ? (
+                    field.type === 'select' ? (
+                      <select value={formData[field.key] || ''} onChange={e => handleChange(field.key, e.target.value)} style={styles.fieldInput}>
+                        <option value="">--</option>
+                        {field.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                      </select>
+                    ) : field.type === 'textarea' ? (
+                      <textarea value={formData[field.key] || ''} onChange={e => handleChange(field.key, e.target.value)} style={styles.textarea} rows={2} />
+                    ) : (
+                      <input type={field.type} value={formData[field.key] || ''} onChange={e => handleChange(field.key, field.type === 'number' ? Number(e.target.value) : e.target.value)} style={styles.fieldInput} />
+                    )
+                  ) : (
+                    <div style={styles.fieldValue}>{formData[field.key] || '-'}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* PSP Section */}
+          <div style={styles.section}>
+            <h3 style={styles.sectionTitle}>PSP (Pre-Employment Screening)</h3>
+            <div style={styles.fieldsGrid}>
+              {pspFields.map(field => (
+                <div key={field.key} style={styles.fieldItem}>
+                  <label style={styles.fieldLabel}>{field.label}</label>
+                  {editing ? (
+                    <input type="number" value={formData[field.key] || ''} onChange={e => handleChange(field.key, Number(e.target.value))} style={styles.fieldInput} />
+                  ) : (
+                    <div style={styles.fieldValue}>{formData[field.key] ?? '-'}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Compliance Section */}
+          <div style={styles.section}>
+            <h3 style={styles.sectionTitle}>Compliance</h3>
+            <div style={styles.fieldsGrid}>
+              {complianceFields.map(field => (
+                <div key={field.key} style={styles.fieldItem}>
+                  <label style={styles.fieldLabel}>{field.label}</label>
+                  {editing ? (
+                    <select value={formData[field.key] || ''} onChange={e => handleChange(field.key, e.target.value)} style={styles.fieldInput}>
+                      <option value="">--</option>
+                      {field.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                  ) : (
+                    <div style={styles.fieldValue}>{formData[field.key] || '-'}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Training Section */}
+          <div style={styles.section}>
+            <h3 style={styles.sectionTitle}>Training</h3>
+            <div style={styles.fieldsGrid}>
+              {trainingFields.map(field => (
+                <div key={field.key} style={styles.fieldItem}>
+                  <label style={styles.fieldLabel}>{field.label}</label>
+                  {editing ? (
+                    <input type={field.type} value={formData[field.key] || ''} onChange={e => handleChange(field.key, field.type === 'number' ? Number(e.target.value) : e.target.value)} style={styles.fieldInput} />
+                  ) : (
+                    <div style={styles.fieldValue}>{formData[field.key] || '-'}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Story Transcripts Section */}
+          <div style={styles.section}>
+            <h3 style={styles.sectionTitle}>Story Transcripts</h3>
             <div style={styles.storyFields}>
               {storyFields.map(field => (
                 <div key={field.key} style={styles.storyField}>
@@ -942,6 +1056,30 @@ function DriverModal({ driver, collaborators, onClose, onSave }) {
                       onChange={e => handleChange(field.key, e.target.value)}
                       style={styles.textarea}
                       rows={3}
+                    />
+                  ) : (
+                    <div style={styles.storyValue}>
+                      {formData[field.key] || '-'}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* AI Generated Content Section */}
+          <div style={styles.section}>
+            <h3 style={styles.sectionTitle}>AI Generated Content</h3>
+            <div style={styles.storyFields}>
+              {aiFields.map(field => (
+                <div key={field.key} style={styles.storyField}>
+                  <label style={styles.fieldLabel}>{field.label}</label>
+                  {editing ? (
+                    <textarea
+                      value={formData[field.key] || ''}
+                      onChange={e => handleChange(field.key, e.target.value)}
+                      style={styles.textarea}
+                      rows={4}
                     />
                   ) : (
                     <div style={styles.storyValue}>
@@ -991,13 +1129,27 @@ function DriverModal({ driver, collaborators, onClose, onSave }) {
                   Open Recorder
                 </a>
               </div>
-              {driver.video_url && (
-                <div style={styles.videoPreview}>
-                  <a href={driver.video_url} target="_blank" rel="noopener noreferrer">
-                    View Final Video →
-                  </a>
-                </div>
-              )}
+              {/* Editable Video URL */}
+              <div style={styles.fieldItem}>
+                <label style={styles.fieldLabel}>Final Video URL</label>
+                {editing ? (
+                  <input
+                    type="text"
+                    value={formData.video_url || ''}
+                    onChange={e => handleChange('video_url', e.target.value)}
+                    style={styles.fieldInput}
+                    placeholder="https://..."
+                  />
+                ) : formData.video_url ? (
+                  <div style={styles.videoPreview}>
+                    <a href={formData.video_url} target="_blank" rel="noopener noreferrer">
+                      View Final Video →
+                    </a>
+                  </div>
+                ) : (
+                  <div style={styles.fieldValue}>No video yet</div>
+                )}
+              </div>
             </div>
           </div>
 

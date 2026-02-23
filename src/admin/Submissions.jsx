@@ -256,6 +256,9 @@ function SubmissionModal({ submission, collaborators, onClose, onRefresh }) {
         hire_date: formData.hire_date,
         notes: formData.notes,
         career_agent: formData.career_agent,
+        fit_score: formData.fit_score,
+        fit_recommendation: formData.fit_recommendation,
+        fit_dimensions: formData.fit_dimensions,
       });
       setEditing(false);
       onRefresh();
@@ -390,6 +393,52 @@ function SubmissionModal({ submission, collaborators, onClose, onRefresh }) {
                   style={styles.formTextarea}
                   rows={3}
                   placeholder="Internal notes..."
+                />
+              </div>
+
+              {/* Job Fit Fields */}
+              <div style={{ ...styles.formRow, marginTop: 20, paddingTop: 20, borderTop: '1px solid #E8ECEE' }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#004751', marginBottom: 12 }}>Job Fit Assessment</div>
+              </div>
+
+              <div style={styles.formRow}>
+                <label style={styles.formLabel}>Overall Fit Score (0-100)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={formData.fit_score || ''}
+                  onChange={e => handleFieldChange('fit_score', Number(e.target.value))}
+                  style={styles.formInput}
+                />
+              </div>
+
+              <div style={styles.formRow}>
+                <label style={styles.formLabel}>AI Recommendation</label>
+                <textarea
+                  value={formData.fit_recommendation || ''}
+                  onChange={e => handleFieldChange('fit_recommendation', e.target.value)}
+                  style={styles.formTextarea}
+                  rows={4}
+                  placeholder="AI-generated recommendation for this match..."
+                />
+              </div>
+
+              <div style={styles.formRow}>
+                <label style={styles.formLabel}>Fit Dimensions (JSON)</label>
+                <textarea
+                  value={typeof formData.fit_dimensions === 'string' ? formData.fit_dimensions : JSON.stringify(formData.fit_dimensions || [], null, 2)}
+                  onChange={e => {
+                    try {
+                      const parsed = JSON.parse(e.target.value);
+                      handleFieldChange('fit_dimensions', parsed);
+                    } catch {
+                      handleFieldChange('fit_dimensions', e.target.value);
+                    }
+                  }}
+                  style={{ ...styles.formTextarea, fontFamily: 'monospace', fontSize: 12 }}
+                  rows={8}
+                  placeholder='[{"name": "Experience", "score": 85, "note": "..."}]'
                 />
               </div>
             </div>
