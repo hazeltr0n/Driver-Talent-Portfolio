@@ -266,6 +266,60 @@ export async function regenerateAI({ uuid, submissionId, fields }) {
   return response.json();
 }
 
+// Employers API (HubSpot-synced)
+export async function searchHubSpotCompanies(query) {
+  const response = await fetch(`/api/hubspot/companies/search?q=${encodeURIComponent(query)}`);
+  if (!response.ok) throw new Error('Search failed');
+  const data = await response.json();
+  return data.results;
+}
+
+export async function getHubSpotCompany(hubspotCompanyId) {
+  const response = await fetch(`/api/hubspot/companies/${hubspotCompanyId}`);
+  if (!response.ok) throw new Error('Company not found');
+  return response.json();
+}
+
+export async function listEmployers(search = null) {
+  let url = '/api/employers';
+  if (search) {
+    url += `?search=${encodeURIComponent(search)}`;
+  }
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Failed to load employers');
+  const data = await response.json();
+  return data.employers;
+}
+
+export async function createEmployer(data) {
+  const response = await fetch('/api/employers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Create failed');
+  }
+  return response.json();
+}
+
+export async function getEmployer(id) {
+  const response = await fetch(`/api/employers/${id}`);
+  if (!response.ok) throw new Error('Employer not found');
+  return response.json();
+}
+
+export async function updateEmployer(id, updates) {
+  const response = await fetch(`/api/employers/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+  if (!response.ok) throw new Error('Update employer failed');
+  return response.json();
+}
+
 // Helper to convert File to base64
 export function fileToBase64(file) {
   return new Promise((resolve, reject) => {
