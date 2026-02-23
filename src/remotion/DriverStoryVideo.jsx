@@ -3,10 +3,11 @@ import { AbsoluteFill, Sequence, OffthreadVideo, useVideoConfig, Img, Audio, use
 const QUESTIONS = [
   { title: 'Who are you?', subtitle: 'Tell me about yourself' },
   { title: 'What is your why?', subtitle: 'What drives you every day?' },
-  { title: 'Your turning point', subtitle: 'A turning point in your life' },
+  { title: 'Your turning point', subtitle: 'Your journey and support system' },
   { title: 'Why trucking?', subtitle: 'What do you love about this career?' },
   { title: 'Your next chapter', subtitle: 'What are you looking for?' },
   { title: 'Your reputation', subtitle: 'What would others say about you?' },
+  { title: 'Your message', subtitle: 'What do you want employers to know?' },
 ];
 
 const INTRO_DURATION_SECONDS = 3;

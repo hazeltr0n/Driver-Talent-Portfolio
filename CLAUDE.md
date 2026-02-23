@@ -30,7 +30,7 @@ Tables:
 
 Driver Story Video flow:
 1. Driver visits `/record/{uuid}`
-2. Records 6 video answers in browser (with live Deepgram transcription)
+2. Records 7 video answers in browser (with live Deepgram transcription)
 3. Clips uploaded to Cloudflare R2
 4. Railway render service assembles final video with Remotion
 5. Video URL saved to Airtable `video_url` field

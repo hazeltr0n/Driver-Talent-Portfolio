@@ -37,15 +37,15 @@ const QUESTIONS = [
   {
     id: 3,
     title: "Your turning point",
-    prompt: "Tell me about a turning point in your life",
+    prompt: "Tell me about your journey and support system",
     coaching: {
-      why: "Your story is your strength. Focus on the decision to change, not the past.",
+      why: "Employers want to see you have support and a plan. Show them you're set up for success.",
       tips: [
-        "You don't need to share details of your past",
-        "Focus on the DECISION to do things differently",
-        "Show growth - \"I realized...\" \"I decided...\"",
+        "Briefly acknowledge your past (details optional)",
+        "Talk about your support system - FreeWorld, community, family",
+        "Share why your future is bright and you're ready for this opportunity",
       ],
-      example: "\"There came a point where I had to ask myself who I wanted to be. I chose to be someone my family could count on.\"",
+      example: "\"I made mistakes in my past, but FreeWorld gave me a real path forward. Between my training, my family backing me, and this community - I've never been more ready to build a career.\"",
     },
   },
   {
@@ -88,6 +88,20 @@ const QUESTIONS = [
         "\"They knew they could count on me to...\"",
       ],
       example: "\"My last dispatcher knew he could call me at 3am for an emergency load and I'd be there. I never missed a pickup.\"",
+    },
+  },
+  {
+    id: 7,
+    title: "Your message to employers",
+    prompt: "What do you want employers to know?",
+    coaching: {
+      why: "This is your closing statement. Leave them wanting to pick up the phone.",
+      tips: [
+        "Speak directly to the employer watching this",
+        "Tell them what they'll get if they hire you",
+        "End with confidence - you're the right choice",
+      ],
+      example: "\"If you give me this opportunity, you're getting someone who will show up every day, work hard, and never let you down. I'm ready. Let's do this.\"",
     },
   },
 ];
@@ -486,7 +500,7 @@ export default function VideoRecorder({ uuid }) {
           <img src="/fw-logo-white.svg" alt="FreeWorld" className="intro-logo" />
           <h1 className="intro-title">Record Your Story</h1>
           <p className="intro-subtitle">
-            You're about to record 6 short video answers. This is your chance to show employers who you really are.
+            You're about to record 7 short video answers. This is your chance to show employers who you really are.
           </p>
           <div className="intro-section">
             <h3 className="intro-section-title">Before You Start</h3>
@@ -521,7 +535,7 @@ export default function VideoRecorder({ uuid }) {
           <h1 className="success-title">You're All Set!</h1>
           <p className="success-text">Your story video has been recorded and saved to your profile.</p>
           <div className="success-details">
-            <div className="success-detail-item"><span className="success-check">✓</span><span>6 video clips uploaded</span></div>
+            <div className="success-detail-item"><span className="success-check">✓</span><span>7 video clips uploaded</span></div>
             <div className="success-detail-item"><span className="success-check">✓</span><span>Story responses saved</span></div>
             <div className="success-detail-item"><span className="success-check">✓</span><span>Video assembly started</span></div>
           </div>
