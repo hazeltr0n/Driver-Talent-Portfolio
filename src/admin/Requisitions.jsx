@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
-import { listSubmissions, createSubmission, updateSubmission, searchCandidates, parseJobDescription, createJob } from '../lib/api';
+import { listSubmissions, createSubmission, updateSubmission, searchCandidates, parseJobDescription, createJob, listEmployers } from '../lib/api';
 
 export default function Requisitions() {
   const [jobs, setJobs] = useState([]);
@@ -286,6 +286,21 @@ function AddJobModal({ onClose, onSuccess }) {
   const [parsedJob, setParsedJob] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [employers, setEmployers] = useState([]);
+  const [selectedEmployerId, setSelectedEmployerId] = useState('');
+
+  useEffect(() => {
+    loadEmployers();
+  }, []);
+
+  const loadEmployers = async () => {
+    try {
+      const data = await listEmployers();
+      setEmployers(data || []);
+    } catch (err) {
+      console.error('Failed to load employers:', err);
+    }
+  };
 
   const handleParse = async () => {
     if (!description.trim()) return;
@@ -294,6 +309,12 @@ function AddJobModal({ onClose, onSuccess }) {
     try {
       const result = await parseJobDescription(description);
       setParsedJob({ ...result, raw_description: description });
+      // Try to auto-match employer from parsed text
+      const parsedEmployer = (result.employer || '').toLowerCase();
+      const match = employers.find(e => e.name.toLowerCase().includes(parsedEmployer) || parsedEmployer.includes(e.name.toLowerCase()));
+      if (match) {
+        setSelectedEmployerId(match.id);
+      }
       setStep(2);
     } catch (err) {
       setError(err.message);
@@ -307,10 +328,19 @@ function AddJobModal({ onClose, onSuccess }) {
   };
 
   const handleSave = async () => {
+    if (!selectedEmployerId) {
+      setError('Please select an employer');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
-      await createJob(parsedJob);
+      const selectedEmployer = employers.find(e => e.id === selectedEmployerId);
+      await createJob({
+        ...parsedJob,
+        employer_id: selectedEmployerId,
+        employer: selectedEmployer?.name || '', // Keep text field for backwards compatibility
+      });
       onSuccess();
     } catch (err) {
       setError(err.message);
@@ -362,7 +392,24 @@ function AddJobModal({ onClose, onSuccess }) {
             <>
               <p style={styles.stepDesc}>Review and edit the extracted details.</p>
               <div style={styles.formGrid}>
-                <FormField label="Employer" value={parsedJob.employer || ''} onChange={v => handleFieldChange('employer', v)} />
+                <div style={styles.formField}>
+                  <label style={styles.formLabel}>Employer *</label>
+                  <select
+                    value={selectedEmployerId}
+                    onChange={e => setSelectedEmployerId(e.target.value)}
+                    style={{ ...styles.formInput, ...(selectedEmployerId ? {} : { borderColor: '#EF4444' }) }}
+                  >
+                    <option value="">-- Select Employer --</option>
+                    {employers.map(e => (
+                      <option key={e.id} value={e.id}>{e.name}</option>
+                    ))}
+                  </select>
+                  {employers.length === 0 && (
+                    <div style={{ fontSize: 12, color: '#EF4444', marginTop: 4 }}>
+                      No employers found. Add employers first.
+                    </div>
+                  )}
+                </div>
                 <FormField label="Title" value={parsedJob.title || ''} onChange={v => handleFieldChange('title', v)} />
                 <FormField label="Location" value={parsedJob.location || ''} onChange={v => handleFieldChange('location', v)} />
                 <FormField label="Yard Zip" value={parsedJob.yard_zip || ''} onChange={v => handleFieldChange('yard_zip', v)} />

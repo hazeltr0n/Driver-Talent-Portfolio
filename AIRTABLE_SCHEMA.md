@@ -110,13 +110,37 @@ Source table synced from external system. Many fields available.
 
 ---
 
+## Employers (`tbl9bxGlAKtQfnPhY`)
+
+Employer companies synced from HubSpot.
+
+| Field | Type | Options |
+|-------|------|---------|
+| `hubspot_company_id` | singleLineText | HubSpot record ID |
+| `name` | singleLineText | Company name |
+| `domain` | url | Website |
+| `phone` | phoneNumber | |
+| `zip` | singleLineText | |
+| `city` | singleLineText | |
+| `state` | singleLineText | |
+| `lifecycle_stage` | singleSelect | customer, opportunity, lead |
+| `employer_enrichment_tier` | singleSelect | Level 1-6 |
+| `main_contact_name` | singleLineText | |
+| `main_contact_email` | email | |
+| `main_contact_phone` | phoneNumber | |
+| `main_contact_mobile` | phoneNumber | |
+| `created_at` | date | |
+
+---
+
 ## Job Requisitions (`tblnLDyGMPLOGROnn`)
 
 Employer job openings.
 
 | Field | Type | Options |
 |-------|------|---------|
-| `employer` | singleLineText | |
+| `employer` | singleLineText | (deprecated, use employer_link) |
+| `employer_link` | multipleRecordLinks | Links to Employers table |
 | `location` | singleLineText | |
 | `title` | singleLineText | |
 | `route_type` | singleSelect | Local, Regional, OTR |

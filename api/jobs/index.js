@@ -49,8 +49,9 @@ async function listJobs(req, res) {
 async function createJob(req, res) {
   const body = req.body;
 
-  if (!body.employer || !body.title) {
-    return res.status(400).json({ error: 'Employer and title required' });
+  // Require employer_id (linked record) and title
+  if (!body.employer_id || !body.title) {
+    return res.status(400).json({ error: 'employer_id and title required' });
   }
 
   // Only include known Airtable fields
@@ -67,6 +68,9 @@ async function createJob(req, res) {
       fields[key] = body[key];
     }
   }
+
+  // Set employer_link as linked record (array of record IDs)
+  fields.employer_link = [body.employer_id];
 
   // Set defaults
   fields.status = fields.status || 'Active';
