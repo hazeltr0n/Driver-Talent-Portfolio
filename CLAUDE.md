@@ -58,6 +58,7 @@ Both services **auto-deploy from git pushes to main**:
 - **Deepgram** - Speech-to-text transcription for video clips
 - **Vercel** - Frontend hosting + serverless API
 - **Resend** - Email delivery for employer portal magic links
+- **CareerOneStop** - DOL-sponsored API for O*NET occupation data (FitKit integration)
 
 ## Environment Variables
 
@@ -89,6 +90,10 @@ CAREER_AGENT_EMAIL
 # Airtable (optional table IDs)
 AIRTABLE_EMPLOYERS_TABLE_ID
 AIRTABLE_FIT_PROFILES_TABLE_ID
+
+# CareerOneStop API (for FitKit O*NET integration)
+CAREERONESTOP_USER_ID
+CAREERONESTOP_TOKEN
 ```
 
 ## Commands

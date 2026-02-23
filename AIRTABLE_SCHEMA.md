@@ -44,7 +44,8 @@ Driver profiles created from Free Agents or manual entry.
 | `career_agent` | singleCollaborator | |
 | `source` | singleSelect | Synced, Manual |
 | `synced_record_id` | singleLineText | |
-| `free_agent_link` | multipleRecordLinks | Links to Free Agents table |
+| `Free Agents - Linked` | multipleRecordLinks | Links to Free Agents table (lookup fields configured here) |
+| `free_agent_link` | multipleRecordLinks | Legacy link field (do not use) |
 | `notes` | multilineText | |
 | `employment_history` | multilineText | JSON array |
 | `equipment_experience` | multilineText | JSON array |

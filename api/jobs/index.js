@@ -41,6 +41,8 @@ async function listJobs(req, res) {
   const jobs = data.records.map(r => ({
     id: r.id,
     ...r.fields,
+    // Use lookup field from Airtable (returns array, grab first value)
+    hubspot_company_id: r.fields['hubspot_company_id (from employer_link)']?.[0] || null,
   }));
 
   res.status(200).json({ jobs });

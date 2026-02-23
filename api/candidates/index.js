@@ -33,6 +33,7 @@ export default async function handler(req, res) {
       ...r.fields,
       equipment_experience: parseJSON(r.fields.equipment_experience),
       employment_history: parseJSON(r.fields.employment_history),
+      admin_portal_url: r.fields['Admin Portal Record (from Free Agents - Linked)']?.[0] || null,
     }));
 
     res.status(200).json({ candidates });
@@ -98,6 +99,7 @@ async function createCandidate(data, res) {
     fullName,
     portfolio_slug,
     source: synced_record_id ? 'Synced' : 'Manual',
+    placement_status: 'Unemployed and Looking',
   };
 
   // Add optional fields if provided
@@ -107,8 +109,8 @@ async function createCandidate(data, res) {
   if (state) fields.state = state;
   if (synced_record_id) {
     fields.synced_record_id = synced_record_id;
-    // Set linked record to Free Agents table
-    fields.free_agent_link = [synced_record_id];
+    // Set linked record to Free Agents table (lookup fields are configured on this field)
+    fields['Free Agents - Linked'] = [synced_record_id];
   }
   if (cdl_class) fields.cdl_class = cdl_class;
   if (years_experience) fields.years_experience = years_experience;

@@ -56,13 +56,19 @@ async function listSubmissions(req, res) {
 
   const data = await response.json();
 
+  // Get unique candidate UUIDs to fetch admin portal URLs
+  const candidateUuids = [...new Set(data.records.map(r => r.fields.candidate_uuid).filter(Boolean))];
+  const candidateAdminUrls = await getCandidateAdminUrls(candidateUuids);
+
   const submissions = data.records.map(r => {
     const portfolioSlug = r.fields.portfolio_slug || '';
+    const candidateUuid = r.fields.candidate_uuid;
     return {
       id: r.id,
       ...r.fields,
       fit_dimensions: parseJSON(r.fields.fit_dimensions, []),
       driver_fit_link: portfolioSlug ? `/portfolio/${portfolioSlug}?submission=${r.id}` : null,
+      admin_portal_url: candidateAdminUrls[candidateUuid] || null,
     };
   });
 
@@ -175,6 +181,36 @@ async function getCandidateByUUID(uuid) {
 
   const data = await response.json();
   return data.records?.[0] || null;
+}
+
+async function getCandidateAdminUrls(uuids) {
+  if (!uuids.length) return {};
+
+  // Fetch candidates in batches (Airtable formula length limit)
+  const results = {};
+  const batchSize = 50;
+
+  for (let i = 0; i < uuids.length; i += batchSize) {
+    const batch = uuids.slice(i, i + batchSize);
+    const orConditions = batch.map(uuid => `{uuid} = "${uuid}"`).join(', ');
+    const formula = encodeURIComponent(`OR(${orConditions})`);
+    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${CANDIDATES_TABLE_ID}?filterByFormula=${formula}&fields[]=uuid&fields[]=Admin%20Portal%20Record%20(from%20Free%20Agents%20-%20Linked)`;
+
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      for (const record of data.records) {
+        const uuid = record.fields.uuid;
+        const adminUrl = record.fields['Admin Portal Record (from Free Agents - Linked)']?.[0] || null;
+        if (uuid) results[uuid] = adminUrl;
+      }
+    }
+  }
+
+  return results;
 }
 
 async function getJob(jobId) {

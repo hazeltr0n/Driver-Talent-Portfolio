@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import zipcodes from 'zipcodes';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -223,24 +224,46 @@ function calculateJobRequirementsMatch(driver, req) {
 }
 
 function calculateCommuteMatch(driver, req) {
-  const driverZip = String(driver.zipcode || driver.zipcodeFromApplication || '').slice(0, 5);
+  const driverZip = String(driver.zipcode || '').slice(0, 5);
   const yardZip = String(req.yard_zip || '').slice(0, 5);
 
   if (!driverZip || !yardZip) {
     return { score: 80, note: 'Commute not calculable' };
   }
 
-  const driverPrefix3 = driverZip.slice(0, 3);
-  const yardPrefix3 = yardZip.slice(0, 3);
+  // Calculate actual distance between zip codes
+  const distance = zipcodes.distance(driverZip, yardZip);
 
-  if (driverZip === yardZip) {
-    return { score: 98, note: 'Same zip code' };
-  } else if (driverPrefix3 === yardPrefix3) {
-    return { score: 92, note: 'Same metro area' };
-  } else if (driverZip.slice(0, 2) === yardZip.slice(0, 2)) {
-    return { score: 78, note: 'Same region' };
+  if (distance === null) {
+    return { score: 75, note: 'Zip code not found' };
   }
-  return { score: 50, note: 'Different regions' };
+
+  // Parse driver's max commute preference (e.g., "25 miles", "50 miles", "75 miles", "100+ miles")
+  const maxCommutePref = driver.max_commute_miles || '';
+  let maxMiles = 100; // Default if not specified
+
+  if (maxCommutePref.includes('25')) maxMiles = 25;
+  else if (maxCommutePref.includes('50')) maxMiles = 50;
+  else if (maxCommutePref.includes('75')) maxMiles = 75;
+  else if (maxCommutePref.includes('100')) maxMiles = 100;
+
+  const distanceRounded = Math.round(distance);
+
+  if (distance <= maxMiles * 0.5) {
+    // Well within preference (less than half max)
+    return { score: 98, note: `${distanceRounded} mi commute (prefers up to ${maxMiles} mi)` };
+  } else if (distance <= maxMiles) {
+    // Within preference
+    return { score: 90, note: `${distanceRounded} mi commute (within ${maxMiles} mi pref)` };
+  } else if (distance <= maxMiles * 1.25) {
+    // Slightly over preference
+    return { score: 72, note: `${distanceRounded} mi slightly exceeds ${maxMiles} mi pref` };
+  } else if (distance <= maxMiles * 1.5) {
+    // Over preference but potentially negotiable
+    return { score: 60, note: `${distanceRounded} mi exceeds ${maxMiles} mi pref` };
+  }
+  // Way over preference
+  return { score: 40, note: `${distanceRounded} mi far exceeds ${maxMiles} mi pref` };
 }
 
 export async function generateRecommendation(driverData, reqData, fitScores) {

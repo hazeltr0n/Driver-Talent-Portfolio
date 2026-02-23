@@ -47,8 +47,8 @@ export default async function handler(req, res) {
       }
     }
 
-    // Verify all 6 clips are uploaded
-    const requiredClips = ['q1', 'q2', 'q3', 'q4', 'q5', 'q6'];
+    // Verify all 7 clips are uploaded
+    const requiredClips = ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7'];
     const missingClips = requiredClips.filter(q => !videoClips[q]);
 
     if (missingClips.length > 0) {

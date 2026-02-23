@@ -95,7 +95,20 @@ export default function Employers() {
         {filteredEmployers.map(employer => (
           <div key={employer.id} style={styles.tableRow}>
             <div style={{ ...styles.tableCell, flex: 2 }}>
-              <div style={styles.companyName}>{employer.name}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={styles.companyName}>{employer.name}</span>
+                {employer.hubspot_company_id && (
+                  <a
+                    href={`https://app.hubspot.com/contacts/47971120/company/${employer.hubspot_company_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={styles.hubspotLink}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    HubSpot
+                  </a>
+                )}
+              </div>
               {employer.domain && (
                 <div style={styles.domain}>{employer.domain}</div>
               )}
@@ -612,5 +625,14 @@ const styles = {
     fontSize: 14,
     fontWeight: 500,
     cursor: 'pointer',
+  },
+  hubspotLink: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#FF7A59',
+    textDecoration: 'none',
+    padding: '2px 6px',
+    background: '#FFF1ED',
+    borderRadius: 4,
   },
 };

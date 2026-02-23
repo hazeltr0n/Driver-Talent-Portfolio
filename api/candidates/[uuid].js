@@ -96,7 +96,13 @@ async function updateCandidate(uuid, updates, res) {
   const fields = {};
   for (const key of VALID_FIELDS) {
     if (updates[key] !== undefined) {
-      fields[key] = updates[key];
+      // Re-stringify JSON fields if they come in as arrays/objects
+      if ((key === 'equipment_experience' || key === 'employment_history' || key === 'video_clips')
+          && typeof updates[key] === 'object') {
+        fields[key] = JSON.stringify(updates[key]);
+      } else {
+        fields[key] = updates[key];
+      }
     }
   }
 

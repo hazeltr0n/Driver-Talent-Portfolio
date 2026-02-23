@@ -1,7 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import EmployerLayout from './EmployerLayout';
 import { getCandidateProfile, listEmployerJobs, requestInterview } from '../lib/employer-api';
+
+// Format name as "First L." for privacy
+function formatDisplayName(fullName) {
+  if (!fullName) return 'Driver';
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  const firstName = parts[0];
+  const lastInitial = parts[parts.length - 1][0];
+  return `${firstName} ${lastInitial}.`;
+}
 
 export default function CandidateProfile() {
   const { uuid } = useParams();
@@ -11,6 +21,8 @@ export default function CandidateProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const videoRef = useRef(null);
 
   useEffect(() => {
     loadData();
@@ -29,6 +41,13 @@ export default function CandidateProfile() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePlayVideo = () => {
+    if (videoRef.current) {
+      videoRef.current.play();
+      setIsVideoPlaying(true);
     }
   };
 
@@ -60,154 +79,290 @@ export default function CandidateProfile() {
   }
 
   const bestFit = candidate.fit_profiles?.[0];
+  const displayName = formatDisplayName(candidate.fullName);
 
   return (
     <EmployerLayout>
-      <div style={styles.header}>
+      {/* Back Navigation */}
+      <div style={styles.nav}>
         <button onClick={() => navigate('/employer/drivers')} style={styles.backLink}>
           ← Back to Driver Feed
         </button>
       </div>
 
-      <div style={styles.profileHeader}>
-        <div style={styles.profileInfo}>
-          <h1 style={styles.name}>{candidate.fullName}</h1>
-          <div style={styles.meta}>
+      {/* Video Hero Section */}
+      {candidate.video_url ? (
+        <div style={styles.videoHero}>
+          <div style={styles.videoWrapper}>
+            <video
+              ref={videoRef}
+              src={candidate.video_url}
+              style={styles.video}
+              controls={isVideoPlaying}
+              onPlay={() => setIsVideoPlaying(true)}
+              onPause={() => setIsVideoPlaying(false)}
+              playsInline
+            />
+            {!isVideoPlaying && (
+              <div style={styles.videoOverlayMinimal} onClick={handlePlayVideo}>
+                <div style={styles.playButtonLarge}>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="#004751">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* No Video - Text Hero */
+        <div style={styles.textHero}>
+          <div style={styles.heroName}>{displayName}</div>
+          <div style={styles.heroMeta}>
             {candidate.city}, {candidate.state} · CDL-{candidate.cdl_class} · {candidate.years_experience} years experience
           </div>
-          {candidate.endorsements && (
-            <div style={styles.endorsements}>
-              Endorsements: {candidate.endorsements}
-            </div>
-          )}
         </div>
-        <div style={styles.profileActions}>
+      )}
+
+      {/* Quick Action Bar */}
+      <div style={styles.actionBar}>
+        <div style={styles.actionBarLeft}>
           {bestFit && (
-            <div style={styles.topScore}>
-              <span style={styles.scoreLabel}>Top Fit Score</span>
-              <span style={styles.scoreValue}>{bestFit.fit_score}%</span>
+            <div style={styles.fitScoreDisplay}>
+              <span style={styles.fitScoreNumber}>{bestFit.fit_score}%</span>
+              <span style={styles.fitScoreLabel}>Fit Score</span>
             </div>
           )}
-          <button onClick={() => setShowRequestModal(true)} style={styles.requestButton}>
-            Request Interview
-          </button>
+          <div style={styles.badges}>
+            <span style={styles.badge}>CDL-{candidate.cdl_class}</span>
+            {candidate.endorsements && (
+              <span style={styles.badge}>{candidate.endorsements}</span>
+            )}
+            <span style={styles.badge}>{candidate.years_experience} yrs exp</span>
+            {candidate.home_time_preference && (
+              <span style={styles.badge}>{candidate.home_time_preference}</span>
+            )}
+          </div>
         </div>
+        <button onClick={() => setShowRequestModal(true)} style={styles.requestButton}>
+          Request Interview
+        </button>
       </div>
 
-      <div style={styles.grid}>
-        <div style={styles.mainContent}>
-          {/* Narrative */}
-          {candidate.ai_narrative && (
-            <div style={styles.section}>
-              <h2 style={styles.sectionTitle}>About This Driver</h2>
-              <p style={styles.narrative}>{candidate.ai_narrative}</p>
-            </div>
-          )}
+      {/* Main Content */}
+      <div style={styles.content}>
+        {/* Pull Quote - Prominent */}
+        {candidate.ai_pull_quote && (
+          <div style={styles.pullQuoteSection}>
+            <div style={styles.quoteIcon}>"</div>
+            <p style={styles.pullQuote}>{candidate.ai_pull_quote}</p>
+          </div>
+        )}
 
-          {/* Pull Quote */}
-          {candidate.ai_pull_quote && (
-            <div style={styles.pullQuote}>
-              "{candidate.ai_pull_quote}"
-            </div>
-          )}
-
-          {/* Video */}
-          {candidate.video_url && (
-            <div style={styles.section}>
-              <h2 style={styles.sectionTitle}>Driver Story Video</h2>
-              <div style={styles.videoContainer}>
-                <video
-                  src={candidate.video_url}
-                  controls
-                  style={styles.video}
-                  poster="/video-poster.png"
-                />
+        <div style={styles.grid}>
+          {/* Left Column - Main Info */}
+          <div style={styles.mainColumn}>
+            {/* About */}
+            {candidate.ai_narrative && (
+              <div style={styles.card}>
+                <h2 style={styles.cardTitle}>About {displayName}</h2>
+                <p style={styles.narrative}>{candidate.ai_narrative}</p>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Equipment Experience */}
-          {candidate.equipment_experience?.length > 0 && (
-            <div style={styles.section}>
-              <h2 style={styles.sectionTitle}>Equipment Experience</h2>
-              <div style={styles.equipmentGrid}>
-                {candidate.equipment_experience.map((eq, i) => (
-                  <div key={i} style={styles.equipmentItem}>
-                    <div style={styles.equipmentType}>{eq.type}</div>
-                    {eq.years && <div style={styles.equipmentYears}>{eq.years} years</div>}
+            {/* Employment History */}
+            {candidate.employment_history?.length > 0 && (
+              <div style={styles.card}>
+                <h2 style={styles.cardTitle}>Employment History</h2>
+                <div style={styles.employmentTable}>
+                  <div style={styles.employmentHeader}>
+                    <span style={styles.employmentHeaderCell}>Company</span>
+                    <span style={styles.employmentHeaderCell}>Role</span>
+                    <span style={styles.employmentHeaderCell}>Tenure</span>
+                    <span style={styles.employmentHeaderCell}>Verified</span>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Employment History */}
-          {candidate.employment_history?.length > 0 && (
-            <div style={styles.section}>
-              <h2 style={styles.sectionTitle}>Employment History</h2>
-              <div style={styles.timeline}>
-                {candidate.employment_history.map((job, i) => (
-                  <div key={i} style={styles.timelineItem}>
-                    <div style={styles.timelineDot} />
-                    <div style={styles.timelineContent}>
-                      <div style={styles.jobRole}>{job.role || job.title}</div>
-                      <div style={styles.jobCompany}>{job.company}</div>
-                      {job.dates && <div style={styles.jobDates}>{job.dates}</div>}
+                  {candidate.employment_history.map((job, i) => (
+                    <div key={i} style={styles.employmentRow}>
+                      <span style={styles.employmentCompany}>{job.company}</span>
+                      <span style={styles.employmentRole}>{job.role || job.title}</span>
+                      <span style={styles.employmentTenure}>{job.tenure || '-'}</span>
+                      <span style={styles.employmentVerified}>
+                        {job.regulated && (
+                          <span style={styles.dotRegulatedBadge}>DOT-Regulated</span>
+                        )}
+                      </span>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
 
-        <div style={styles.sidebar}>
-          {/* Fit Profiles */}
-          {candidate.fit_profiles?.length > 0 && (
-            <div style={styles.sidebarSection}>
-              <h3 style={styles.sidebarTitle}>Job Fit Scores</h3>
-              {candidate.fit_profiles.map((fp, i) => (
-                <div key={i} style={styles.fitCard}>
-                  <div style={styles.fitHeader}>
-                    <span style={styles.fitJobTitle}>{fp.job_title}</span>
-                    <span style={{ ...styles.fitScore, ...getScoreStyle(fp.fit_score) }}>
-                      {fp.fit_score}%
-                    </span>
+            {/* Safety & Compliance */}
+            <div style={styles.card}>
+              <h2 style={styles.cardTitle}>Safety & Compliance</h2>
+
+              {/* MVR Stats */}
+              <div style={styles.statsGrid}>
+                <div style={{...styles.statBox, ...(candidate.mvr_violations_3yr === 0 ? styles.statBoxGreen : styles.statBoxYellow)}}>
+                  <div style={styles.statNumber}>{candidate.mvr_violations_3yr || 0}</div>
+                  <div style={styles.statLabel}>MVR Violations (3yr)</div>
+                </div>
+                <div style={{...styles.statBox, ...(candidate.mvr_accidents_3yr === 0 ? styles.statBoxGreen : styles.statBoxYellow)}}>
+                  <div style={styles.statNumber}>{candidate.mvr_accidents_3yr || 0}</div>
+                  <div style={styles.statLabel}>At-Fault Accidents</div>
+                </div>
+                <div style={{...styles.statBox, ...(candidate.psp_crashes_5yr === 0 ? styles.statBoxGreen : styles.statBoxYellow)}}>
+                  <div style={styles.statNumber}>{candidate.psp_crashes_5yr || 0}</div>
+                  <div style={styles.statLabel}>PSP Crashes (5yr)</div>
+                </div>
+                <div style={styles.statBox}>
+                  <div style={styles.statNumber}>{candidate.psp_inspections_3yr || 0}</div>
+                  <div style={styles.statLabel}>Inspections (3yr)</div>
+                </div>
+              </div>
+
+              {/* Compliance Status */}
+              <div style={styles.complianceList}>
+                <div style={{...styles.complianceItem, ...(candidate.mvr_status === 'Clear' ? styles.complianceGreen : styles.complianceYellow)}}>
+                  <span style={styles.complianceLabel}>MVR Status</span>
+                  <span style={styles.complianceBadge}>{candidate.mvr_status || 'Pending'}</span>
+                </div>
+                <div style={{...styles.complianceItem, ...(candidate.clearinghouse_status === 'Not Prohibited' ? styles.complianceGreen : styles.complianceYellow)}}>
+                  <span style={styles.complianceLabel}>Clearinghouse</span>
+                  <span style={styles.complianceBadge}>{candidate.clearinghouse_status || 'Pending'}</span>
+                </div>
+                <div style={{...styles.complianceItem, ...(candidate.medical_card_status === 'Valid' ? styles.complianceGreen : styles.complianceYellow)}}>
+                  <span style={styles.complianceLabel}>Medical Card</span>
+                  <span style={styles.complianceBadge}>{candidate.medical_card_status || 'Pending'}</span>
+                </div>
+              </div>
+
+              {/* MVR Summary */}
+              {candidate.mvr_summary && (
+                <div style={styles.summaryBox}>
+                  <p style={styles.summaryText}>{candidate.mvr_summary}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Training */}
+            {candidate.training_school && (
+              <div style={styles.card}>
+                <h2 style={styles.cardTitle}>CDL Training</h2>
+                <div style={styles.trainingList}>
+                  <div style={styles.trainingRow}>
+                    <span style={styles.trainingLabel}>School</span>
+                    <span style={styles.trainingValue}>{candidate.training_school}</span>
                   </div>
-                  {fp.fit_dimensions?.length > 0 && (
-                    <div style={styles.fitDimensions}>
-                      {fp.fit_dimensions.map((dim, j) => (
-                        <div key={j} style={styles.fitDim}>
-                          <span>{dim.name}</span>
-                          <span style={{ color: getScoreStyle(dim.score).color }}>{dim.score}</span>
-                        </div>
-                      ))}
+                  {candidate.training_location && (
+                    <div style={styles.trainingRow}>
+                      <span style={styles.trainingLabel}>Location</span>
+                      <span style={styles.trainingValue}>{candidate.training_location}</span>
                     </div>
                   )}
-                  {fp.fit_recommendation && (
-                    <p style={styles.fitRecommendation}>{fp.fit_recommendation}</p>
+                  {candidate.training_graduated && (
+                    <div style={styles.trainingRow}>
+                      <span style={styles.trainingLabel}>Graduated</span>
+                      <span style={styles.trainingValue}>{candidate.training_graduated}</span>
+                    </div>
+                  )}
+                  {candidate.training_hours > 0 && (
+                    <div style={styles.trainingRow}>
+                      <span style={styles.trainingLabel}>Instruction Hours</span>
+                      <span style={styles.trainingValue}>{candidate.training_hours} hours</span>
+                    </div>
                   )}
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            )}
 
-          {/* Quick Stats */}
-          <div style={styles.sidebarSection}>
-            <h3 style={styles.sidebarTitle}>Quick Stats</h3>
-            <div style={styles.statsList}>
-              <div style={styles.statItem}>
-                <span style={styles.statLabel}>Home Time Preference</span>
-                <span style={styles.statValue}>{candidate.home_time_preference || 'Flexible'}</span>
+            {/* AI Recruiter Notes */}
+            {candidate.ai_recruiter_notes && (
+              <div style={styles.notesCard}>
+                <div style={styles.notesIcon}>AI</div>
+                <div>
+                  <div style={styles.notesTitle}>Recruiter Notes</div>
+                  <p style={styles.notesText}>{candidate.ai_recruiter_notes}</p>
+                </div>
               </div>
-              <div style={styles.statItem}>
-                <span style={styles.statLabel}>CDL Class</span>
-                <span style={styles.statValue}>{candidate.cdl_class || '-'}</span>
+            )}
+          </div>
+
+          {/* Right Column - Fit Scores */}
+          <div style={styles.sidebar}>
+            {/* Job Fit Cards */}
+            {candidate.fit_profiles?.length > 0 && (
+              <div style={styles.card}>
+                <h2 style={styles.cardTitle}>Job Fit Analysis</h2>
+                {candidate.fit_profiles.map((fp, i) => (
+                  <div key={i} style={styles.fitCard}>
+                    <div style={styles.fitCardHeader}>
+                      <span style={styles.fitJobTitle}>{fp.job_title}</span>
+                      <span style={{ ...styles.fitScoreBadge, ...getScoreStyle(fp.fit_score) }}>
+                        {fp.fit_score}%
+                      </span>
+                    </div>
+
+                    {/* Dimension Bars */}
+                    {fp.fit_dimensions?.length > 0 && (
+                      <div style={styles.dimensionsList}>
+                        {fp.fit_dimensions.map((dim, j) => (
+                          <div key={j} style={styles.dimensionRow}>
+                            <div style={styles.dimensionLabel}>
+                              <span>{dim.name}</span>
+                              <span style={{ color: getScoreColor(dim.score) }}>{dim.score}</span>
+                            </div>
+                            <div style={styles.dimensionBar}>
+                              <div
+                                style={{
+                                  ...styles.dimensionFill,
+                                  width: `${dim.score}%`,
+                                  background: getScoreColor(dim.score)
+                                }}
+                              />
+                            </div>
+                            {dim.note && <div style={styles.dimensionNote}>{dim.note}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* AI Recommendation */}
+                    {fp.fit_recommendation && (
+                      <div style={styles.fitRecommendation}>
+                        <div style={styles.recommendationIcon}>AI</div>
+                        <p style={styles.recommendationText}>{fp.fit_recommendation}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-              <div style={styles.statItem}>
-                <span style={styles.statLabel}>Experience</span>
-                <span style={styles.statValue}>{candidate.years_experience || 0} years</span>
+            )}
+
+            {/* Equipment Experience */}
+            {candidate.equipment_experience?.length > 0 && (
+              <div style={styles.card}>
+                <h2 style={styles.cardTitle}>Equipment Experience</h2>
+                <div style={styles.equipmentList}>
+                  {candidate.equipment_experience.map((eq, i) => (
+                    <div key={i} style={styles.equipmentRow}>
+                      <span style={styles.equipmentType}>{eq.type}</span>
+                      <span style={styles.equipmentLevel}>{eq.level || eq.years || '-'}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
+            )}
+
+            {/* Request Interview CTA */}
+            <div style={styles.ctaCard}>
+              <h3 style={styles.ctaTitle}>Interested in this driver?</h3>
+              <p style={styles.ctaText}>
+                Our career agents will facilitate the connection and schedule an interview.
+              </p>
+              <button onClick={() => setShowRequestModal(true)} style={styles.ctaButton}>
+                Request Interview
+              </button>
             </div>
           </div>
         </div>
@@ -264,7 +419,7 @@ function RequestInterviewModal({ candidate, jobs, onClose, onSuccess }) {
 
         <form onSubmit={handleSubmit} style={modalStyles.body}>
           <p style={modalStyles.description}>
-            Request an interview with <strong>{candidate.fullName}</strong>.
+            Request an interview with <strong>{formatDisplayName(candidate.fullName)}</strong>.
             Our career agent team will facilitate the connection.
           </p>
 
@@ -316,8 +471,14 @@ function getScoreStyle(score) {
   return { background: '#FEE2E2', color: '#DC2626' };
 }
 
+function getScoreColor(score) {
+  if (score >= 85) return '#059669';
+  if (score >= 70) return '#D97706';
+  return '#DC2626';
+}
+
 const styles = {
-  header: {
+  nav: {
     marginBottom: 16,
   },
   backLink: {
@@ -325,6 +486,7 @@ const styles = {
     border: 'none',
     color: '#004751',
     fontSize: 14,
+    fontWeight: 500,
     cursor: 'pointer',
     padding: 0,
   },
@@ -351,237 +513,535 @@ const styles = {
     borderRadius: 6,
     cursor: 'pointer',
   },
-  profileHeader: {
+
+  // Video Hero
+  videoHero: {
+    marginBottom: 0,
+  },
+  videoWrapper: {
+    position: 'relative',
+    borderRadius: 16,
+    overflow: 'hidden',
+    background: '#004751',
+    maxHeight: '70vh',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  video: {
+    maxWidth: '100%',
+    maxHeight: '70vh',
+    objectFit: 'contain',
+    display: 'block',
+  },
+  videoOverlayMinimal: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    background: 'transparent',
+  },
+  playButtonLarge: {
+    width: 100,
+    height: 100,
+    borderRadius: '50%',
+    background: 'rgba(205, 249, 92, 0.95)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+    transition: 'transform 0.2s, box-shadow 0.2s',
+  },
+  heroName: {
+    fontSize: 'clamp(28px, 5vw, 42px)',
+    fontWeight: 700,
+    color: '#FFFFFF',
+    fontFamily: 'Georgia, serif',
+    marginBottom: 8,
+  },
+  heroMeta: {
+    fontSize: 'clamp(14px, 2.5vw, 18px)',
+    color: 'rgba(255,255,255,0.85)',
+    marginBottom: 16,
+  },
+
+  // Text Hero (no video)
+  textHero: {
+    background: 'linear-gradient(135deg, #004751 0%, #006575 100%)',
+    borderRadius: 16,
+    padding: '48px 32px',
+    textAlign: 'center',
+    marginBottom: 0,
+  },
+
+  // Action Bar
+  actionBar: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     background: '#FFFFFF',
-    borderRadius: 12,
-    border: '1px solid #E8ECEE',
-    padding: 24,
+    borderRadius: '0 0 16px 16px',
+    padding: '16px 24px',
     marginBottom: 24,
     flexWrap: 'wrap',
-    gap: 20,
+    gap: 16,
+    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
   },
-  profileInfo: {},
-  name: {
-    margin: 0,
-    fontSize: 28,
-    fontWeight: 700,
-    color: '#004751',
-    fontFamily: 'Georgia, serif',
-  },
-  meta: {
-    fontSize: 14,
-    color: '#5A7A82',
-    marginTop: 8,
-  },
-  endorsements: {
-    fontSize: 13,
-    color: '#004751',
-    marginTop: 8,
-    fontWeight: 500,
-  },
-  profileActions: {
+  actionBarLeft: {
     display: 'flex',
     alignItems: 'center',
     gap: 20,
+    flexWrap: 'wrap',
   },
-  topScore: {
-    textAlign: 'center',
+  fitScoreDisplay: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: 8,
   },
-  scoreLabel: {
-    display: 'block',
-    fontSize: 11,
-    color: '#5A7A82',
-    marginBottom: 4,
-  },
-  scoreValue: {
-    fontSize: 28,
-    fontWeight: 700,
+  fitScoreNumber: {
+    fontSize: 32,
+    fontWeight: 800,
     color: '#059669',
   },
+  fitScoreLabel: {
+    fontSize: 13,
+    color: '#5A7A82',
+    fontWeight: 500,
+  },
+  badges: {
+    display: 'flex',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  badge: {
+    padding: '6px 12px',
+    fontSize: 12,
+    fontWeight: 600,
+    background: '#F0F9FF',
+    color: '#004751',
+    borderRadius: 20,
+  },
   requestButton: {
-    padding: '12px 24px',
-    fontSize: 14,
+    padding: '14px 28px',
+    fontSize: 15,
     fontWeight: 600,
     background: '#004751',
     color: '#FFFFFF',
     border: 'none',
-    borderRadius: 6,
+    borderRadius: 8,
     cursor: 'pointer',
+    transition: 'background 0.2s',
   },
+
+  // Content
+  content: {
+    maxWidth: 1200,
+    margin: '0 auto',
+  },
+
+  // Pull Quote
+  pullQuoteSection: {
+    position: 'relative',
+    background: 'linear-gradient(135deg, #F0F9FF 0%, #E8F5E9 100%)',
+    borderRadius: 16,
+    padding: '32px 40px',
+    marginBottom: 24,
+    borderLeft: '4px solid #004751',
+  },
+  quoteIcon: {
+    position: 'absolute',
+    top: 12,
+    left: 20,
+    fontSize: 64,
+    fontFamily: 'Georgia, serif',
+    color: '#004751',
+    opacity: 0.15,
+    lineHeight: 1,
+  },
+  pullQuote: {
+    margin: 0,
+    fontSize: 'clamp(18px, 3vw, 22px)',
+    fontStyle: 'italic',
+    color: '#004751',
+    lineHeight: 1.6,
+    position: 'relative',
+    zIndex: 1,
+  },
+
+  // Grid
   grid: {
     display: 'grid',
-    gridTemplateColumns: '1fr 360px',
+    gridTemplateColumns: '1fr 400px',
     gap: 24,
   },
-  mainContent: {},
+  mainColumn: {},
   sidebar: {},
-  section: {
+
+  // Cards
+  card: {
     background: '#FFFFFF',
     borderRadius: 12,
-    border: '1px solid #E8ECEE',
     padding: 24,
     marginBottom: 20,
+    border: '1px solid #E8ECEE',
   },
-  sectionTitle: {
+  cardTitle: {
     margin: '0 0 16px',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 600,
     color: '#004751',
   },
   narrative: {
     margin: 0,
-    fontSize: 14,
+    fontSize: 15,
     color: '#1A2A30',
     lineHeight: 1.7,
   },
-  pullQuote: {
-    background: '#F0F9FF',
-    borderLeft: '4px solid #004751',
-    padding: 20,
-    margin: '0 0 20px',
-    fontSize: 16,
-    fontStyle: 'italic',
-    color: '#004751',
-    lineHeight: 1.6,
-    borderRadius: '0 8px 8px 0',
+
+  // Equipment Experience
+  equipmentList: {
+    display: 'flex',
+    flexDirection: 'column',
   },
-  videoContainer: {
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  video: {
-    width: '100%',
-    background: '#000',
-  },
-  equipmentGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-    gap: 12,
-  },
-  equipmentItem: {
-    background: '#F8FAFB',
-    borderRadius: 8,
-    padding: 12,
-  },
-  equipmentType: {
-    fontSize: 13,
-    fontWeight: 600,
-    color: '#1A2A30',
-  },
-  equipmentYears: {
-    fontSize: 12,
-    color: '#5A7A82',
-    marginTop: 4,
-  },
-  timeline: {
-    borderLeft: '2px solid #E8ECEE',
-    paddingLeft: 20,
-  },
-  timelineItem: {
-    position: 'relative',
-    marginBottom: 20,
-  },
-  timelineDot: {
-    position: 'absolute',
-    left: -26,
-    top: 4,
-    width: 12,
-    height: 12,
-    background: '#004751',
-    borderRadius: '50%',
-  },
-  timelineContent: {},
-  jobRole: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: '#1A2A30',
-  },
-  jobCompany: {
-    fontSize: 13,
-    color: '#5A7A82',
-    marginTop: 2,
-  },
-  jobDates: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 2,
-  },
-  sidebarSection: {
-    background: '#FFFFFF',
-    borderRadius: 12,
-    border: '1px solid #E8ECEE',
-    padding: 20,
-    marginBottom: 16,
-  },
-  sidebarTitle: {
-    margin: '0 0 16px',
-    fontSize: 14,
-    fontWeight: 600,
-    color: '#004751',
-  },
-  fitCard: {
-    background: '#F8FAFB',
-    borderRadius: 8,
-    padding: 14,
-    marginBottom: 12,
-  },
-  fitHeader: {
+  equipmentRow: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    padding: '12px 0',
+    borderBottom: '1px solid #F0F2F4',
+  },
+  equipmentType: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#1A2A30',
+  },
+  equipmentLevel: {
+    fontSize: 14,
+    color: '#5A7A82',
+    fontStyle: 'italic',
+  },
+
+  // Employment History Table
+  employmentTable: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  employmentHeader: {
+    display: 'grid',
+    gridTemplateColumns: '2fr 1.5fr 1fr 1fr',
+    gap: 16,
+    paddingBottom: 12,
+    borderBottom: '1px solid #E8ECEE',
+    marginBottom: 8,
+  },
+  employmentHeaderCell: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#5A7A82',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  employmentRow: {
+    display: 'grid',
+    gridTemplateColumns: '2fr 1.5fr 1fr 1fr',
+    gap: 16,
+    padding: '14px 0',
+    borderBottom: '1px solid #F0F2F4',
+    alignItems: 'center',
+  },
+  employmentCompany: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#1A2A30',
+  },
+  employmentRole: {
+    fontSize: 14,
+    color: '#5A7A82',
+  },
+  employmentTenure: {
+    fontSize: 14,
+    color: '#1A2A30',
+  },
+  employmentVerified: {
+    display: 'flex',
+    alignItems: 'center',
+  },
+  dotRegulatedBadge: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#059669',
+    background: '#D1FAE5',
+    padding: '4px 10px',
+    borderRadius: 12,
+    border: '1px solid #A7F3D0',
+  },
+
+  // Fit Cards
+  fitCard: {
+    background: '#F8FAFB',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 16,
+  },
+  fitCardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   fitJobTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: 600,
     color: '#1A2A30',
   },
-  fitScore: {
-    padding: '4px 10px',
-    fontSize: 13,
+  fitScoreBadge: {
+    padding: '6px 12px',
+    fontSize: 14,
     fontWeight: 700,
-    borderRadius: 12,
+    borderRadius: 16,
   },
-  fitDimensions: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-    marginBottom: 10,
+  dimensionsList: {
+    marginBottom: 16,
   },
-  fitDim: {
+  dimensionRow: {
+    marginBottom: 12,
+  },
+  dimensionLabel: {
     display: 'flex',
     justifyContent: 'space-between',
     fontSize: 12,
+    fontWeight: 500,
     color: '#5A7A82',
+    marginBottom: 4,
+  },
+  dimensionBar: {
+    height: 6,
+    background: '#E8ECEE',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  dimensionFill: {
+    height: '100%',
+    borderRadius: 3,
+    transition: 'width 0.5s ease',
+  },
+  dimensionNote: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    marginTop: 3,
+    fontStyle: 'italic',
   },
   fitRecommendation: {
+    display: 'flex',
+    gap: 10,
+    padding: 12,
+    background: '#FFFFFF',
+    borderRadius: 8,
+    border: '1px solid #E8ECEE',
+  },
+  recommendationIcon: {
+    width: 28,
+    height: 28,
+    background: 'linear-gradient(135deg, #004751, #006575)',
+    borderRadius: 6,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 10,
+    fontWeight: 700,
+    color: '#CDF95C',
+    flexShrink: 0,
+  },
+  recommendationText: {
     margin: 0,
-    fontSize: 12,
+    fontSize: 13,
     color: '#5A7A82',
     lineHeight: 1.5,
-    borderTop: '1px solid #E8ECEE',
-    paddingTop: 10,
   },
-  statsList: {
-    display: 'flex',
-    flexDirection: 'column',
+
+  // Safety & Compliance
+  statsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
     gap: 12,
+    marginBottom: 16,
   },
-  statItem: {
-    display: 'flex',
-    justifyContent: 'space-between',
+  statBox: {
+    background: '#F8FAFB',
+    borderRadius: 10,
+    padding: 16,
+    textAlign: 'center',
+  },
+  statBoxGreen: {
+    background: '#F0FAF0',
+    border: '1px solid #C8E6C9',
+  },
+  statBoxYellow: {
+    background: '#FFF8E1',
+    border: '1px solid #FFECB3',
+  },
+  statNumber: {
+    fontSize: 28,
+    fontWeight: 800,
+    color: '#004751',
+    fontFamily: 'Georgia, serif',
   },
   statLabel: {
-    fontSize: 13,
+    fontSize: 11,
     color: '#5A7A82',
+    marginTop: 4,
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  statValue: {
-    fontSize: 13,
+  complianceList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+    marginBottom: 16,
+  },
+  complianceItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px 16px',
+    borderRadius: 8,
+    background: '#F8FAFB',
+  },
+  complianceGreen: {
+    background: '#F0FAF0',
+    border: '1px solid #C8E6C9',
+  },
+  complianceYellow: {
+    background: '#FFF8E1',
+    border: '1px solid #FFECB3',
+  },
+  complianceLabel: {
+    fontSize: 14,
     fontWeight: 600,
     color: '#1A2A30',
+  },
+  complianceBadge: {
+    fontSize: 12,
+    fontWeight: 600,
+    padding: '4px 10px',
+    borderRadius: 12,
+    background: 'rgba(255,255,255,0.8)',
+  },
+  summaryBox: {
+    background: '#F8FAFB',
+    borderRadius: 8,
+    padding: 16,
+    borderLeft: '3px solid #004751',
+  },
+  summaryText: {
+    margin: 0,
+    fontSize: 14,
+    color: '#3A5A64',
+    lineHeight: 1.6,
+  },
+  // Training
+  trainingList: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  trainingRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px 0',
+    borderBottom: '1px solid #F0F2F4',
+    gap: 24,
+  },
+  trainingLabel: {
+    fontSize: 13,
+    color: '#5A7A82',
+    flexShrink: 0,
+  },
+  trainingValue: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#1A2A30',
+    textAlign: 'right',
+  },
+  // AI Notes Card
+  notesCard: {
+    display: 'flex',
+    gap: 16,
+    background: '#F8FAFB',
+    borderRadius: 12,
+    padding: 20,
+    borderLeft: '4px solid #004751',
+    marginBottom: 20,
+  },
+  notesIcon: {
+    width: 36,
+    height: 36,
+    background: 'linear-gradient(135deg, #004751, #006575)',
+    borderRadius: 8,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#CDF95C',
+    flexShrink: 0,
+  },
+  notesTitle: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#004751',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  notesText: {
+    margin: 0,
+    fontSize: 14,
+    color: '#3A5A64',
+    lineHeight: 1.7,
+  },
+  // CTA Card
+  ctaCard: {
+    background: 'linear-gradient(135deg, #004751 0%, #006575 100%)',
+    borderRadius: 12,
+    padding: 24,
+    textAlign: 'center',
+  },
+  ctaTitle: {
+    margin: '0 0 8px',
+    fontSize: 18,
+    fontWeight: 600,
+    color: '#FFFFFF',
+  },
+  ctaText: {
+    margin: '0 0 16px',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    lineHeight: 1.5,
+  },
+  ctaButton: {
+    width: '100%',
+    padding: '14px 24px',
+    fontSize: 15,
+    fontWeight: 600,
+    background: '#CDF95C',
+    color: '#004751',
+    border: 'none',
+    borderRadius: 8,
+    cursor: 'pointer',
+  },
+
+  // Responsive
+  '@media (max-width: 900px)': {
+    grid: {
+      gridTemplateColumns: '1fr',
+    },
   },
 };
 

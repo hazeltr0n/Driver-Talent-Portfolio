@@ -34,8 +34,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'uuid and questionNumber required' });
   }
 
-  if (questionNumber < 1 || questionNumber > 6) {
-    return res.status(400).json({ error: 'questionNumber must be between 1 and 6' });
+  if (questionNumber < 1 || questionNumber > 7) {
+    return res.status(400).json({ error: 'questionNumber must be between 1 and 7' });
   }
 
   try {

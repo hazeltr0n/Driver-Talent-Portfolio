@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     // Get all fit profiles for this candidate under this employer's jobs
     const fitProfiles = await getFitProfilesForCandidate(employer.employer_name, uuid);
 
-    // Build employer-safe candidate profile (exclude sensitive data)
+    // Build employer-safe candidate profile (exclude sensitive data like email/phone)
     const profile = {
       uuid: candidate.uuid,
       fullName: candidate.fullName || '',
@@ -51,8 +51,28 @@ export default async function handler(req, res) {
       // AI-generated content
       ai_narrative: candidate.ai_narrative || '',
       ai_pull_quote: candidate.ai_pull_quote || '',
+      ai_recruiter_notes: candidate.ai_recruiter_notes || '',
       // Video
       video_url: candidate.video_url || null,
+      // MVR (Motor Vehicle Record)
+      mvr_status: candidate.mvr_status || '',
+      mvr_violations_3yr: candidate.mvr_violations_3yr || 0,
+      mvr_accidents_3yr: candidate.mvr_accidents_3yr || 0,
+      mvr_suspensions_3yr: candidate.mvr_suspensions_3yr || 0,
+      mvr_last_pull: candidate.mvr_last_pull || '',
+      mvr_summary: candidate.mvr_summary || '',
+      // PSP (Pre-Employment Screening)
+      psp_crashes_5yr: candidate.psp_crashes_5yr || 0,
+      psp_inspections_3yr: candidate.psp_inspections_3yr || 0,
+      psp_driver_oos: candidate.psp_driver_oos || 0,
+      // Compliance
+      clearinghouse_status: candidate.clearinghouse_status || '',
+      medical_card_status: candidate.medical_card_status || '',
+      // Training
+      training_school: candidate.training_school || '',
+      training_location: candidate.training_location || '',
+      training_graduated: candidate.training_graduated || '',
+      training_hours: candidate.training_hours || 0,
       // Fit profiles for employer's jobs
       fit_profiles: fitProfiles.map(fp => ({
         job_id: fp.requisition_id,

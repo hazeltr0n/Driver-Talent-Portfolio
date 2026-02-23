@@ -14,7 +14,7 @@ const QUESTIONS = {
   },
   3: {
     title: 'Your turning point',
-    weSuggested: 'Focus on the DECISION to change, not past details. "I realized..." "I decided..."',
+    weSuggested: 'Brief past acknowledgment, then their support system (FreeWorld, family, community), then why their future is bright',
   },
   4: {
     title: 'Why trucking?',
@@ -27,6 +27,10 @@ const QUESTIONS = {
   6: {
     title: 'Your reputation',
     weSuggested: 'A SPECIFIC example - a real story about reliability, what a manager would say',
+  },
+  7: {
+    title: 'Your message to employers',
+    weSuggested: 'Speak directly to employers, tell them what they get if they hire you, close with confidence',
   },
 };
 
@@ -48,6 +52,13 @@ Many candidates will mention a "turning point" or past mistakes. The right appro
 
 RED FLAGS: Blaming others, dwelling on details, victim mentality, oversharing
 GOOD: Brief acknowledgment, ownership, focus on growth and what's different now
+
+## Support System (Question 3)
+When candidates mention FreeWorld, family, or community support, that's a STRONG positive signal. It shows:
+- They have accountability and people invested in their success
+- They went through real preparation and training
+- Someone is vouching for them
+If they DON'T mention their support system in Question 3, gently encourage them to add something about who's in their corner (FreeWorld, family, community). Don't force it, but suggest it makes employers feel more confident.
 
 ## Your Feedback Style
 - You're not picky. Drivers aren't expected to be polished speakers.

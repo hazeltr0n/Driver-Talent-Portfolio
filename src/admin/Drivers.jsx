@@ -228,7 +228,20 @@ export default function Drivers() {
         {sortedDrivers.map(driver => (
           <div key={driver.uuid} style={styles.tableRow}>
             <div style={{ ...styles.tableCell, flex: 1 }}>
-              <div style={styles.driverName}>{driver.fullName || driver.name || 'Unknown'}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={styles.driverName}>{driver.fullName || driver.name || 'Unknown'}</span>
+                {driver.admin_portal_url && (
+                  <a
+                    href={driver.admin_portal_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={e => e.stopPropagation()}
+                    style={styles.adminPortalLink}
+                  >
+                    Admin Portal
+                  </a>
+                )}
+              </div>
               <div style={styles.meta}>{driver.email}</div>
             </div>
             <div style={{ ...styles.tableCell, width: 140, flex: 'none' }}>
@@ -245,7 +258,10 @@ export default function Drivers() {
                 <select
                   autoFocus
                   value={driver.career_agent?.id || ''}
-                  onChange={(e) => handleInlineSave(driver.uuid, 'career_agent', e.target.value ? { id: e.target.value } : null)}
+                  onChange={(e) => {
+                    const selected = collaborators.find(c => c.id === e.target.value);
+                    handleInlineSave(driver.uuid, 'career_agent', selected ? { id: selected.id, name: selected.name } : null);
+                  }}
                   onBlur={() => setEditingCell(null)}
                   onClick={(e) => e.stopPropagation()}
                   style={styles.inlineSelect}
@@ -767,7 +783,10 @@ function DriverModal({ driver, collaborators, onClose, onSave }) {
     try {
       const baseUrl = window.location.origin;
       let url, title;
-      if (type === 'record') {
+      if (type === 'form') {
+        url = `${baseUrl}/form/${driver.uuid}`;
+        title = `Preferences - ${driver.fullName || driver.name}`;
+      } else if (type === 'record') {
         url = `${baseUrl}/record/${driver.uuid}`;
         title = `Record Story - ${driver.fullName || driver.name}`;
       } else {
@@ -777,7 +796,6 @@ function DriverModal({ driver, collaborators, onClose, onSave }) {
       const result = await shortenUrl(url, title);
       setShortLinks(prev => ({ ...prev, [type]: result.shortUrl }));
       navigator.clipboard.writeText(result.shortUrl);
-      alert(`Short link copied: ${result.shortUrl}`);
     } catch (err) {
       alert(`Failed to shorten: ${err.message}`);
     } finally {
@@ -1092,9 +1110,9 @@ function DriverModal({ driver, collaborators, onClose, onSave }) {
             </div>
           </div>
 
-          {/* Video Recording Section */}
+          {/* Driver Links Section */}
           <div style={styles.section}>
-            <h3 style={styles.sectionTitle}>Video Story</h3>
+            <h3 style={styles.sectionTitle}>Driver Links</h3>
             <div style={styles.videoSection}>
               <div style={styles.videoStatus}>
                 <span style={styles.fieldLabel}>Status:</span>
@@ -1111,24 +1129,44 @@ function DriverModal({ driver, collaborators, onClose, onSave }) {
                 </span>
               </div>
               <div style={styles.videoActions}>
+                <a
+                  href={`/form/${driver.uuid}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={styles.videoButtonSecondary}
+                >
+                  Preferences Form
+                </a>
                 <button
-                  onClick={() => handleShorten('record')}
-                  disabled={shortening === 'record'}
+                  onClick={() => handleShorten('form')}
+                  disabled={shortening === 'form'}
                   style={styles.videoButton}
                 >
-                  {shortening === 'record' ? 'Shortening...' : shortLinks.record ? 'Copy Again' : 'Get Short Link'}
+                  {shortening === 'form' ? '...' : shortLinks.form ? '✓ Copied' : 'Copy Form Link'}
                 </button>
-                {shortLinks.record && (
-                  <span style={styles.shortLinkDisplay}>{shortLinks.record}</span>
+                {shortLinks.form && (
+                  <span style={styles.shortLinkDisplay}>{shortLinks.form}</span>
                 )}
+              </div>
+              <div style={styles.videoActions}>
                 <a
                   href={`/record/${driver.uuid}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={styles.videoButtonSecondary}
                 >
-                  Open Recorder
+                  Video Recorder
                 </a>
+                <button
+                  onClick={() => handleShorten('record')}
+                  disabled={shortening === 'record'}
+                  style={styles.videoButton}
+                >
+                  {shortening === 'record' ? '...' : shortLinks.record ? '✓ Copied' : 'Copy Record Link'}
+                </button>
+                {shortLinks.record && (
+                  <span style={styles.shortLinkDisplay}>{shortLinks.record}</span>
+                )}
               </div>
               {/* Editable Video URL */}
               <div style={styles.fieldItem}>
@@ -1769,5 +1807,14 @@ const styles = {
     padding: '4px 8px',
     borderRadius: 4,
     marginLeft: 8,
+  },
+  adminPortalLink: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#2563EB',
+    background: '#DBEAFE',
+    padding: '2px 8px',
+    borderRadius: 4,
+    textDecoration: 'none',
   },
 };

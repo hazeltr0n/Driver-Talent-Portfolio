@@ -20,6 +20,10 @@ export default function Requisitions() {
   const [sortBy, setSortBy] = useState('employer');
   const [sortDir, setSortDir] = useState('asc');
 
+  // Inline editing
+  const [editingCell, setEditingCell] = useState(null);
+  const [savingCell, setSavingCell] = useState(null);
+
   useEffect(() => {
     loadData();
     loadCollaborators();
@@ -32,6 +36,26 @@ export default function Requisitions() {
       setCollaborators(data.collaborators || []);
     } catch (err) {
       console.error('Failed to load collaborators:', err);
+    }
+  };
+
+  const handleInlineSave = async (id, field, value) => {
+    setSavingCell({ id, field });
+    try {
+      const response = await fetch(`/api/jobs/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value }),
+      });
+      if (!response.ok) throw new Error('Update failed');
+      setJobs(prev => prev.map(j =>
+        j.id === id ? { ...j, [field]: value } : j
+      ));
+    } catch (err) {
+      console.error('Failed to save:', err);
+    } finally {
+      setSavingCell(null);
+      setEditingCell(null);
     }
   };
 
@@ -210,12 +234,13 @@ export default function Requisitions() {
           <SortHeader field="employer" style={{ flex: 2 }}>Employer / Title</SortHeader>
           <SortHeader field="location">Location</SortHeader>
           <SortHeader field="pay">Pay</SortHeader>
-          <div style={styles.tableCell}>Agent</div>
+          <div style={{ ...styles.tableCell, width: 80, flex: 'none' }}>Status</div>
+          <div style={{ ...styles.tableCell, width: 90, flex: 'none' }}>Agent</div>
           <SortHeader field="days" style={{ width: 50, textAlign: 'center', flex: 'none' }}>Days</SortHeader>
           <div style={styles.tableCellNarrow}>Sub</div>
           <div style={styles.tableCellNarrow}>Int</div>
           <div style={styles.tableCellNarrow}>Hired</div>
-          <div style={styles.tableCell}>Actions</div>
+          <div style={{ ...styles.tableCell, width: 70, flex: 'none' }}>Actions</div>
         </div>
 
         {sortedJobs.map(job => {
@@ -223,7 +248,20 @@ export default function Requisitions() {
           return (
             <div key={job.id} style={styles.tableRow}>
               <div style={{ ...styles.tableCell, flex: 2 }}>
-                <div style={styles.employer}>{job.employer}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={styles.employer}>{job.employer}</span>
+                  {job.hubspot_company_id && (
+                    <a
+                      href={`https://app.hubspot.com/contacts/47971120/company/${job.hubspot_company_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={styles.hubspotLink}
+                      onClick={e => e.stopPropagation()}
+                    >
+                      HubSpot
+                    </a>
+                  )}
+                </div>
                 <div style={styles.jobTitle}>{job.title}</div>
                 <div style={styles.meta}>{job.route_type} · {job.cdl_class ? `CDL-${job.cdl_class}` : ''}</div>
               </div>
@@ -231,8 +269,56 @@ export default function Requisitions() {
               <div style={styles.tableCell}>
                 {job.pay_min && job.pay_max ? `$${job.pay_min}-${job.pay_max}` : '-'}
               </div>
-              <div style={styles.tableCell}>
-                {job.career_agent?.name || job.career_agent_name || <span style={styles.unassigned}>Unassigned</span>}
+              <div
+                style={{ ...styles.tableCell, width: 80, flex: 'none', cursor: 'pointer' }}
+                onClick={() => setEditingCell({ id: job.id, field: 'status' })}
+              >
+                {editingCell?.id === job.id && editingCell?.field === 'status' ? (
+                  <select
+                    autoFocus
+                    value={job.status || 'Active'}
+                    onChange={(e) => handleInlineSave(job.id, 'status', e.target.value)}
+                    onBlur={() => setEditingCell(null)}
+                    onClick={(e) => e.stopPropagation()}
+                    style={styles.inlineSelect}
+                    disabled={savingCell?.id === job.id}
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Filled">Filled</option>
+                    <option value="On Hold">On Hold</option>
+                    <option value="Closed">Closed</option>
+                  </select>
+                ) : (
+                  <span style={{ ...styles.statusBadge, ...getStatusStyle(job.status) }}>
+                    {job.status || 'Active'}
+                  </span>
+                )}
+              </div>
+              <div
+                style={{ ...styles.tableCell, width: 90, flex: 'none', fontSize: 13, color: '#5A7A82', cursor: 'pointer' }}
+                onClick={() => setEditingCell({ id: job.id, field: 'career_agent' })}
+              >
+                {editingCell?.id === job.id && editingCell?.field === 'career_agent' ? (
+                  <select
+                    autoFocus
+                    value={job.career_agent?.id || ''}
+                    onChange={(e) => {
+                      const selected = collaborators.find(c => c.id === e.target.value);
+                      handleInlineSave(job.id, 'career_agent', selected ? { id: selected.id } : null);
+                    }}
+                    onBlur={() => setEditingCell(null)}
+                    onClick={(e) => e.stopPropagation()}
+                    style={styles.inlineSelect}
+                    disabled={savingCell?.id === job.id}
+                  >
+                    <option value="">Unassigned</option>
+                    {collaborators.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                ) : (
+                  <span style={styles.editableCell}>
+                    {job.career_agent?.name || job.career_agent_name || <span style={styles.unassigned}>Unassigned</span>}
+                  </span>
+                )}
               </div>
               <div style={styles.tableCellNarrow}>{getDaysOpen(job.received_date)}</div>
               <div style={styles.tableCellNarrow}>
@@ -478,6 +564,30 @@ function JobDetailModal({ job, submissions, collaborators, onClose, onRefresh })
   const [newDriver, setNewDriver] = useState({ fullName: '', email: '', phone: '', city: '', state: '' });
   const [creating, setCreating] = useState(false);
   const [searchMode, setSearchMode] = useState('freeagents'); // 'freeagents' or 'candidates'
+  const [fitScores, setFitScores] = useState({});
+  const [loadingFit, setLoadingFit] = useState({});
+
+  const fetchFitScore = async (candidateUuid) => {
+    if (!candidateUuid || fitScores[candidateUuid] !== undefined) return;
+    setLoadingFit(prev => ({ ...prev, [candidateUuid]: true }));
+    try {
+      const res = await fetch('/api/fit-profiles/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidate_uuid: candidateUuid, requisition_id: job.id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFitScores(prev => ({ ...prev, [candidateUuid]: data.fit_score }));
+      } else {
+        setFitScores(prev => ({ ...prev, [candidateUuid]: null }));
+      }
+    } catch (err) {
+      setFitScores(prev => ({ ...prev, [candidateUuid]: null }));
+    } finally {
+      setLoadingFit(prev => ({ ...prev, [candidateUuid]: false }));
+    }
+  };
 
   const handleFieldChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -508,16 +618,24 @@ function JobDetailModal({ job, submissions, collaborators, onClose, onRefresh })
   const handleSearch = async () => {
     if (searchQuery.length < 2) return;
     setSearching(true);
+    setFitScores({});
     try {
+      let results = [];
       if (searchMode === 'freeagents') {
         // Search synced Free Agents table
         const response = await fetch(`/api/free-agents/search?q=${encodeURIComponent(searchQuery)}`);
         const data = await response.json();
-        setSearchResults(data.results || []);
+        results = data.results || [];
       } else {
         // Search our Candidates table
-        const results = await searchCandidates(searchQuery);
-        setSearchResults(results);
+        results = await searchCandidates(searchQuery);
+      }
+      setSearchResults(results);
+      // Auto-fetch fit scores for existing candidates
+      for (const c of results) {
+        if (c.uuid && !c.synced_record_id) {
+          fetchFitScore(c.uuid);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -767,15 +885,31 @@ function JobDetailModal({ job, submissions, collaborators, onClose, onRefresh })
                   </div>
                   {searchResults.length > 0 && (
                     <div style={styles.searchResults}>
-                      {searchResults.map(c => (
-                        <div key={c.uuid} style={styles.searchResultItem}>
-                          <div>
-                            <div style={styles.candidateName}>{c.name || c.fullName}</div>
-                            <div style={styles.candidateMeta}>{c.city}, {c.state}</div>
+                      {searchResults.map(c => {
+                        const score = fitScores[c.uuid];
+                        const isLoading = loadingFit[c.uuid];
+                        const canShowFit = !c.synced_record_id && c.uuid;
+                        return (
+                          <div key={c.uuid} style={styles.searchResultItem}>
+                            <div style={{ flex: 1 }}>
+                              <div style={styles.candidateName}>{c.name || c.fullName}</div>
+                              <div style={styles.candidateMeta}>{c.city}, {c.state}</div>
+                            </div>
+                            {canShowFit && (
+                              <div style={styles.fitPreview}>
+                                {isLoading ? (
+                                  <span style={styles.fitLoading}>...</span>
+                                ) : score !== undefined && score !== null ? (
+                                  <span style={{ ...styles.fitScorePreview, color: score >= 85 ? '#059669' : score >= 70 ? '#D97706' : '#DC2626' }}>
+                                    {score}%
+                                  </span>
+                                ) : null}
+                              </div>
+                            )}
+                            <button onClick={() => handleSubmitDriver(c)} disabled={submitting} style={styles.submitButton}>Submit</button>
                           </div>
-                          <button onClick={() => handleSubmitDriver(c)} disabled={submitting} style={styles.submitButton}>Submit</button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </>
@@ -970,6 +1104,16 @@ function getStatusColor(status) {
     case 'Rejected': return '#FEE2E2';
     case 'Withdrawn': return '#F3F4F6';
     default: return '#F3F4F6';
+  }
+}
+
+function getStatusStyle(status) {
+  switch (status) {
+    case 'Active': return { background: '#D1FAE5', color: '#059669' };
+    case 'Filled': return { background: '#DBEAFE', color: '#1D4ED8' };
+    case 'On Hold': return { background: '#FEF3C7', color: '#D97706' };
+    case 'Closed': return { background: '#F3F4F6', color: '#6B7280' };
+    default: return { background: '#D1FAE5', color: '#059669' };
   }
 }
 
@@ -1668,5 +1812,48 @@ const styles = {
     fontSize: 13,
     color: '#1A2A30',
     lineHeight: 1.5,
+  },
+  hubspotLink: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#FF7A59',
+    textDecoration: 'none',
+    padding: '2px 6px',
+    background: '#FFF1ED',
+    borderRadius: 4,
+  },
+  fitPreview: {
+    marginRight: 10,
+    minWidth: 40,
+    textAlign: 'center',
+  },
+  fitLoading: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  fitScorePreview: {
+    fontSize: 14,
+    fontWeight: 700,
+  },
+  inlineSelect: {
+    padding: '4px 6px',
+    fontSize: 12,
+    border: '1px solid #004751',
+    borderRadius: 4,
+    background: '#FFFFFF',
+    cursor: 'pointer',
+    minWidth: 70,
+  },
+  editableCell: {
+    cursor: 'pointer',
+    padding: '2px 6px',
+    borderRadius: 4,
+  },
+  statusBadge: {
+    display: 'inline-block',
+    padding: '4px 8px',
+    fontSize: 11,
+    fontWeight: 600,
+    borderRadius: 10,
   },
 };

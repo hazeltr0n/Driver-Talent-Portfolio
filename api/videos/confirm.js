@@ -80,7 +80,7 @@ export default async function handler(req, res) {
     // Determine video status
     const uploadedQuestions = Object.keys(videoClips).length;
     let videoStatus = 'recording';
-    if (uploadedQuestions >= 6) {
+    if (uploadedQuestions >= 7) {
       videoStatus = 'ready_for_assembly';
     }
 
@@ -92,6 +92,7 @@ export default async function handler(req, res) {
       q4: 'story_why_trucking',
       q5: 'story_looking_for',
       q6: 'story_what_others_say',
+      q7: 'story_message_to_employers',
     };
 
     const storyFields = {};
@@ -101,9 +102,9 @@ export default async function handler(req, res) {
       }
     }
 
-    // Generate AI narrative when all 6 clips are uploaded
+    // Generate AI narrative when all 7 clips are uploaded
     let aiFields = {};
-    if (uploadedQuestions >= 6) {
+    if (uploadedQuestions >= 7) {
       try {
         const driverName = record.fields.fullName || 'This driver';
         const transcripts = {
@@ -113,6 +114,7 @@ export default async function handler(req, res) {
           whyTrucking: videoClips.q4?.transcript || '',
           lookingFor: videoClips.q5?.transcript || '',
           reputation: videoClips.q6?.transcript || '',
+          messageToEmployers: videoClips.q7?.transcript || '',
         };
 
         // Generate factual narrative
