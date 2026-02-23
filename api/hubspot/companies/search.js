@@ -26,13 +26,11 @@ export default async function handler(req, res) {
           'name',
           'domain',
           'phone',
+          'zip',
           'city',
           'state',
-          'country',
-          'industry',
-          'numberofemployees',
-          'hubspot_owner_id',
           'lifecyclestage',
+          'employer_enrichment_tier',
         ],
         filterGroups: [
           {
@@ -66,13 +64,11 @@ export default async function handler(req, res) {
       name: company.properties.name,
       domain: company.properties.domain,
       phone: company.properties.phone,
+      zip: company.properties.zip,
       city: company.properties.city,
       state: company.properties.state,
-      country: company.properties.country,
-      industry: company.properties.industry,
-      employees: company.properties.numberofemployees,
-      owner_id: company.properties.hubspot_owner_id,
       lifecycle_stage: company.properties.lifecyclestage,
+      employer_enrichment_tier: company.properties.employer_enrichment_tier,
     }));
 
     res.status(200).json({ results });
