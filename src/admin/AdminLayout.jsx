@@ -6,6 +6,7 @@ export default function AdminLayout({ children }) {
   const navItems = [
     { path: '/admin', label: 'Dashboard' },
     { path: '/admin/drivers', label: 'Drivers' },
+    { path: '/admin/employers', label: 'Employers' },
     { path: '/admin/requisitions', label: 'Requisitions' },
     { path: '/admin/submissions', label: 'Submissions' },
   ];

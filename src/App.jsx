@@ -4,6 +4,7 @@ import DriverStoryForm from './DriverStoryForm'
 import VideoRecorder from './pages/VideoRecorder'
 import Dashboard from './admin/Dashboard'
 import Drivers from './admin/Drivers'
+import Employers from './admin/Employers'
 import Requisitions from './admin/Requisitions'
 import Submissions from './admin/Submissions'
 
@@ -34,6 +35,7 @@ function App() {
         {/* Admin routes */}
         <Route path="/admin" element={<Dashboard />} />
         <Route path="/admin/drivers" element={<Drivers />} />
+        <Route path="/admin/employers" element={<Employers />} />
         <Route path="/admin/requisitions" element={<Requisitions />} />
         <Route path="/admin/submissions" element={<Submissions />} />
       </Routes>
