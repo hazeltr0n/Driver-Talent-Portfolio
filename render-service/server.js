@@ -43,14 +43,16 @@ app.post('/render', async (req, res) => {
 });
 
 // Get video duration using ffprobe (download, re-mux to fix metadata, then probe)
+// Uses MKV container which supports all codecs (H.264, VP8, VP9, etc)
 async function getVideoDuration(url, localPath) {
   // Download the video
   const response = await fetch(url);
   const buffer = await response.arrayBuffer();
-  const rawPath = localPath.replace('.webm', '-raw.webm');
+  const rawPath = localPath + '.raw';
   fs.writeFileSync(rawPath, Buffer.from(buffer));
 
-  // Re-mux with ffmpeg to fix duration metadata (webm from MediaRecorder lacks header duration)
+  // Re-mux with ffmpeg to fix duration metadata (MediaRecorder webm lacks header duration)
+  // MKV container supports all codecs from iOS (H.264), Android (VP8/VP9), Chrome (VP8/VP9)
   await new Promise((resolve) => {
     const ffmpeg = spawn('ffmpeg', ['-y', '-i', rawPath, '-c', 'copy', localPath]);
     ffmpeg.on('close', resolve);
@@ -89,7 +91,9 @@ async function processRender({ uuid, driverName, driverLocation, clips, musicUrl
   const clipsWithDuration = [];
   for (let i = 0; i < clips.length; i++) {
     const c = clips[i];
-    const localPath = `/tmp/${uuid}-q${i + 1}.webm`;
+    // Use MKV for intermediate files - supports all codecs:
+    // iOS Safari (H.264/AAC), Android (VP8/VP9), Chrome/Firefox (VP8/VP9)
+    const localPath = `/tmp/${uuid}-q${i + 1}.mkv`;
     const duration = await getVideoDuration(c.url, localPath);
     const frames = duration ? Math.ceil(duration * 30) : null;
     console.log(`[Clip ${i + 1}] ${duration?.toFixed(1)}s (${frames} frames)`);
