@@ -40,10 +40,11 @@ Driver profiles created from Free Agents or manual entry.
 | `psp_crashes_5yr` | number | |
 | `psp_inspections_3yr` | number | |
 | `psp_driver_oos` | number | |
-| `placement_status` | singleSelect | Available, Interviewing, Placed, Inactive |
+| `placement_status` | singleSelect | Working and Looking, Unemployed and Looking, Inactive - Lost Contact, Inactive - Happy with Job, Active - Placed with Client |
 | `career_agent` | singleCollaborator | |
 | `source` | singleSelect | Synced, Manual |
 | `synced_record_id` | singleLineText | |
+| `free_agent_link` | multipleRecordLinks | Links to Free Agents table |
 | `notes` | multilineText | |
 | `employment_history` | multilineText | JSON array |
 | `equipment_experience` | multilineText | JSON array |
@@ -117,6 +118,7 @@ Employer companies synced from HubSpot.
 | Field | Type | Options |
 |-------|------|---------|
 | `hubspot_company_id` | singleLineText | HubSpot record ID |
+| `hubspot_parent_company_id` | singleLineText | HubSpot parent company ID for multi-location companies |
 | `name` | singleLineText | Company name |
 | `domain` | url | Website |
 | `phone` | phoneNumber | |
@@ -130,6 +132,28 @@ Employer companies synced from HubSpot.
 | `main_contact_phone` | phoneNumber | |
 | `main_contact_mobile` | phoneNumber | |
 | `created_at` | date | |
+| `auth_token_hash` | singleLineText | Hashed magic link token for employer portal auth |
+| `auth_token_expires` | dateTime | Token expiration time |
+| `last_login` | dateTime | Track employer portal engagement |
+
+---
+
+## Fit Profiles (`tblFitProfiles`)
+
+Auto-generated fit scores between candidates and jobs.
+
+| Field | Type | Options |
+|-------|------|---------|
+| `candidate_link` | multipleRecordLinks | Links to Candidates |
+| `requisition_link` | multipleRecordLinks | Links to Job Requisitions |
+| `employer_link` | multipleRecordLinks | Links to Employers |
+| `candidate_uuid` | singleLineText | Quick lookup |
+| `requisition_id` | singleLineText | Quick lookup |
+| `fit_score` | number | 0-100 score |
+| `fit_dimensions` | multilineText | JSON array |
+| `fit_recommendation` | multilineText | AI-generated |
+| `generated_at` | dateTime | When calculated |
+| `status` | singleSelect | Active, Archived, Converted |
 
 ---
 
@@ -187,8 +211,15 @@ Driver submissions to jobs.
 | `fit_dimensions` | multilineText | JSON |
 | `fit_recommendation` | multilineText | |
 | `career_agent` | singleCollaborator | |
-| `requisition` | multipleRecordLinks | |
-| `candidate` | multipleRecordLinks | |
+| `requisition` | multipleRecordLinks | (legacy, links to Requisitions) |
+| `candidate` | multipleRecordLinks | (legacy, links to Free Agents) |
+| `requisition_link` | multipleRecordLinks | Links to Job Requisitions table |
+| `candidate_link` | multipleRecordLinks | Links to Candidates table |
+| `employer_link` | multipleRecordLinks | Links to Employers table |
+| `interview_notes` | multilineText | Employer interview feedback |
+| `rejection_explanation` | multilineText | Detailed rejection reason |
+| `requested_by` | singleSelect | Career Agent, Employer |
+| `employer_requested_at` | dateTime | When employer requested |
 
 ---
 

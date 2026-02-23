@@ -17,3 +17,10 @@
   background: #ccc;
   border-radius: 2px;
 }
+
+/* Spinner animation for loading states */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

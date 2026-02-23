@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   try {
     // Get company details
     const companyResponse = await fetch(
-      `https://api.hubapi.com/crm/v3/objects/companies/${id}?properties=name,domain,phone,zip,city,state,lifecyclestage,employer_enrichment_tier`,
+      `https://api.hubapi.com/crm/v3/objects/companies/${id}?properties=name,domain,phone,zip,city,state,lifecyclestage,employer_enrichment_tier,hs_parent_company_id`,
       {
         headers: { 'Authorization': `Bearer ${HUBSPOT_ACCESS_TOKEN}` },
       }
@@ -69,6 +69,7 @@ export default async function handler(req, res) {
 
     res.status(200).json({
       hubspot_company_id: company.id,
+      hubspot_parent_company_id: company.properties.hs_parent_company_id || null,
       name: company.properties.name,
       domain: company.properties.domain,
       phone: company.properties.phone,

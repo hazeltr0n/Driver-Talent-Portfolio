@@ -105,7 +105,11 @@ async function createCandidate(data, res) {
   if (phone) fields.phone = phone;
   if (city) fields.city = city;
   if (state) fields.state = state;
-  if (synced_record_id) fields.synced_record_id = synced_record_id;
+  if (synced_record_id) {
+    fields.synced_record_id = synced_record_id;
+    // Set linked record to Free Agents table
+    fields.free_agent_link = [synced_record_id];
+  }
   if (cdl_class) fields.cdl_class = cdl_class;
   if (years_experience) fields.years_experience = years_experience;
   if (endorsements) fields.endorsements = endorsements;

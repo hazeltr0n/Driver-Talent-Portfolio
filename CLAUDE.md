@@ -21,8 +21,10 @@ When modifying Airtable fields:
 Tables:
 - **Candidates** (`tbl25tP2Nc17lx5Am`) - Driver profiles
 - **Free Agents** (`tblwlT6LxNn7Auq1G`) - Source data (read-only)
+- **Employers** (`tbl9bxGlAKtQfnPhY`) - Employer companies
 - **Job Requisitions** - Employer job openings
 - **Job Submissions** - Driver submissions to jobs
+- **Fit Profiles** - Auto-generated candidate/job fit scores
 
 ## Video Recording Feature
 
@@ -55,6 +57,7 @@ Both services **auto-deploy from git pushes to main**:
 - **OpenAI GPT-4** - Document parsing, AI content generation
 - **Deepgram** - Speech-to-text transcription for video clips
 - **Vercel** - Frontend hosting + serverless API
+- **Resend** - Email delivery for employer portal magic links
 
 ## Environment Variables
 
@@ -75,6 +78,17 @@ AWS_SECRET_ACCESS_KEY
 AWS_REGION
 REMOTION_FUNCTION_NAME
 REMOTION_SERVE_URL
+
+# Employer Portal Auth
+JWT_SECRET
+RESEND_API_KEY
+EMAIL_FROM
+APP_URL
+CAREER_AGENT_EMAIL
+
+# Airtable (optional table IDs)
+AIRTABLE_EMPLOYERS_TABLE_ID
+AIRTABLE_FIT_PROFILES_TABLE_ID
 ```
 
 ## Commands
@@ -84,3 +98,21 @@ npm run dev          # Start dev server
 npm run build        # Build for production
 node scripts/add-airtable-fields.mjs  # Add missing Airtable fields
 ```
+
+## Employer Portal
+
+External-facing portal for employer partners at `/employer/*`.
+
+**Features:**
+- Magic link authentication (email to main_contact_email)
+- Add/manage job requisitions
+- Driver fit feed (candidates scoring 70+ on their jobs)
+- Request interviews → creates submission, emails career agent
+- Update submission statuses and provide feedback
+
+**Key Files:**
+- `src/employer/` - React components
+- `api/employer/` - Employer-scoped API endpoints
+- `api/auth/` - Magic link authentication
+- `api/fit-profiles/` - Fit profile generation
+- `src/lib/employer-api.js` - Frontend API client

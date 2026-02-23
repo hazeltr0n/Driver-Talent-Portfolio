@@ -193,6 +193,7 @@ function AddEmployerModal({ onClose, onAdded }) {
     try {
       const data = {
         hubspot_company_id: companyDetails.hubspot_company_id,
+        hubspot_parent_company_id: companyDetails.hubspot_parent_company_id,
         name: companyDetails.name,
         domain: companyDetails.domain,
         phone: companyDetails.phone,

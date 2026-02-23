@@ -426,6 +426,7 @@ function AddDriverModal({ onClose, onSuccess, onSelectExisting }) {
         phone: selectedCandidate.phone,
         city: selectedCandidate.city,
         state: selectedCandidate.state,
+        synced_record_id: selectedCandidate.synced_record_id, // For linked record to Free Agents
       });
       candidateUuid = created.uuid;
 

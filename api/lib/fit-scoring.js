@@ -1,12 +1,5 @@
 import OpenAI from 'openai';
 
-const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
-const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
-const CANDIDATES_TABLE_ID = process.env.AIRTABLE_CANDIDATES_TABLE_ID;
-
-const SUBMISSIONS_TABLE = 'Job Submissions';
-const REQUISITIONS_TABLE = 'Job Requisitions';
-
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Equipment synonyms for matching
@@ -19,176 +12,7 @@ const EQUIPMENT_SYNONYMS = {
   'flatbed': ['flatbed', 'flat bed'],
 };
 
-export default async function handler(req, res) {
-  try {
-    if (req.method === 'GET') {
-      return await listSubmissions(req, res);
-    } else if (req.method === 'POST') {
-      return await createSubmission(req, res);
-    } else {
-      return res.status(405).json({ error: 'Method not allowed' });
-    }
-  } catch (error) {
-    console.error('Submissions error:', error);
-    res.status(500).json({ error: error.message });
-  }
-}
-
-async function listSubmissions(req, res) {
-  const { requisition_id } = req.query;
-
-  let url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(SUBMISSIONS_TABLE)}`;
-
-  if (requisition_id) {
-    const formula = encodeURIComponent(`{requisition_id} = "${requisition_id}"`);
-    url += `?filterByFormula=${formula}&sort[0][field]=submitted_date&sort[0][direction]=desc`;
-  } else {
-    url += `?sort[0][field]=submitted_date&sort[0][direction]=desc`;
-  }
-
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Airtable error: ${response.status}`);
-  }
-
-  const data = await response.json();
-
-  const submissions = data.records.map(r => {
-    const portfolioSlug = r.fields.portfolio_slug || '';
-    return {
-      id: r.id,
-      ...r.fields,
-      fit_dimensions: parseJSON(r.fields.fit_dimensions, []),
-      driver_fit_link: portfolioSlug ? `/portfolio/${portfolioSlug}?submission=${r.id}` : null,
-    };
-  });
-
-  res.status(200).json({ submissions });
-}
-
-async function createSubmission(req, res) {
-  const { candidate_uuid, candidate_name, requisition_id, employer, job_title } = req.body;
-
-  if (!candidate_uuid || !requisition_id) {
-    return res.status(400).json({ error: 'candidate_uuid and requisition_id required' });
-  }
-
-  // Fetch candidate and job data for fit scoring
-  const [candidate, job] = await Promise.all([
-    getCandidateByUUID(candidate_uuid),
-    getJob(requisition_id),
-  ]);
-
-  // Get employer_link from the job's employer_link field
-  const employerLink = job?.fields?.employer_link;
-
-  // Calculate fit scores
-  let fitData = {};
-  if (candidate && job) {
-    const driverData = {
-      ...candidate.fields,
-      employment_history: parseJSON(candidate.fields.employment_history, []),
-      equipment_experience: parseJSON(candidate.fields.equipment_experience, []),
-    };
-
-    const fitScores = calculateFitScores(driverData, job.fields);
-
-    // Generate AI recommendation
-    const recommendation = await generateRecommendation(driverData, job.fields, fitScores);
-
-    fitData = {
-      fit_score: fitScores.overallScore,
-      fit_dimensions: JSON.stringify(fitScores.dimensions),
-      fit_recommendation: recommendation,
-    };
-  }
-
-  // Get portfolio slug for fit link
-  const portfolioSlug = candidate?.fields?.portfolio_slug || '';
-
-  const fields = {
-    candidate_uuid,
-    candidate_name: candidate_name || '',
-    requisition_id,
-    employer: employer || '',
-    job_title: job_title || '',
-    submitted_date: new Date().toISOString().split('T')[0],
-    status: 'Submitted',
-    portfolio_slug: portfolioSlug,
-    // Linked record fields
-    requisition_link: [requisition_id],
-    ...fitData,
-  };
-
-  // Add candidate link if we have the record
-  if (candidate?.id) {
-    fields.candidate_link = [candidate.id];
-  }
-
-  // Add employer link if available from the requisition
-  if (employerLink && employerLink.length > 0) {
-    fields.employer_link = employerLink;
-  }
-
-  const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(SUBMISSIONS_TABLE)}`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${AIRTABLE_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ fields }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Create failed: ${error}`);
-  }
-
-  const record = await response.json();
-
-  // Generate driver fit link
-  const driverFitLink = portfolioSlug
-    ? `/portfolio/${portfolioSlug}?submission=${record.id}`
-    : null;
-
-  res.status(201).json({
-    id: record.id,
-    ...record.fields,
-    fit_dimensions: parseJSON(record.fields.fit_dimensions, []),
-    driver_fit_link: driverFitLink,
-  });
-}
-
-// Helper functions
-async function getCandidateByUUID(uuid) {
-  const formula = encodeURIComponent(`{uuid} = "${uuid}"`);
-  const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${CANDIDATES_TABLE_ID}?filterByFormula=${formula}&maxRecords=1`;
-
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` },
-  });
-
-  const data = await response.json();
-  return data.records?.[0] || null;
-}
-
-async function getJob(jobId) {
-  const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(REQUISITIONS_TABLE)}/${jobId}`;
-
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` },
-  });
-
-  if (!response.ok) return null;
-  return response.json();
-}
-
-function parseJSON(field, defaultValue = []) {
+export function parseJSON(field, defaultValue = []) {
   if (!field) return defaultValue;
   try {
     return typeof field === 'string' ? JSON.parse(field) : field;
@@ -197,8 +21,7 @@ function parseJSON(field, defaultValue = []) {
   }
 }
 
-// Fit scoring functions
-function calculateFitScores(driver, req) {
+export function calculateFitScores(driver, req) {
   const dimensions = [];
 
   dimensions.push({ name: 'Route & Schedule', ...calculateRouteMatch(driver, req) });
@@ -361,16 +184,13 @@ function calculateJobRequirementsMatch(driver, req) {
   if (driverWillingTouch === true) {
     matches.push('touch freight OK');
   } else if (driverWillingTouch === false) {
-    // Driver doesn't want touch freight
     if (jobTouchFreight === 'heavy') {
       issues.push('heavy touch freight required');
     } else if (jobTouchFreight === 'medium') {
       issues.push('medium touch freight required');
     } else if (jobTouchFreight === 'light') {
-      // Light touch might be acceptable, minor concern
       matches.push('light touch only');
     }
-    // Very Light is minimal, usually acceptable
   }
 
   // Endorsements
@@ -423,7 +243,7 @@ function calculateCommuteMatch(driver, req) {
   return { score: 50, note: 'Different regions' };
 }
 
-async function generateRecommendation(driverData, reqData, fitScores) {
+export async function generateRecommendation(driverData, reqData, fitScores) {
   try {
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',

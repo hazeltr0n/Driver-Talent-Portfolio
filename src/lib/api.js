@@ -13,6 +13,7 @@ export async function searchFreeAgents(query) {
   const data = await response.json();
   return data.results.map(r => ({
     uuid: r.uuid,
+    synced_record_id: r.synced_record_id, // Airtable record ID for linked record
     name: r.fullName,
     email: r.email,
     phone: r.phone,

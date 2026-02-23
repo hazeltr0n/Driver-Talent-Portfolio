@@ -51,6 +51,7 @@ async function listEmployers(req, res) {
 async function createEmployer(data, res) {
   const {
     hubspot_company_id,
+    hubspot_parent_company_id,
     name,
     domain,
     phone,
@@ -92,6 +93,7 @@ async function createEmployer(data, res) {
   // Create new employer
   const fields = {
     hubspot_company_id,
+    hubspot_parent_company_id: hubspot_parent_company_id || null,
     name,
     domain: domain || null,
     phone: phone || null,
