@@ -90,6 +90,15 @@ async function updateCandidate(uuid, updates, res) {
     'video_status', 'video_url', 'video_clips',
     // Status
     'placement_status',
+    // FitKit Assessment
+    'fitkit_started_at', 'fitkit_stage1_completed_at', 'fitkit_stage2_completed_at',
+    'fitkit_riasec_r', 'fitkit_riasec_i', 'fitkit_riasec_a', 'fitkit_riasec_s', 'fitkit_riasec_e', 'fitkit_riasec_c',
+    'fitkit_riasec_code', 'fitkit_work_values', 'fitkit_top_careers', 'fitkit_trucking_gate_passed',
+    'fitkit_facet_empathy', 'fitkit_facet_anxiety', 'fitkit_facet_excitement',
+    'fitkit_facet_discipline', 'fitkit_facet_immoderation', 'fitkit_facet_dutifulness',
+    'fitkit_grit_total', 'fitkit_trucking_fit_score', 'fitkit_retention_risk',
+    'fitkit_best_vertical', 'fitkit_coaching_notes',
+    'fitkit_stage1_responses', 'fitkit_stage2_responses',
   ];
 
   // Filter to only valid fields

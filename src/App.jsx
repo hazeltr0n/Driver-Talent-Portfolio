@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, useParams, Navigate } from 'react-router-
 import DriverPortfolio from './DriverPortfolio'
 import DriverStoryForm from './DriverStoryForm'
 import VideoRecorder from './pages/VideoRecorder'
+import FitKitAssessment from './fitkit/FitKitAssessment'
 import Dashboard from './admin/Dashboard'
 import Drivers from './admin/Drivers'
 import Employers from './admin/Employers'
@@ -35,6 +36,11 @@ function VideoRecorderWrapper() {
   return <VideoRecorder uuid={uuid} />
 }
 
+function FitKitWrapper() {
+  const { uuid } = useParams()
+  return <FitKitAssessment uuid={uuid} />
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -43,6 +49,7 @@ function App() {
         <Route path="/portfolio/:slug" element={<PortfolioWrapper />} />
         <Route path="/form/:uuid" element={<FormWrapper />} />
         <Route path="/record/:uuid" element={<VideoRecorderWrapper />} />
+        <Route path="/fitkit/:uuid" element={<FitKitWrapper />} />
 
         {/* Admin routes */}
         <Route path="/admin" element={<Dashboard />} />

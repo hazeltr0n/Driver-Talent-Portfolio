@@ -67,6 +67,33 @@ Driver profiles created from Free Agents or manual entry.
 | `video_status` | singleLineText | pending, recording, ready_for_assembly, processing, complete |
 | `video_url` | url | |
 | `video_clips` | multilineText | JSON object |
+| **FitKit Assessment** | | |
+| `fitkit_started_at` | dateTime | When assessment started |
+| `fitkit_stage1_completed_at` | dateTime | When Stage 1 completed |
+| `fitkit_stage2_completed_at` | dateTime | When Stage 2 completed |
+| `fitkit_riasec_r` | number | Realistic score (5-25) |
+| `fitkit_riasec_i` | number | Investigative score (5-25) |
+| `fitkit_riasec_a` | number | Artistic score (5-25) |
+| `fitkit_riasec_s` | number | Social score (5-25) |
+| `fitkit_riasec_e` | number | Enterprising score (5-25) |
+| `fitkit_riasec_c` | number | Conventional score (5-25) |
+| `fitkit_riasec_code` | singleLineText | 3-letter code (e.g., "RCE") |
+| `fitkit_work_values` | multilineText | JSON object with value scores |
+| `fitkit_top_careers` | multilineText | JSON array of career matches |
+| `fitkit_trucking_gate_passed` | checkbox | Whether trucking is a fit |
+| `fitkit_facet_empathy` | number | Empathy facet score (4-20) |
+| `fitkit_facet_anxiety` | number | Anxiety facet score (4-20) |
+| `fitkit_facet_excitement` | number | Excitement-seeking score (4-20) |
+| `fitkit_facet_discipline` | number | Self-discipline score (4-20) |
+| `fitkit_facet_immoderation` | number | Immoderation score (4-20) |
+| `fitkit_facet_dutifulness` | number | Dutifulness score (4-20) |
+| `fitkit_grit_total` | number | Total grit score (8-40) |
+| `fitkit_trucking_fit_score` | number | Overall trucking fit (0-100) |
+| `fitkit_retention_risk` | singleSelect | Low, Medium, High |
+| `fitkit_best_vertical` | singleLineText | Best-fit trucking vertical |
+| `fitkit_coaching_notes` | multilineText | AI-generated coaching guidance |
+| `fitkit_stage1_responses` | multilineText | JSON of Stage 1 responses |
+| `fitkit_stage2_responses` | multilineText | JSON of Stage 2 responses |
 
 ---
 
