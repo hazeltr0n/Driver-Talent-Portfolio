@@ -692,11 +692,12 @@ const styles = {
   },
   employmentHeader: {
     display: 'grid',
-    gridTemplateColumns: '1fr auto auto auto',
+    gridTemplateColumns: '1fr 120px 80px auto',
     gap: 16,
     paddingBottom: 12,
     borderBottom: '1px solid #E8ECEE',
     marginBottom: 8,
+    alignItems: 'center',
   },
   employmentHeaderCell: {
     fontSize: 11,
@@ -707,7 +708,7 @@ const styles = {
   },
   employmentRow: {
     display: 'grid',
-    gridTemplateColumns: '1fr auto auto auto',
+    gridTemplateColumns: '1fr 120px 80px auto',
     gap: 16,
     padding: '14px 0',
     borderBottom: '1px solid #F0F2F4',
