@@ -4,8 +4,19 @@ import { getPortfolio } from "./lib/api";
 // Responsive CSS - injected once
 const responsiveStyles = `
   @media (max-width: 768px) {
+    .dfp-content {
+      padding: 12px !important;
+      max-width: 100% !important;
+    }
+    .dfp-content > * {
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
     .dfp-grid {
       grid-template-columns: 1fr !important;
+    }
+    .dfp-grid > * {
+      width: 100% !important;
     }
     .dfp-action-bar {
       flex-direction: column !important;
@@ -136,7 +147,7 @@ export default function DriverPortfolio({ slug }) {
   return (
     <div style={styles.container}>
       {/* Main Content - everything constrained to same width */}
-      <div style={styles.content}>
+      <div style={styles.content} className="dfp-content">
         {/* Video Hero or Text Hero */}
         {d.videoUrl ? (
           <div style={styles.videoHero}>
