@@ -49,10 +49,11 @@ export default async function handler(req, res) {
 
 async function getFitProfilesForEmployer(employerName, minScore, jobId) {
   // Build filter formula using employer_name lookup field (from employer_link)
-  let formula = `AND({name (from employer_link)} = "${employerName}", {fit_score} >= ${minScore}, {status} = "Active")`;
+  // Exclude profiles where any linked submission has "Rejected" status
+  let formula = `AND({name (from employer_link)} = "${employerName}", {fit_score} >= ${minScore}, {status} = "Active", NOT(FIND("Rejected", ARRAYJOIN({status (from Job Submissions)}))))`;
 
   if (jobId) {
-    formula = `AND({name (from employer_link)} = "${employerName}", {fit_score} >= ${minScore}, {status} = "Active", {requisition_id} = "${jobId}")`;
+    formula = `AND({name (from employer_link)} = "${employerName}", {fit_score} >= ${minScore}, {status} = "Active", {requisition_id} = "${jobId}", NOT(FIND("Rejected", ARRAYJOIN({status (from Job Submissions)}))))`;
   }
 
   const encodedFormula = encodeURIComponent(formula);

@@ -204,6 +204,7 @@ async function createFitProfile(candidate, job, fitScores, driverData, reqData) 
 
   const fields = {
     candidate_uuid: candidate.fields.uuid,
+    Name: candidate.fields.fullName || '',
     requisition_id: job.id,
     fit_score: fitScores.overallScore,
     fit_dimensions: JSON.stringify(fitScores.dimensions),

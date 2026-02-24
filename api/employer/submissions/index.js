@@ -7,6 +7,7 @@ const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 const CANDIDATES_TABLE_ID = process.env.AIRTABLE_CANDIDATES_TABLE_ID;
 const SUBMISSIONS_TABLE = 'Job Submissions';
 const REQUISITIONS_TABLE = 'Job Requisitions';
+const FIT_PROFILES_TABLE = process.env.AIRTABLE_FIT_PROFILES_TABLE_ID || 'Fit Profiles';
 
 export default async function handler(req, res) {
   // Require employer authentication
@@ -152,6 +153,13 @@ async function createSubmission(req, res, employer) {
 
   const record = await response.json();
 
+  // Link submission to fit profile (for rejection filtering)
+  try {
+    await linkSubmissionToFitProfile(record.id, candidate_uuid, requisition_id);
+  } catch (err) {
+    console.error('Failed to link submission to fit profile:', err);
+  }
+
   // Send notification email to career agent
   try {
     await sendInterviewRequestEmail({
@@ -194,5 +202,44 @@ async function getCandidateByUUID(uuid) {
 
   const data = await response.json();
   return data.records?.[0] || null;
+}
+
+async function linkSubmissionToFitProfile(submissionId, candidateUuid, requisitionId) {
+  // Find the fit profile for this candidate + job combination
+  const formula = encodeURIComponent(
+    `AND({candidate_uuid} = "${candidateUuid}", {requisition_id} = "${requisitionId}")`
+  );
+  const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(FIT_PROFILES_TABLE)}?filterByFormula=${formula}&maxRecords=1`;
+
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` },
+  });
+
+  if (!response.ok) return;
+
+  const data = await response.json();
+  const fitProfile = data.records?.[0];
+
+  if (!fitProfile) return;
+
+  // Get existing linked submissions and add the new one
+  const existingLinks = fitProfile.fields['Job Submissions'] || [];
+  const updatedLinks = [...existingLinks, submissionId];
+
+  // Update the fit profile to link to this submission
+  const updateUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(FIT_PROFILES_TABLE)}/${fitProfile.id}`;
+
+  await fetch(updateUrl, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${AIRTABLE_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      fields: {
+        'Job Submissions': updatedLinks,
+      },
+    }),
+  });
 }
 

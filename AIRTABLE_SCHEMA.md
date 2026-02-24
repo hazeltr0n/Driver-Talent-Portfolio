@@ -176,7 +176,10 @@ Auto-generated fit scores between candidates and jobs.
 | `requisition_link` | multipleRecordLinks | Links to Job Requisitions |
 | `employer_link` | multipleRecordLinks | Links to Employers |
 | `candidate_uuid` | singleLineText | Quick lookup |
+| `Name` | singleLineText | Driver name for display |
 | `requisition_id` | singleLineText | Quick lookup |
+| `Job Submissions` | multipleRecordLinks | Links to Job Submissions (same candidate_uuid + requisition_id) |
+| `status (from Job Submissions)` | lookup | Lookup from Job Submissions → status |
 | `fit_score` | number | 0-100 score |
 | `fit_dimensions` | multilineText | JSON array |
 | `fit_recommendation` | multilineText | AI-generated |

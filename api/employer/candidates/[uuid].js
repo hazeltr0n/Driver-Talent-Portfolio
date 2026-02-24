@@ -92,10 +92,11 @@ export default async function handler(req, res) {
 }
 
 async function verifyEmployerAccess(employerName, candidateUuid) {
-  // Check if there's at least one fit profile linking this employer to this candidate
+  // Check if there's at least one non-rejected fit profile linking this employer to this candidate
   // Uses employer_name lookup field (from employer_link)
+  // Exclude profiles where any linked submission has "Rejected" status
   const formula = encodeURIComponent(
-    `AND({name (from employer_link)} = "${employerName}", {candidate_uuid} = "${candidateUuid}", {status} = "Active")`
+    `AND({name (from employer_link)} = "${employerName}", {candidate_uuid} = "${candidateUuid}", {status} = "Active", NOT(FIND("Rejected", ARRAYJOIN({status (from Job Submissions)}))))`
   );
   const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(FIT_PROFILES_TABLE)}?filterByFormula=${formula}&maxRecords=1`;
 
@@ -125,8 +126,9 @@ async function getCandidateByUUID(uuid) {
 
 async function getFitProfilesForCandidate(employerName, candidateUuid) {
   // Uses employer_name lookup field (from employer_link)
+  // Exclude profiles where any linked submission has "Rejected" status
   const formula = encodeURIComponent(
-    `AND({name (from employer_link)} = "${employerName}", {candidate_uuid} = "${candidateUuid}", {status} = "Active")`
+    `AND({name (from employer_link)} = "${employerName}", {candidate_uuid} = "${candidateUuid}", {status} = "Active", NOT(FIND("Rejected", ARRAYJOIN({status (from Job Submissions)}))))`
   );
   const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(FIT_PROFILES_TABLE)}?filterByFormula=${formula}`;
 
