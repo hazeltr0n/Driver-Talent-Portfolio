@@ -85,16 +85,16 @@ export default function Employers() {
 
       <div style={styles.table}>
         <div style={styles.tableHeader}>
-          <div style={{ ...styles.tableCell, flex: 2 }}>Company</div>
-          <div style={styles.tableCell}>Location</div>
-          <div style={styles.tableCell}>Stage</div>
-          <div style={styles.tableCell}>Enrichment</div>
-          <div style={{ ...styles.tableCell, flex: 1.5 }}>Main Contact</div>
+          <div style={styles.tableHeaderCell}>Company</div>
+          <div style={styles.tableHeaderCell}>Location</div>
+          <div style={styles.tableHeaderCell}>Stage</div>
+          <div style={styles.tableHeaderCell}>Enrichment</div>
+          <div style={styles.tableHeaderCell}>Main Contact</div>
         </div>
 
         {filteredEmployers.map(employer => (
           <div key={employer.id} style={styles.tableRow}>
-            <div style={{ ...styles.tableCell, flex: 2 }}>
+            <div style={styles.tableCell}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={styles.companyName}>{employer.name}</span>
                 {employer.hubspot_company_id && (
@@ -128,7 +128,7 @@ export default function Employers() {
                 </span>
               ) : '-'}
             </div>
-            <div style={{ ...styles.tableCell, flex: 1.5 }}>
+            <div style={styles.tableCell}>
               {employer.main_contact_name ? (
                 <div>
                   <div style={styles.contactName}>{employer.main_contact_name}</div>
@@ -420,30 +420,37 @@ const styles = {
     color: '#6B7280',
   },
   table: {
+    display: 'table',
+    width: '100%',
     background: '#FFFFFF',
     borderRadius: 12,
     border: '1px solid #E5E7EB',
+    borderCollapse: 'collapse',
     overflow: 'hidden',
   },
   tableHeader: {
-    display: 'flex',
-    padding: '12px 16px',
+    display: 'table-row',
     background: '#F9FAFB',
-    borderBottom: '1px solid #E5E7EB',
+  },
+  tableRow: {
+    display: 'table-row',
+  },
+  tableCell: {
+    display: 'table-cell',
+    padding: '12px 16px',
+    fontSize: 14,
+    verticalAlign: 'middle',
+    whiteSpace: 'nowrap',
+    borderBottom: '1px solid #F3F4F6',
+  },
+  tableHeaderCell: {
+    display: 'table-cell',
+    padding: '12px 16px',
     fontWeight: 600,
     fontSize: 12,
     color: '#6B7280',
     textTransform: 'uppercase',
-  },
-  tableRow: {
-    display: 'flex',
-    padding: '14px 16px',
-    borderBottom: '1px solid #F3F4F6',
-    alignItems: 'center',
-  },
-  tableCell: {
-    flex: 1,
-    fontSize: 14,
+    borderBottom: '1px solid #E5E7EB',
   },
   companyName: {
     fontWeight: 500,

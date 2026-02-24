@@ -217,17 +217,17 @@ export default function Drivers() {
 
       <div style={styles.table}>
         <div style={styles.tableHeader}>
-          <SortHeader field="name" style={{ flex: 1 }}>Name</SortHeader>
-          <SortHeader field="location" style={{ width: 140, flex: 'none' }}>Location</SortHeader>
-          <SortHeader field="experience" style={{ width: 60, flex: 'none' }}>Exp</SortHeader>
-          <div style={{ ...styles.tableCell, width: 140, flex: 'none' }}>Agent</div>
-          <SortHeader field="status" style={{ width: 160, flex: 'none' }}>Status</SortHeader>
-          <div style={{ ...styles.tableCell, width: 70, flex: 'none' }}>Actions</div>
+          <SortHeader field="name">Name</SortHeader>
+          <SortHeader field="location">Location</SortHeader>
+          <SortHeader field="experience">Exp</SortHeader>
+          <div style={styles.tableCell}>Agent</div>
+          <SortHeader field="status">Status</SortHeader>
+          <div style={styles.tableCell}>Actions</div>
         </div>
 
         {sortedDrivers.map(driver => (
           <div key={driver.uuid} style={styles.tableRow}>
-            <div style={{ ...styles.tableCell, flex: 1 }}>
+            <div style={styles.tableCell}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={styles.driverName}>{driver.fullName || driver.name || 'Unknown'}</span>
                 {driver.admin_portal_url && (
@@ -242,16 +242,16 @@ export default function Drivers() {
                   </a>
                 )}
               </div>
-              <div style={styles.meta}>{driver.email}</div>
+              <div style={{ ...styles.meta, whiteSpace: 'normal' }}>{driver.email}</div>
             </div>
-            <div style={{ ...styles.tableCell, width: 140, flex: 'none' }}>
+            <div style={styles.tableCell}>
               {driver.city && driver.state ? `${driver.city}, ${driver.state}` : '-'}
             </div>
-            <div style={{ ...styles.tableCell, width: 60, flex: 'none' }}>
+            <div style={styles.tableCell}>
               {driver.years_experience ? `${driver.years_experience} yrs` : '-'}
             </div>
             <div
-              style={{ ...styles.tableCell, width: 140, flex: 'none', fontSize: 13, color: '#5A7A82', cursor: 'pointer' }}
+              style={{ ...styles.tableCell, fontSize: 13, color: '#5A7A82', cursor: 'pointer' }}
               onClick={() => setEditingCell({ uuid: driver.uuid, field: 'career_agent' })}
             >
               {editingCell?.uuid === driver.uuid && editingCell?.field === 'career_agent' ? (
@@ -279,7 +279,7 @@ export default function Drivers() {
               )}
             </div>
             <div
-              style={{ ...styles.tableCell, width: 160, flex: 'none', cursor: 'pointer' }}
+              style={{ ...styles.tableCell, cursor: 'pointer' }}
               onClick={() => setEditingCell({ uuid: driver.uuid, field: 'placement_status' })}
             >
               {editingCell?.uuid === driver.uuid && editingCell?.field === 'placement_status' ? (
@@ -306,7 +306,7 @@ export default function Drivers() {
                 </span>
               )}
             </div>
-            <div style={{ ...styles.tableCell, width: 70, flex: 'none' }}>
+            <div style={styles.tableCell}>
               <button
                 onClick={() => setSelectedDriver(driver)}
                 style={styles.viewButton}
@@ -1305,26 +1305,27 @@ const styles = {
     borderRadius: 12,
     border: '1px solid #E8ECEE',
     overflow: 'hidden',
+    display: 'table',
+    width: '100%',
+    borderCollapse: 'collapse',
   },
   tableHeader: {
-    display: 'flex',
-    padding: '12px 16px',
+    display: 'table-row',
     background: '#F8FAFB',
-    borderBottom: '1px solid #E8ECEE',
     fontSize: 12,
     fontWeight: 600,
     color: '#5A7A82',
     textTransform: 'uppercase',
   },
   tableRow: {
-    display: 'flex',
-    padding: '16px',
+    display: 'table-row',
     borderBottom: '1px solid #E8ECEE',
-    alignItems: 'center',
   },
   tableCell: {
-    flex: 1,
-    paddingRight: 16,
+    display: 'table-cell',
+    padding: '12px 16px',
+    verticalAlign: 'middle',
+    whiteSpace: 'nowrap',
   },
   driverName: {
     fontWeight: 600,

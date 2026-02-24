@@ -9,6 +9,7 @@ export default function AdminLayout({ children }) {
     { path: '/admin/employers', label: 'Employers' },
     { path: '/admin/requisitions', label: 'Requisitions' },
     { path: '/admin/submissions', label: 'Submissions' },
+    { path: '/employer', label: 'Employer Portal', external: true },
   ];
 
   return (
@@ -20,16 +21,31 @@ export default function AdminLayout({ children }) {
         </div>
         <div style={styles.navLinks}>
           {navItems.map(item => (
-            <Link
-              key={item.path}
-              to={item.path}
-              style={{
-                ...styles.navLink,
-                ...(location.pathname === item.path ? styles.navLinkActive : {}),
-              }}
-            >
-              {item.label}
-            </Link>
+            item.external ? (
+              <a
+                key={item.path}
+                href={item.path}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  ...styles.navLink,
+                  ...styles.navLinkExternal,
+                }}
+              >
+                {item.label} ↗
+              </a>
+            ) : (
+              <Link
+                key={item.path}
+                to={item.path}
+                style={{
+                  ...styles.navLink,
+                  ...(location.pathname === item.path ? styles.navLinkActive : {}),
+                }}
+              >
+                {item.label}
+              </Link>
+            )
           ))}
         </div>
       </nav>
@@ -82,6 +98,11 @@ const styles = {
   navLinkActive: {
     background: 'rgba(205, 249, 92, 0.15)',
     color: '#CDF95C',
+  },
+  navLinkExternal: {
+    borderLeft: '1px solid rgba(176, 205, 212, 0.3)',
+    marginLeft: 8,
+    paddingLeft: 16,
   },
   main: {
     padding: '24px',

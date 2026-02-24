@@ -15,6 +15,18 @@
       "destination": "/index.html"
     },
     {
+      "source": "/fitkit/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/employer/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/employer",
+      "destination": "/index.html"
+    },
+    {
       "source": "/admin/:path*",
       "destination": "/index.html"
     },

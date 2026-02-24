@@ -93,15 +93,15 @@ const QUESTIONS = [
   {
     id: 7,
     title: "Your message to employers",
-    prompt: "What do you want employers to know?",
+    prompt: "Thank them for watching and share your final message",
     coaching: {
       why: "This is your closing statement. Leave them wanting to pick up the phone.",
       tips: [
-        "Speak directly to the employer watching this",
+        "Thank them for watching and considering you",
         "Tell them what they'll get if they hire you",
         "End with confidence - you're the right choice",
       ],
-      example: "\"If you give me this opportunity, you're getting someone who will show up every day, work hard, and never let you down. I'm ready. Let's do this.\"",
+      example: "\"Thank you for taking the time to watch this. If you give me this opportunity, you're getting someone who will show up every day, work hard, and never let you down. I'm ready.\"",
     },
   },
 ];

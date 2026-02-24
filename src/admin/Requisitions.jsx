@@ -153,9 +153,9 @@ export default function Requisitions() {
     }
   };
 
-  const SortHeader = ({ field, children, style = {} }) => (
+  const SortHeader = ({ field, children }) => (
     <div
-      style={{ ...styles.tableCell, ...style, cursor: 'pointer', userSelect: 'none' }}
+      style={{ ...styles.tableHeaderCell, cursor: 'pointer', userSelect: 'none' }}
       onClick={() => handleSort(field)}
     >
       {children} {sortBy === field && (sortDir === 'asc' ? '↑' : '↓')}
@@ -231,23 +231,23 @@ export default function Requisitions() {
 
       <div style={styles.table}>
         <div style={styles.tableHeader}>
-          <SortHeader field="employer" style={{ flex: 2 }}>Employer / Title</SortHeader>
+          <SortHeader field="employer">Employer / Title</SortHeader>
           <SortHeader field="location">Location</SortHeader>
           <SortHeader field="pay">Pay</SortHeader>
-          <div style={{ ...styles.tableCell, width: 80, flex: 'none' }}>Status</div>
-          <div style={{ ...styles.tableCell, width: 90, flex: 'none' }}>Agent</div>
-          <SortHeader field="days" style={{ width: 50, textAlign: 'center', flex: 'none' }}>Days</SortHeader>
-          <div style={styles.tableCellNarrow}>Sub</div>
-          <div style={styles.tableCellNarrow}>Int</div>
-          <div style={styles.tableCellNarrow}>Hired</div>
-          <div style={{ ...styles.tableCell, width: 70, flex: 'none' }}>Actions</div>
+          <div style={styles.tableHeaderCell}>Status</div>
+          <div style={styles.tableHeaderCell}>Agent</div>
+          <SortHeader field="days">Days</SortHeader>
+          <div style={styles.tableHeaderCell}>Sub</div>
+          <div style={styles.tableHeaderCell}>Int</div>
+          <div style={styles.tableHeaderCell}>Hired</div>
+          <div style={styles.tableHeaderCell}>Actions</div>
         </div>
 
         {sortedJobs.map(job => {
           const counts = getSubmissionCounts(job.id);
           return (
             <div key={job.id} style={styles.tableRow}>
-              <div style={{ ...styles.tableCell, flex: 2 }}>
+              <div style={styles.tableCell}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={styles.employer}>{job.employer}</span>
                   {job.hubspot_company_id && (
@@ -270,7 +270,7 @@ export default function Requisitions() {
                 {job.pay_min && job.pay_max ? `$${job.pay_min}-${job.pay_max}` : '-'}
               </div>
               <div
-                style={{ ...styles.tableCell, width: 80, flex: 'none', cursor: 'pointer' }}
+                style={{ ...styles.tableCell, cursor: 'pointer' }}
                 onClick={() => setEditingCell({ id: job.id, field: 'status' })}
               >
                 {editingCell?.id === job.id && editingCell?.field === 'status' ? (
@@ -295,7 +295,7 @@ export default function Requisitions() {
                 )}
               </div>
               <div
-                style={{ ...styles.tableCell, width: 90, flex: 'none', fontSize: 13, color: '#5A7A82', cursor: 'pointer' }}
+                style={{ ...styles.tableCell, fontSize: 13, color: '#5A7A82', cursor: 'pointer' }}
                 onClick={() => setEditingCell({ id: job.id, field: 'career_agent' })}
               >
                 {editingCell?.id === job.id && editingCell?.field === 'career_agent' ? (
@@ -1187,36 +1187,46 @@ const styles = {
     fontSize: 14,
   },
   table: {
+    display: 'table',
+    width: '100%',
     background: '#FFFFFF',
     borderRadius: 12,
     border: '1px solid #E8ECEE',
+    borderCollapse: 'collapse',
     overflow: 'hidden',
   },
   tableHeader: {
-    display: 'flex',
-    padding: '12px 16px',
+    display: 'table-row',
     background: '#F8FAFB',
+  },
+  tableRow: {
+    display: 'table-row',
+  },
+  tableCell: {
+    display: 'table-cell',
+    padding: '12px 16px',
+    fontSize: 14,
+    verticalAlign: 'middle',
+    whiteSpace: 'nowrap',
     borderBottom: '1px solid #E8ECEE',
+  },
+  tableHeaderCell: {
+    display: 'table-cell',
+    padding: '12px 16px',
     fontSize: 11,
     fontWeight: 600,
     color: '#5A7A82',
     textTransform: 'uppercase',
-  },
-  tableRow: {
-    display: 'flex',
-    padding: '14px 16px',
     borderBottom: '1px solid #E8ECEE',
-    alignItems: 'center',
-  },
-  tableCell: {
-    flex: 1,
-    paddingRight: 12,
-    fontSize: 14,
   },
   tableCellNarrow: {
-    width: 50,
+    display: 'table-cell',
+    padding: '12px 8px',
     textAlign: 'center',
     fontSize: 14,
+    verticalAlign: 'middle',
+    whiteSpace: 'nowrap',
+    borderBottom: '1px solid #E8ECEE',
   },
   employer: {
     fontWeight: 600,

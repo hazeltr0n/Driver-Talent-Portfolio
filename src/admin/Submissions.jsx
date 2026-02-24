@@ -132,9 +132,9 @@ export default function Submissions() {
     }
   };
 
-  const SortHeader = ({ field, children, style = {} }) => (
+  const SortHeader = ({ field, children }) => (
     <div
-      style={{ ...styles.tableCell, ...style, cursor: 'pointer', userSelect: 'none' }}
+      style={{ ...styles.tableHeaderCell, cursor: 'pointer', userSelect: 'none' }}
       onClick={() => handleSort(field)}
     >
       {children} {sortBy === field && (sortDir === 'asc' ? '↑' : '↓')}
@@ -210,20 +210,20 @@ export default function Submissions() {
 
       <div style={styles.table}>
         <div style={styles.tableHeader}>
-          <SortHeader field="candidate_name" style={{ flex: 2 }}>Driver</SortHeader>
-          <SortHeader field="employer" style={{ flex: 2 }}>Job</SortHeader>
-          <SortHeader field="fit_score" style={{ width: 60, textAlign: 'center', flex: 'none' }}>Fit</SortHeader>
-          <div style={{ ...styles.tableCell, width: 90, flex: 'none' }}>Status</div>
-          <div style={{ ...styles.tableCell, width: 90, flex: 'none' }}>Agent</div>
-          <SortHeader field="submitted_date" style={{ width: 90, flex: 'none' }}>Date</SortHeader>
-          <div style={{ ...styles.tableCell, width: 70, flex: 'none' }}>Actions</div>
+          <SortHeader field="candidate_name">Driver</SortHeader>
+          <SortHeader field="employer">Job</SortHeader>
+          <SortHeader field="fit_score">Fit</SortHeader>
+          <div style={styles.tableHeaderCell}>Status</div>
+          <div style={styles.tableHeaderCell}>Agent</div>
+          <SortHeader field="submitted_date">Date</SortHeader>
+          <div style={styles.tableHeaderCell}>Actions</div>
         </div>
 
         {sortedSubs.map(sub => {
           const statusStyle = getStatusColor(sub.status);
           return (
             <div key={sub.id} style={styles.tableRow}>
-              <div style={{ ...styles.tableCell, flex: 2 }}>
+              <div style={styles.tableCell}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={styles.primaryText}>{sub.candidate_name}</span>
                   {sub.admin_portal_url && (
@@ -239,11 +239,11 @@ export default function Submissions() {
                   )}
                 </div>
               </div>
-              <div style={{ ...styles.tableCell, flex: 2 }}>
+              <div style={styles.tableCell}>
                 <div style={styles.primaryText}>{sub.employer}</div>
                 <div style={styles.secondaryText}>{sub.job_title}</div>
               </div>
-              <div style={{ ...styles.tableCell, width: 60, textAlign: 'center', flex: 'none' }}>
+              <div style={{ ...styles.tableCell, textAlign: 'center' }}>
                 {sub.fit_score ? (
                   <span style={{ ...styles.fitBadge, color: getScoreColor(sub.fit_score) }}>
                     {sub.fit_score}
@@ -251,7 +251,7 @@ export default function Submissions() {
                 ) : '-'}
               </div>
               <div
-                style={{ ...styles.tableCell, width: 90, flex: 'none', cursor: 'pointer' }}
+                style={{ ...styles.tableCell, cursor: 'pointer' }}
                 onClick={() => setEditingCell({ id: sub.id, field: 'status' })}
               >
                 {editingCell?.id === sub.id && editingCell?.field === 'status' ? (
@@ -273,7 +273,7 @@ export default function Submissions() {
                 )}
               </div>
               <div
-                style={{ ...styles.tableCell, width: 90, flex: 'none', fontSize: 13, color: '#5A7A82', cursor: 'pointer' }}
+                style={{ ...styles.tableCell, fontSize: 13, color: '#5A7A82', cursor: 'pointer' }}
                 onClick={() => setEditingCell({ id: sub.id, field: 'career_agent' })}
               >
                 {editingCell?.id === sub.id && editingCell?.field === 'career_agent' ? (
@@ -298,10 +298,10 @@ export default function Submissions() {
                   </span>
                 )}
               </div>
-              <div style={{ ...styles.tableCell, width: 90, flex: 'none' }}>
+              <div style={styles.tableCell}>
                 {sub.submitted_date}
               </div>
-              <div style={{ ...styles.tableCell, width: 70, flex: 'none' }}>
+              <div style={styles.tableCell}>
                 <button onClick={() => setSelectedSub(sub)} style={styles.viewButton}>View</button>
               </div>
             </div>
@@ -968,31 +968,37 @@ const styles = {
     fontSize: 14,
   },
   table: {
+    display: 'table',
+    width: '100%',
     background: '#FFFFFF',
     borderRadius: 12,
     border: '1px solid #E8ECEE',
+    borderCollapse: 'collapse',
     overflow: 'hidden',
   },
   tableHeader: {
-    display: 'flex',
-    padding: '12px 16px',
+    display: 'table-row',
     background: '#F8FAFB',
+  },
+  tableRow: {
+    display: 'table-row',
+  },
+  tableCell: {
+    display: 'table-cell',
+    padding: '12px 16px',
+    fontSize: 14,
+    verticalAlign: 'middle',
+    whiteSpace: 'nowrap',
     borderBottom: '1px solid #E8ECEE',
+  },
+  tableHeaderCell: {
+    display: 'table-cell',
+    padding: '12px 16px',
     fontSize: 11,
     fontWeight: 600,
     color: '#5A7A82',
     textTransform: 'uppercase',
-  },
-  tableRow: {
-    display: 'flex',
-    padding: '14px 16px',
     borderBottom: '1px solid #E8ECEE',
-    alignItems: 'center',
-  },
-  tableCell: {
-    flex: 1,
-    paddingRight: 12,
-    fontSize: 14,
   },
   primaryText: {
     fontWeight: 600,

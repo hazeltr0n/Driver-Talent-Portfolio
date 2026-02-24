@@ -7,7 +7,7 @@ const QUESTIONS = [
   { title: 'Why trucking?', subtitle: 'What do you love about this career?' },
   { title: 'Your next chapter', subtitle: 'What are you looking for?' },
   { title: 'Your reputation', subtitle: 'What would others say about you?' },
-  { title: 'Your message', subtitle: 'What do you want employers to know?' },
+  { title: 'Your message', subtitle: 'What would you like employers to know?' },
 ];
 
 const INTRO_DURATION_SECONDS = 3;
@@ -77,7 +77,7 @@ export const DriverStoryVideo = ({ driverName, driverLocation, clips, musicUrl }
     <AbsoluteFill style={{ backgroundColor: '#004751' }}>
       {sequences}
       {musicUrl && (
-        <Audio src={musicUrl} volume={0.10} />
+        <Audio src={musicUrl} volume={0.05} />
       )}
     </AbsoluteFill>
   );
