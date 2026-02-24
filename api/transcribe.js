@@ -18,8 +18,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Read raw body using micro's buffer helper
-    const audioBuffer = await buffer(req);
+    // Read raw body using micro's buffer helper (up to 10MB)
+    const audioBuffer = await buffer(req, { limit: '10mb' });
 
     console.log('Received audio buffer size:', audioBuffer.length);
 
