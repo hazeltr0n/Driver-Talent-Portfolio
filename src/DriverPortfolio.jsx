@@ -1,6 +1,37 @@
 import { useState, useEffect, useRef } from "react";
 import { getPortfolio } from "./lib/api";
 
+// Responsive CSS - injected once
+const responsiveStyles = `
+  @media (max-width: 768px) {
+    .dfp-grid {
+      grid-template-columns: 1fr !important;
+    }
+    .dfp-action-bar {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+    }
+    .dfp-driver-info {
+      text-align: left !important;
+    }
+    .dfp-employment-table {
+      overflow-x: auto;
+    }
+    .dfp-employment-header,
+    .dfp-employment-row {
+      min-width: 500px;
+    }
+  }
+`;
+
+// Inject responsive styles once
+if (typeof document !== 'undefined' && !document.getElementById('dfp-responsive-styles')) {
+  const styleEl = document.createElement('style');
+  styleEl.id = 'dfp-responsive-styles';
+  styleEl.textContent = responsiveStyles;
+  document.head.appendChild(styleEl);
+}
+
 // Format name as "First L." for privacy
 function formatName(fullName) {
   if (!fullName) return 'Driver';
@@ -87,6 +118,9 @@ export default function DriverPortfolio({ slug }) {
 
   const handlePlayVideo = () => {
     if (videoRef.current) {
+      // Explicitly unmute and set volume for iOS Safari
+      videoRef.current.muted = false;
+      videoRef.current.volume = 1.0;
       videoRef.current.play();
       setIsVideoPlaying(true);
     }
@@ -109,10 +143,13 @@ export default function DriverPortfolio({ slug }) {
               ref={videoRef}
               src={d.videoUrl}
               style={styles.video}
-              controls={isVideoPlaying}
+              controls
               onPlay={() => setIsVideoPlaying(true)}
               onPause={() => setIsVideoPlaying(false)}
               playsInline
+              webkit-playsinline="true"
+              preload="metadata"
+              x-webkit-airplay="allow"
             />
             {!isVideoPlaying && (
               <div style={styles.videoOverlay} onClick={handlePlayVideo}>
@@ -139,7 +176,7 @@ export default function DriverPortfolio({ slug }) {
       )}
 
       {/* Action Bar */}
-      <div style={styles.actionBar}>
+      <div style={styles.actionBar} className="dfp-action-bar">
         <div style={styles.actionBarLeft}>
           {d.jobFit && (
             <div style={styles.fitScoreDisplay}>
@@ -156,7 +193,7 @@ export default function DriverPortfolio({ slug }) {
           </div>
         </div>
         {d.videoUrl && (
-          <div style={styles.driverInfo}>
+          <div style={styles.driverInfo} className="dfp-driver-info">
             <div style={styles.driverName}>{displayName}</div>
             <div style={styles.driverLocation}>{d.homeBase}</div>
           </div>
@@ -174,7 +211,7 @@ export default function DriverPortfolio({ slug }) {
           </div>
         )}
 
-        <div style={styles.grid}>
+        <div style={styles.grid} className="dfp-grid">
           {/* Left Column - Main Info */}
           <div style={styles.mainColumn}>
             {/* About / AI Narrative */}
@@ -189,15 +226,15 @@ export default function DriverPortfolio({ slug }) {
             {d.experience?.length > 0 && (
               <div style={styles.card}>
                 <h2 style={styles.cardTitle}>Employment History</h2>
-                <div style={styles.employmentTable}>
-                  <div style={styles.employmentHeader}>
+                <div style={styles.employmentTable} className="dfp-employment-table">
+                  <div style={styles.employmentHeader} className="dfp-employment-header">
                     <span style={styles.employmentHeaderCell}>Company</span>
                     <span style={styles.employmentHeaderCell}>Role</span>
                     <span style={styles.employmentHeaderCell}>Tenure</span>
                     <span style={styles.employmentHeaderCell}>Verified</span>
                   </div>
                   {d.experience.map((exp, i) => (
-                    <div key={i} style={styles.employmentRow}>
+                    <div key={i} style={styles.employmentRow} className="dfp-employment-row">
                       <span style={styles.employmentCompany}>{exp.company}</span>
                       <span style={styles.employmentRole}>{exp.role}</span>
                       <span style={styles.employmentTenure}>{exp.tenure || '-'}</span>
