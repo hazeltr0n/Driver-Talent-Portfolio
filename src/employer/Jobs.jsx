@@ -65,48 +65,38 @@ export default function EmployerJobs() {
           </button>
         </div>
       ) : (
-        <div style={styles.grid}>
+        <div style={styles.table}>
+          <div style={styles.tableHeader}>
+            <div style={styles.tableHeaderCell}>Title</div>
+            <div style={styles.tableHeaderCell}>Location</div>
+            <div style={styles.tableHeaderCell}>Pay</div>
+            <div style={styles.tableHeaderCell}>Route</div>
+            <div style={styles.tableHeaderCell}>CDL</div>
+            <div style={styles.tableHeaderCell}>Positions</div>
+            <div style={styles.tableHeaderCell}>Status</div>
+          </div>
           {jobs.map(job => (
-            <JobCard key={job.id} job={job} onClick={() => navigate(`/employer/jobs/${job.id}`)} />
+            <div key={job.id} style={styles.tableRow} onClick={() => navigate(`/employer/jobs/${job.id}`)}>
+              <div style={styles.tableCell}>
+                <span style={styles.jobTitle}>{job.title}</span>
+              </div>
+              <div style={styles.tableCell}>{job.location || '-'}</div>
+              <div style={styles.tableCell}>
+                {job.pay_min && job.pay_max ? `$${job.pay_min}-$${job.pay_max}/wk` : '-'}
+              </div>
+              <div style={styles.tableCell}>{job.route_type || '-'}</div>
+              <div style={styles.tableCell}>{job.cdl_class ? `Class ${job.cdl_class}` : '-'}</div>
+              <div style={styles.tableCell}>{job.positions_available || 1}</div>
+              <div style={styles.tableCell}>
+                <span style={{ ...styles.statusBadge, ...getStatusStyle(job.status) }}>
+                  {job.status}
+                </span>
+              </div>
+            </div>
           ))}
         </div>
       )}
     </EmployerLayout>
-  );
-}
-
-function JobCard({ job, onClick }) {
-  return (
-    <div style={styles.card} onClick={onClick}>
-      <div style={styles.cardHeader}>
-        <h3 style={styles.cardTitle}>{job.title}</h3>
-        <span style={{ ...styles.statusBadge, ...getStatusStyle(job.status) }}>
-          {job.status}
-        </span>
-      </div>
-      <div style={styles.cardBody}>
-        <div style={styles.cardDetail}>
-          <span style={styles.detailLabel}>Location:</span>
-          <span>{job.location || 'Not specified'}</span>
-        </div>
-        <div style={styles.cardDetail}>
-          <span style={styles.detailLabel}>Pay:</span>
-          <span>{job.pay_min && job.pay_max ? `$${job.pay_min}-$${job.pay_max}/wk` : 'Not specified'}</span>
-        </div>
-        <div style={styles.cardDetail}>
-          <span style={styles.detailLabel}>Route:</span>
-          <span>{job.route_type || 'Not specified'}</span>
-        </div>
-        <div style={styles.cardDetail}>
-          <span style={styles.detailLabel}>CDL:</span>
-          <span>{job.cdl_class ? `Class ${job.cdl_class}` : 'Not specified'}</span>
-        </div>
-      </div>
-      <div style={styles.cardFooter}>
-        <span style={styles.positions}>{job.positions_available || 1} position{job.positions_available !== 1 ? 's' : ''}</span>
-        <span style={styles.homeTime}>{job.home_time || ''}</span>
-      </div>
-    </div>
   );
 }
 
@@ -217,66 +207,48 @@ const styles = {
     borderRadius: 6,
     cursor: 'pointer',
   },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-    gap: 16,
-  },
-  card: {
+  table: {
+    display: 'table',
+    width: '100%',
     background: '#FFFFFF',
     borderRadius: 12,
     border: '1px solid #E8ECEE',
-    padding: 20,
+    borderCollapse: 'collapse',
+    overflow: 'hidden',
+  },
+  tableHeader: {
+    display: 'table-row',
+    background: '#F8FAFB',
+  },
+  tableHeaderCell: {
+    display: 'table-cell',
+    padding: '12px 16px',
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#5A7A82',
+    textTransform: 'uppercase',
+    borderBottom: '1px solid #E8ECEE',
+  },
+  tableRow: {
+    display: 'table-row',
     cursor: 'pointer',
-    transition: 'box-shadow 0.2s, transform 0.2s',
   },
-  cardHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
+  tableCell: {
+    display: 'table-cell',
+    padding: '12px 16px',
+    fontSize: 14,
+    verticalAlign: 'middle',
+    borderBottom: '1px solid #E8ECEE',
   },
-  cardTitle: {
-    margin: 0,
-    fontSize: 16,
+  jobTitle: {
     fontWeight: 600,
     color: '#004751',
   },
   statusBadge: {
+    display: 'inline-block',
     padding: '4px 10px',
     fontSize: 11,
     fontWeight: 600,
     borderRadius: 12,
-  },
-  cardBody: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-    marginBottom: 16,
-  },
-  cardDetail: {
-    display: 'flex',
-    fontSize: 13,
-    color: '#1A2A30',
-  },
-  detailLabel: {
-    width: 70,
-    color: '#5A7A82',
-    flexShrink: 0,
-  },
-  cardFooter: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 12,
-    borderTop: '1px solid #E8ECEE',
-    fontSize: 12,
-    color: '#5A7A82',
-  },
-  positions: {
-    fontWeight: 500,
-  },
-  homeTime: {
-    color: '#9CA3AF',
   },
 };
