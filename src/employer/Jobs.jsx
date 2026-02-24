@@ -7,6 +7,7 @@ const STATUSES = ['Active', 'Filled', 'On Hold', 'Closed'];
 const ROUTE_TYPES = ['Local', 'Regional', 'OTR'];
 const CDL_CLASSES = ['A', 'B'];
 const HOME_TIMES = ['Home Daily', 'Home Weekly', 'Home Bi-weekly', 'Out 2-3 weeks'];
+const TOUCH_FREIGHT = ['Very Light', 'Light', 'Medium', 'Heavy'];
 
 export default function EmployerJobs() {
   const [jobs, setJobs] = useState([]);
@@ -211,6 +212,8 @@ function JobDetailModal({ job, onClose, onSave }) {
                   <FormField label="Yard Zip" value={formData.yard_zip || ''} onChange={v => handleFieldChange('yard_zip', v)} />
                   <FormField label="Status" value={formData.status || ''} onChange={v => handleFieldChange('status', v)} type="select" options={STATUSES} />
                   <FormField label="Positions" value={formData.positions_available || 1} onChange={v => handleFieldChange('positions_available', parseInt(v) || 1)} type="number" />
+                  <FormField label="Received Date" value={formData.received_date || ''} onChange={v => handleFieldChange('received_date', v)} type="date" />
+                  <FormField label="Filled Date" value={formData.filled_date || ''} onChange={v => handleFieldChange('filled_date', v)} type="date" />
                 </div>
               </div>
 
@@ -219,9 +222,19 @@ function JobDetailModal({ job, onClose, onSave }) {
                 <div style={styles.formGrid}>
                   <FormField label="Route Type" value={formData.route_type || ''} onChange={v => handleFieldChange('route_type', v)} type="select" options={ROUTE_TYPES} />
                   <FormField label="CDL Class" value={formData.cdl_class || ''} onChange={v => handleFieldChange('cdl_class', v)} type="select" options={CDL_CLASSES} />
-                  <FormField label="Min Experience (yrs)" value={formData.min_experience_years || 0} onChange={v => handleFieldChange('min_experience_years', parseInt(v) || 0)} type="number" />
+                  <FormField label="Min Experience (yrs)" value={formData.min_experience_years || ''} onChange={v => handleFieldChange('min_experience_years', parseInt(v) || null)} type="number" />
                   <FormField label="Home Time" value={formData.home_time || ''} onChange={v => handleFieldChange('home_time', v)} type="select" options={HOME_TIMES} />
-                  <FormField label="Endorsements" value={formData.endorsements_required || ''} onChange={v => handleFieldChange('endorsements_required', v)} />
+                  <FormField label="Touch Freight" value={formData.touch_freight || ''} onChange={v => handleFieldChange('touch_freight', v)} type="select" options={TOUCH_FREIGHT} />
+                  <FormField label="Equipment Types" value={formData.equipment_types || ''} onChange={v => handleFieldChange('equipment_types', v)} />
+                  <FormField label="Endorsements Required" value={formData.endorsements_required || ''} onChange={v => handleFieldChange('endorsements_required', v)} />
+                </div>
+              </div>
+
+              <div style={styles.formSection}>
+                <div style={styles.formSectionTitle}>Driver Qualifications</div>
+                <div style={styles.formGrid}>
+                  <FormField label="Max MVR Violations" value={formData.max_mvr_violations || ''} onChange={v => handleFieldChange('max_mvr_violations', parseInt(v) || null)} type="number" />
+                  <FormField label="Max Accidents" value={formData.max_accidents || ''} onChange={v => handleFieldChange('max_accidents', parseInt(v) || null)} type="number" />
                 </div>
               </div>
 
@@ -234,13 +247,24 @@ function JobDetailModal({ job, onClose, onSave }) {
               </div>
 
               <div style={styles.formSection}>
-                <div style={styles.formSectionTitle}>Notes</div>
+                <div style={styles.formSectionTitle}>Job Description</div>
+                <textarea
+                  value={formData.raw_description || ''}
+                  onChange={e => handleFieldChange('raw_description', e.target.value)}
+                  style={styles.textarea}
+                  rows={6}
+                  placeholder="Full job description..."
+                />
+              </div>
+
+              <div style={styles.formSection}>
+                <div style={styles.formSectionTitle}>Internal Notes</div>
                 <textarea
                   value={formData.notes || ''}
                   onChange={e => handleFieldChange('notes', e.target.value)}
                   style={styles.textarea}
                   rows={3}
-                  placeholder="Additional notes..."
+                  placeholder="Internal notes (not shown to drivers)..."
                 />
               </div>
             </div>
@@ -249,17 +273,30 @@ function JobDetailModal({ job, onClose, onSave }) {
               <div style={styles.detailGrid}>
                 <DetailItem label="Status" value={job.status} />
                 <DetailItem label="Location" value={job.location} />
+                <DetailItem label="Yard Zip" value={job.yard_zip} />
                 <DetailItem label="Route Type" value={job.route_type} />
                 <DetailItem label="CDL Class" value={job.cdl_class ? `Class ${job.cdl_class}` : null} />
                 <DetailItem label="Min Experience" value={job.min_experience_years ? `${job.min_experience_years} years` : null} />
                 <DetailItem label="Home Time" value={job.home_time} />
+                <DetailItem label="Touch Freight" value={job.touch_freight} />
+                <DetailItem label="Equipment" value={job.equipment_types} />
                 <DetailItem label="Pay" value={job.pay_min && job.pay_max ? `$${job.pay_min}-$${job.pay_max}/wk` : null} />
                 <DetailItem label="Positions" value={job.positions_available || 1} />
                 <DetailItem label="Endorsements" value={job.endorsements_required} />
+                <DetailItem label="Max MVR Violations" value={job.max_mvr_violations} />
+                <DetailItem label="Max Accidents" value={job.max_accidents} />
+                <DetailItem label="Received" value={job.received_date} />
+                <DetailItem label="Filled" value={job.filled_date} />
               </div>
+              {job.raw_description && (
+                <div style={styles.descriptionSection}>
+                  <div style={styles.descriptionLabel}>Job Description</div>
+                  <div style={styles.descriptionText}>{job.raw_description}</div>
+                </div>
+              )}
               {job.notes && (
                 <div style={styles.notesSection}>
-                  <div style={styles.notesLabel}>Notes</div>
+                  <div style={styles.notesLabel}>Internal Notes</div>
                   <div style={styles.notesText}>{job.notes}</div>
                 </div>
               )}
@@ -280,6 +317,13 @@ function FormField({ label, value, onChange, type = 'text', options = [], placeh
           <option value="">--</option>
           {options.map(o => <option key={o} value={o}>{o}</option>)}
         </select>
+      ) : type === 'date' ? (
+        <input
+          type="date"
+          value={value || ''}
+          onChange={e => onChange(e.target.value)}
+          style={styles.formInput}
+        />
       ) : (
         <input
           type={type}
@@ -616,8 +660,28 @@ const styles = {
     fontSize: 14,
     color: '#1A2A30',
   },
-  notesSection: {
+  descriptionSection: {
     marginTop: 20,
+    padding: 16,
+    background: '#FFFFFF',
+    borderRadius: 8,
+    border: '1px solid #E8ECEE',
+  },
+  descriptionLabel: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#004751',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  descriptionText: {
+    fontSize: 14,
+    color: '#1A2A30',
+    lineHeight: 1.6,
+    whiteSpace: 'pre-wrap',
+  },
+  notesSection: {
+    marginTop: 16,
     padding: 16,
     background: '#F8FAFB',
     borderRadius: 8,
@@ -632,5 +696,6 @@ const styles = {
     fontSize: 14,
     color: '#1A2A30',
     lineHeight: 1.5,
+    whiteSpace: 'pre-wrap',
   },
 };
