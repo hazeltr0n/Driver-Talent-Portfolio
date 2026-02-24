@@ -1,7 +1,6 @@
-import Airtable from 'airtable';
-
-const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID);
-const candidatesTable = base(process.env.AIRTABLE_CANDIDATES_TABLE_ID);
+const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
+const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
+const CANDIDATES_TABLE_ID = process.env.AIRTABLE_CANDIDATES_TABLE_ID;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -18,49 +17,72 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'stage must be 1 or 2' });
   }
 
-  // Find candidate by UUID
-  const records = await candidatesTable
-    .select({
-      filterByFormula: `{uuid} = "${uuid}"`,
-      maxRecords: 1,
-    })
-    .firstPage();
+  try {
+    // Find candidate by UUID
+    const formula = encodeURIComponent(`{uuid} = "${uuid}"`);
+    const searchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${CANDIDATES_TABLE_ID}?filterByFormula=${formula}&maxRecords=1`;
 
-  if (records.length === 0) {
-    return res.status(404).json({ error: 'Candidate not found' });
+    const searchRes = await fetch(searchUrl, {
+      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` },
+    });
+
+    if (!searchRes.ok) {
+      throw new Error(`Airtable error: ${searchRes.status}`);
+    }
+
+    const searchData = await searchRes.json();
+
+    if (!searchData.records || searchData.records.length === 0) {
+      return res.status(404).json({ error: 'Candidate not found' });
+    }
+
+    const record = searchData.records[0];
+    const fields = record.fields;
+
+    // Check if assessment started
+    if (!fields.fitkit_started_at) {
+      return res.status(400).json({ error: 'Assessment not started. Call /api/fitkit/start first.' });
+    }
+
+    // Get existing responses
+    const fieldName = stage === 1 ? 'fitkit_stage1_responses' : 'fitkit_stage2_responses';
+    const existingResponses = fields[fieldName] ? JSON.parse(fields[fieldName]) : {};
+
+    // Merge new responses
+    const mergedResponses = { ...existingResponses, ...responses };
+
+    // Save merged responses
+    const updateUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${CANDIDATES_TABLE_ID}/${record.id}`;
+    const updateRes = await fetch(updateUrl, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${AIRTABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        fields: { [fieldName]: JSON.stringify(mergedResponses) },
+      }),
+    });
+
+    if (!updateRes.ok) {
+      throw new Error(`Update failed: ${updateRes.status}`);
+    }
+
+    // Count responses
+    const responseCount = Object.keys(mergedResponses).length;
+    const expectedCount = stage === 1 ? 42 : 32;
+    const complete = responseCount >= expectedCount;
+
+    res.json({
+      uuid,
+      stage,
+      responseCount,
+      expectedCount,
+      complete,
+      responses: mergedResponses,
+    });
+  } catch (error) {
+    console.error('FitKit respond error:', error);
+    res.status(500).json({ error: error.message });
   }
-
-  const record = records[0];
-  const fields = record.fields;
-
-  // Check if assessment started
-  if (!fields.fitkit_started_at) {
-    return res.status(400).json({ error: 'Assessment not started. Call /api/fitkit/start first.' });
-  }
-
-  // Get existing responses
-  const fieldName = stage === 1 ? 'fitkit_stage1_responses' : 'fitkit_stage2_responses';
-  const existingResponses = fields[fieldName] ? JSON.parse(fields[fieldName]) : {};
-
-  // Merge new responses
-  const mergedResponses = { ...existingResponses, ...responses };
-
-  // Save merged responses
-  await candidatesTable.update(record.id, {
-    [fieldName]: JSON.stringify(mergedResponses),
-  });
-
-  // Count responses
-  const responseCount = Object.keys(mergedResponses).length;
-  const expectedCount = stage === 1 ? 42 : 32;
-  const complete = responseCount >= expectedCount;
-
-  res.json({
-    uuid,
-    stage,
-    responseCount,
-    expectedCount,
-    complete,
-    responses: mergedResponses,
-  });
 }

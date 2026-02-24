@@ -1,9 +1,10 @@
-import Airtable from 'airtable';
 import OpenAI from 'openai';
 import { scoreStage2 } from '../lib/fitkit-scoring.js';
 
-const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID);
-const candidatesTable = base(process.env.AIRTABLE_CANDIDATES_TABLE_ID);
+const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
+const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
+const CANDIDATES_TABLE_ID = process.env.AIRTABLE_CANDIDATES_TABLE_ID;
+
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 async function generateAICoachingNotes(results, driverName) {
@@ -48,95 +49,121 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'uuid is required' });
   }
 
-  // Find candidate by UUID
-  const records = await candidatesTable
-    .select({
-      filterByFormula: `{uuid} = "${uuid}"`,
-      maxRecords: 1,
-    })
-    .firstPage();
-
-  if (records.length === 0) {
-    return res.status(404).json({ error: 'Candidate not found' });
-  }
-
-  const record = records[0];
-  const fields = record.fields;
-
-  // Check if Stage 2 already scored
-  if (fields.fitkit_stage2_completed_at) {
-    return res.json({
-      uuid,
-      status: 'already_scored',
-      completedAt: fields.fitkit_stage2_completed_at,
-      truckingFitScore: fields.fitkit_trucking_fit_score,
-      retentionRisk: fields.fitkit_retention_risk,
-      bestVertical: fields.fitkit_best_vertical,
-      coachingNotes: fields.fitkit_coaching_notes,
-    });
-  }
-
-  // Check if Stage 1 completed
-  if (!fields.fitkit_stage1_completed_at) {
-    return res.status(400).json({ error: 'Stage 1 must be completed first' });
-  }
-
-  // Get Stage 2 responses
-  const stage2Responses = fields.fitkit_stage2_responses ? JSON.parse(fields.fitkit_stage2_responses) : {};
-  const responseCount = Object.keys(stage2Responses).length;
-
-  if (responseCount < 32) {
-    return res.status(400).json({
-      error: 'Incomplete responses',
-      responseCount,
-      expectedCount: 32,
-    });
-  }
-
-  // Get Stage 1 results for vertical calculation
-  const stage1Results = {
-    workValues: fields.fitkit_work_values ? JSON.parse(fields.fitkit_work_values) : { normalized: {} },
-  };
-
-  // Score Stage 2
-  const results = scoreStage2(stage2Responses, stage1Results);
-
-  // Generate AI coaching notes
-  let aiCoachingNotes = '';
   try {
-    aiCoachingNotes = await generateAICoachingNotes(results, fields.fullName);
-  } catch (err) {
-    console.error('Failed to generate AI coaching notes:', err);
-    aiCoachingNotes = results.coachingNotes.map(n => n.text).join('\n\n');
+    // Find candidate by UUID
+    const formula = encodeURIComponent(`{uuid} = "${uuid}"`);
+    const searchUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${CANDIDATES_TABLE_ID}?filterByFormula=${formula}&maxRecords=1`;
+
+    const searchRes = await fetch(searchUrl, {
+      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` },
+    });
+
+    if (!searchRes.ok) {
+      throw new Error(`Airtable error: ${searchRes.status}`);
+    }
+
+    const searchData = await searchRes.json();
+
+    if (!searchData.records || searchData.records.length === 0) {
+      return res.status(404).json({ error: 'Candidate not found' });
+    }
+
+    const record = searchData.records[0];
+    const fields = record.fields;
+
+    // Check if Stage 2 already scored
+    if (fields.fitkit_stage2_completed_at) {
+      return res.json({
+        uuid,
+        status: 'already_scored',
+        completedAt: fields.fitkit_stage2_completed_at,
+        truckingFitScore: fields.fitkit_trucking_fit_score,
+        retentionRisk: { label: fields.fitkit_retention_risk },
+        verticalFit: { best: { name: fields.fitkit_best_vertical } },
+        aiCoachingNotes: fields.fitkit_coaching_notes,
+      });
+    }
+
+    // Check if Stage 1 completed
+    if (!fields.fitkit_stage1_completed_at) {
+      return res.status(400).json({ error: 'Stage 1 must be completed first' });
+    }
+
+    // Get Stage 2 responses
+    const stage2Responses = fields.fitkit_stage2_responses ? JSON.parse(fields.fitkit_stage2_responses) : {};
+    const responseCount = Object.keys(stage2Responses).length;
+
+    if (responseCount < 32) {
+      return res.status(400).json({
+        error: 'Incomplete responses',
+        responseCount,
+        expectedCount: 32,
+      });
+    }
+
+    // Get Stage 1 results for vertical calculation
+    const stage1Results = {
+      workValues: fields.fitkit_work_values ? JSON.parse(fields.fitkit_work_values) : { normalized: {} },
+    };
+
+    // Score Stage 2
+    const results = scoreStage2(stage2Responses, stage1Results);
+
+    // Generate AI coaching notes
+    let aiCoachingNotes = '';
+    try {
+      aiCoachingNotes = await generateAICoachingNotes(results, fields.fullName);
+    } catch (err) {
+      console.error('Failed to generate AI coaching notes:', err);
+      aiCoachingNotes = results.coachingNotes.map(n => n.text).join('\n\n');
+    }
+
+    // Save results to Airtable
+    const updateUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${CANDIDATES_TABLE_ID}/${record.id}`;
+    const updateRes = await fetch(updateUrl, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${AIRTABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        fields: {
+          fitkit_stage2_completed_at: new Date().toISOString(),
+          fitkit_facet_empathy: results.facets.raw.empathy,
+          fitkit_facet_anxiety: results.facets.raw.anxiety,
+          fitkit_facet_excitement: results.facets.raw.excitement,
+          fitkit_facet_discipline: results.facets.raw.discipline,
+          fitkit_facet_immoderation: results.facets.raw.immoderation,
+          fitkit_facet_dutifulness: results.facets.raw.dutifulness,
+          fitkit_grit_total: results.grit.total,
+          fitkit_trucking_fit_score: results.truckingFitScore,
+          fitkit_retention_risk: results.retentionRisk.label,
+          fitkit_best_vertical: results.verticalFit.best.name,
+          fitkit_coaching_notes: aiCoachingNotes,
+        },
+      }),
+    });
+
+    if (!updateRes.ok) {
+      const errorText = await updateRes.text();
+      throw new Error(`Update failed: ${errorText}`);
+    }
+
+    res.json({
+      uuid,
+      status: 'scored',
+      completedAt: new Date().toISOString(),
+      facets: results.facets,
+      grit: results.grit,
+      truckingFitScore: results.truckingFitScore,
+      fitScoreDetails: results.fitScoreDetails,
+      retentionRisk: results.retentionRisk,
+      verticalFit: results.verticalFit,
+      coachingNotes: results.coachingNotes,
+      aiCoachingNotes,
+    });
+  } catch (error) {
+    console.error('FitKit score-stage2 error:', error);
+    res.status(500).json({ error: error.message });
   }
-
-  // Save results to Airtable
-  await candidatesTable.update(record.id, {
-    fitkit_stage2_completed_at: new Date().toISOString(),
-    fitkit_facet_empathy: results.facets.raw.empathy,
-    fitkit_facet_anxiety: results.facets.raw.anxiety,
-    fitkit_facet_excitement: results.facets.raw.excitement,
-    fitkit_facet_discipline: results.facets.raw.discipline,
-    fitkit_facet_immoderation: results.facets.raw.immoderation,
-    fitkit_facet_dutifulness: results.facets.raw.dutifulness,
-    fitkit_grit_total: results.grit.total,
-    fitkit_trucking_fit_score: results.truckingFitScore,
-    fitkit_retention_risk: results.retentionRisk.label,
-    fitkit_best_vertical: results.verticalFit.best.name,
-    fitkit_coaching_notes: aiCoachingNotes,
-  });
-
-  res.json({
-    uuid,
-    status: 'scored',
-    completedAt: new Date().toISOString(),
-    facets: results.facets,
-    grit: results.grit,
-    truckingFitScore: results.truckingFitScore,
-    fitScoreDetails: results.fitScoreDetails,
-    retentionRisk: results.retentionRisk,
-    verticalFit: results.verticalFit,
-    coachingNotes: results.coachingNotes,
-    aiCoachingNotes,
-  });
 }
