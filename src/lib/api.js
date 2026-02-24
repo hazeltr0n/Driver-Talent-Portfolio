@@ -183,10 +183,14 @@ export async function uploadVideoClip(uuid, questionNumber, blob) {
   // Get presigned URL
   const { uploadUrl, clipKey } = await getUploadUrl(uuid, questionNumber);
 
+  // Use the blob's actual mime type (iOS Safari uses mp4, others use webm)
+  const contentType = blob.type || 'video/webm';
+  console.log('Uploading with Content-Type:', contentType);
+
   // Upload to storage
   const uploadResponse = await fetch(uploadUrl, {
     method: 'PUT',
-    headers: { 'Content-Type': 'video/webm' },
+    headers: { 'Content-Type': contentType },
     body: blob,
   });
 

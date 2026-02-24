@@ -108,6 +108,30 @@ const QUESTIONS = [
 
 const MAX_RECORDING_SECONDS = 60;
 
+// Detect supported video mime type (iOS Safari uses mp4, others use webm)
+function getSupportedMimeType() {
+  if (typeof MediaRecorder === 'undefined') return null;
+  const types = [
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8,opus',
+    'video/webm',
+    'video/mp4',
+  ];
+  for (const type of types) {
+    if (MediaRecorder.isTypeSupported(type)) return type;
+  }
+  return null;
+}
+
+function getSupportedAudioMimeType() {
+  if (typeof MediaRecorder === 'undefined') return null;
+  const types = ['audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/ogg'];
+  for (const type of types) {
+    if (MediaRecorder.isTypeSupported(type)) return type;
+  }
+  return null;
+}
+
 export default function VideoRecorder({ uuid }) {
   const [driver, setDriver] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -262,13 +286,21 @@ export default function VideoRecorder({ uuid }) {
     setRecordingTime(0);
     setRecordingState('recording');
 
-    const recorder = new MediaRecorder(stream);
+    // Use supported mime types (iOS Safari uses mp4, others use webm)
+    const videoMimeType = getSupportedMimeType();
+    const audioMimeType = getSupportedAudioMimeType();
+    console.log('Using video mimeType:', videoMimeType);
+    console.log('Using audio mimeType:', audioMimeType);
+
+    const recorderOptions = videoMimeType ? { mimeType: videoMimeType } : {};
+    const recorder = new MediaRecorder(stream, recorderOptions);
     mediaRecorderRef.current = recorder;
 
     // Create audio-only recorder for transcription
     const audioTracks = stream.getAudioTracks();
     const audioStream = new MediaStream(audioTracks);
-    const audioRecorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm' });
+    const audioRecorderOptions = audioMimeType ? { mimeType: audioMimeType } : {};
+    const audioRecorder = new MediaRecorder(audioStream, audioRecorderOptions);
 
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
@@ -292,7 +324,10 @@ export default function VideoRecorder({ uuid }) {
         });
       }
 
-      const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+      // Use the actual mime type from the recorder
+      const actualMimeType = recorder.mimeType || videoMimeType || 'video/webm';
+      console.log('Creating blob with mimeType:', actualMimeType);
+      const blob = new Blob(chunksRef.current, { type: actualMimeType });
       const localUrl = URL.createObjectURL(blob);
       const questionNum = currentQuestion + 1;
 
@@ -304,7 +339,8 @@ export default function VideoRecorder({ uuid }) {
 
       try {
         console.log('Audio chunks collected:', audioChunksRef.current.length);
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const actualAudioMimeType = audioRecorder.mimeType || audioMimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: actualAudioMimeType });
         console.log('Audio blob size:', audioBlob.size);
         const transcribeRes = await fetch('/api/transcribe', {
           method: 'POST',
@@ -323,7 +359,7 @@ export default function VideoRecorder({ uuid }) {
         console.error('Transcription failed:', err);
       }
 
-      setClips(prev => ({ ...prev, [questionNum]: { blob, url: localUrl, transcript, speechStart, speechEnd } }));
+      setClips(prev => ({ ...prev, [questionNum]: { blob, url: localUrl, transcript, speechStart, speechEnd, mimeType: actualMimeType } }));
       setRecordingState('preview');
 
       if (!transcript || transcript.length < 10) {
