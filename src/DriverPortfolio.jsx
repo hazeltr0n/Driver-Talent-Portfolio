@@ -135,73 +135,73 @@ export default function DriverPortfolio({ slug }) {
 
   return (
     <div style={styles.container}>
-      {/* Video Hero or Text Hero */}
-      {d.videoUrl ? (
-        <div style={styles.videoHero}>
-          <div style={styles.videoWrapper}>
-            <video
-              ref={videoRef}
-              src={d.videoUrl}
-              style={styles.video}
-              controls
-              onPlay={() => setIsVideoPlaying(true)}
-              onPause={() => setIsVideoPlaying(false)}
-              playsInline
-              webkit-playsinline="true"
-              preload="metadata"
-              x-webkit-airplay="allow"
-            />
-            {!isVideoPlaying && (
-              <div style={styles.videoOverlay} onClick={handlePlayVideo}>
-                <div style={styles.playButton}>
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="#004751">
-                    <path d="M8 5v14l11-7z"/>
-                  </svg>
+      {/* Main Content - everything constrained to same width */}
+      <div style={styles.content}>
+        {/* Video Hero or Text Hero */}
+        {d.videoUrl ? (
+          <div style={styles.videoHero}>
+            <div style={styles.videoWrapper}>
+              <video
+                ref={videoRef}
+                src={d.videoUrl}
+                style={styles.video}
+                controls
+                onPlay={() => setIsVideoPlaying(true)}
+                onPause={() => setIsVideoPlaying(false)}
+                playsInline
+                webkit-playsinline="true"
+                preload="metadata"
+                x-webkit-airplay="allow"
+              />
+              {!isVideoPlaying && (
+                <div style={styles.videoOverlay} onClick={handlePlayVideo}>
+                  <div style={styles.playButton}>
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="#004751">
+                      <path d="M8 5v14l11-7z"/>
+                    </svg>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div style={styles.textHero}>
-          <div style={styles.heroLogo}>
-            <img src="/fw-logo-white.svg" alt="FreeWorld" style={{ height: 32, width: 32 }} />
-            <span style={styles.heroLogoText}>Driver Fit Profile</span>
-          </div>
-          <div style={styles.heroName}>{displayName}</div>
-          <div style={styles.heroMeta}>
-            {d.homeBase && `${d.homeBase} · `}{d.cdlClass}{d.yearsExp > 0 && ` · ${d.yearsExp} Years Experience`}
-          </div>
-        </div>
-      )}
-
-      {/* Action Bar */}
-      <div style={styles.actionBar} className="dfp-action-bar">
-        <div style={styles.actionBarLeft}>
-          {d.jobFit && (
-            <div style={styles.fitScoreDisplay}>
-              <span style={styles.fitScoreNumber}>{d.jobFit.overallScore}%</span>
-              <span style={styles.fitScoreLabel}>Fit Score</span>
+              )}
             </div>
-          )}
-          <div style={styles.badges}>
-            <span style={styles.badge}>{d.cdlClass}</span>
-            {d.endorsements?.length > 0 && (
-              <span style={styles.badge}>{d.endorsements.join(', ')}</span>
-            )}
-            {d.yearsExp > 0 && <span style={styles.badge}>{d.yearsExp} yrs exp</span>}
           </div>
-        </div>
-        {d.videoUrl && (
-          <div style={styles.driverInfo} className="dfp-driver-info">
-            <div style={styles.driverName}>{displayName}</div>
-            <div style={styles.driverLocation}>{d.homeBase}</div>
+        ) : (
+          <div style={styles.textHero}>
+            <div style={styles.heroLogo}>
+              <img src="/fw-logo-white.svg" alt="FreeWorld" style={{ height: 32, width: 32 }} />
+              <span style={styles.heroLogoText}>Driver Fit Profile</span>
+            </div>
+            <div style={styles.heroName}>{displayName}</div>
+            <div style={styles.heroMeta}>
+              {d.homeBase && `${d.homeBase} · `}{d.cdlClass}{d.yearsExp > 0 && ` · ${d.yearsExp} Years Experience`}
+            </div>
           </div>
         )}
-      </div>
 
-      {/* Main Content */}
-      <div style={styles.content}>
+        {/* Action Bar */}
+        <div style={styles.actionBar} className="dfp-action-bar">
+          <div style={styles.actionBarLeft}>
+            {d.jobFit && (
+              <div style={styles.fitScoreDisplay}>
+                <span style={styles.fitScoreNumber}>{d.jobFit.overallScore}%</span>
+                <span style={styles.fitScoreLabel}>Fit Score</span>
+              </div>
+            )}
+            <div style={styles.badges}>
+              <span style={styles.badge}>{d.cdlClass}</span>
+              {d.endorsements?.length > 0 && (
+                <span style={styles.badge}>{d.endorsements.join(', ')}</span>
+              )}
+              {d.yearsExp > 0 && <span style={styles.badge}>{d.yearsExp} yrs exp</span>}
+            </div>
+          </div>
+          {d.videoUrl && (
+            <div style={styles.driverInfo} className="dfp-driver-info">
+              <div style={styles.driverName}>{displayName}</div>
+              <div style={styles.driverLocation}>{d.homeBase}</div>
+            </div>
+          )}
+        </div>
+
         {/* Pull Quote */}
         {d.whyTrucking && (
           <div style={styles.pullQuoteSection}>
@@ -411,15 +411,15 @@ export default function DriverPortfolio({ slug }) {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Footer */}
-      <div style={styles.footer}>
-        <div style={styles.footerLeft}>
-          <img src="/fw-logo-white.svg" alt="FreeWorld" style={{ height: 24, width: 24 }} />
-          <span style={styles.footerText}>FreeWorld Driver Fit Profile</span>
+        {/* Footer */}
+        <div style={styles.footer}>
+          <div style={styles.footerLeft}>
+            <img src="/fw-logo-white.svg" alt="FreeWorld" style={{ height: 24, width: 24 }} />
+            <span style={styles.footerText}>FreeWorld Driver Fit Profile</span>
+          </div>
+          <span style={styles.footerMeta}>Confidential · Generated February 2026</span>
         </div>
-        <span style={styles.footerMeta}>Confidential · Generated February 2026</span>
       </div>
     </div>
   );
@@ -446,11 +446,13 @@ const styles = {
   // Video Hero
   videoHero: {
     background: '#004751',
-    padding: '20px 20px 0',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 20,
   },
   videoWrapper: {
     position: 'relative',
-    borderRadius: '16px 16px 0 0',
+    borderRadius: 8,
     overflow: 'hidden',
     background: '#000',
     maxHeight: '70vh',
@@ -491,6 +493,8 @@ const styles = {
     background: 'linear-gradient(135deg, #004751 0%, #006575 100%)',
     padding: '40px 20px',
     textAlign: 'center',
+    borderRadius: 12,
+    marginBottom: 20,
   },
   heroLogo: {
     display: 'flex',
@@ -529,6 +533,7 @@ const styles = {
     flexWrap: 'wrap',
     gap: 16,
     boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+    borderRadius: 12,
   },
   actionBarLeft: {
     display: 'flex',
@@ -582,7 +587,7 @@ const styles = {
   content: {
     maxWidth: 1200,
     margin: '0 auto',
-    padding: '0 20px',
+    padding: '20px 20px 0',
   },
 
   // Pull Quote
@@ -1001,11 +1006,13 @@ const styles = {
     background: '#004751',
     padding: '16px 20px',
     marginTop: 32,
+    marginBottom: 20,
     display: 'flex',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 8,
+    borderRadius: 12,
   },
   footerLeft: {
     display: 'flex',
