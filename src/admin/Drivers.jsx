@@ -446,6 +446,18 @@ function AddDriverModal({ onClose, onSuccess, onSelectExisting }) {
       });
       candidateUuid = created.uuid;
 
+      // If driver already exists, skip to success with their existing URLs
+      if (created.already_exists) {
+        setResult({
+          formUrl: `/form/${candidateUuid}`,
+          recordUrl: `/record/${candidateUuid}`,
+          portfolioUrl: `/portfolio/${created.portfolio_slug}`,
+          alreadyExists: true,
+        });
+        setStep(3);
+        return;
+      }
+
       const documents = {};
       if (files.tenstreet) documents.tenstreet = await fileToBase64(files.tenstreet);
       if (files.mvr) documents.mvr = await fileToBase64(files.mvr);
@@ -657,8 +669,12 @@ function AddDriverModal({ onClose, onSuccess, onSelectExisting }) {
           {/* Step 3: Done */}
           {step === 3 && result && (
             <>
-              <div style={styles.successIcon}>✓</div>
-              <p style={styles.stepDesc}>Profile created for {selectedCandidate.name}!</p>
+              <div style={styles.successIcon}>{result.alreadyExists ? '!' : '✓'}</div>
+              <p style={styles.stepDesc}>
+                {result.alreadyExists
+                  ? `${selectedCandidate.name} already has a profile!`
+                  : `Profile created for ${selectedCandidate.name}!`}
+              </p>
               <div style={styles.linkBox}>
                 <div style={styles.linkLabel}>Preferences Form (send to driver):</div>
                 <div style={styles.linkValue}>

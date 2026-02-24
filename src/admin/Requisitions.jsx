@@ -560,10 +560,6 @@ function JobDetailModal({ job, submissions, collaborators, onClose, onRefresh })
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [showNewDriverForm, setShowNewDriverForm] = useState(false);
-  const [newDriver, setNewDriver] = useState({ fullName: '', email: '', phone: '', city: '', state: '' });
-  const [creating, setCreating] = useState(false);
-  const [searchMode, setSearchMode] = useState('freeagents'); // 'freeagents' or 'candidates'
   const [fitScores, setFitScores] = useState({});
   const [loadingFit, setLoadingFit] = useState({});
 
@@ -620,20 +616,11 @@ function JobDetailModal({ job, submissions, collaborators, onClose, onRefresh })
     setSearching(true);
     setFitScores({});
     try {
-      let results = [];
-      if (searchMode === 'freeagents') {
-        // Search synced Free Agents table
-        const response = await fetch(`/api/free-agents/search?q=${encodeURIComponent(searchQuery)}`);
-        const data = await response.json();
-        results = data.results || [];
-      } else {
-        // Search our Candidates table
-        results = await searchCandidates(searchQuery);
-      }
+      const results = await searchCandidates(searchQuery);
       setSearchResults(results);
-      // Auto-fetch fit scores for existing candidates
+      // Auto-fetch fit scores
       for (const c of results) {
-        if (c.uuid && !c.synced_record_id) {
+        if (c.uuid) {
           fetchFitScore(c.uuid);
         }
       }
@@ -647,25 +634,9 @@ function JobDetailModal({ job, submissions, collaborators, onClose, onRefresh })
   const handleSubmitDriver = async (candidate) => {
     setSubmitting(true);
     try {
-      let finalCandidate = candidate;
-
-      // If from Free Agents (has synced_record_id), import to our Candidates table first
-      if (candidate.synced_record_id) {
-        const importResponse = await fetch('/api/candidates', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(candidate),
-        });
-        if (!importResponse.ok) {
-          const err = await importResponse.json();
-          throw new Error(err.error || 'Failed to import driver');
-        }
-        finalCandidate = await importResponse.json();
-      }
-
       await createSubmission({
-        candidate_uuid: finalCandidate.uuid,
-        candidate_name: finalCandidate.name || finalCandidate.fullName,
+        candidate_uuid: candidate.uuid,
+        candidate_name: candidate.name || candidate.fullName,
         requisition_id: job.id,
         employer: job.employer,
         job_title: job.title,
@@ -679,45 +650,6 @@ function JobDetailModal({ job, submissions, collaborators, onClose, onRefresh })
       alert('Error: ' + err.message);
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleCreateAndSubmit = async () => {
-    if (!newDriver.fullName.trim()) return;
-    setCreating(true);
-    try {
-      // Create the candidate first
-      const response = await fetch('/api/candidates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newDriver),
-      });
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to create driver');
-      }
-      const candidate = await response.json();
-
-      // Now submit them to this job
-      await createSubmission({
-        candidate_uuid: candidate.uuid,
-        candidate_name: candidate.fullName,
-        requisition_id: job.id,
-        employer: job.employer,
-        job_title: job.title,
-      });
-
-      setShowAddDriver(false);
-      setShowNewDriverForm(false);
-      setNewDriver({ fullName: '', email: '', phone: '', city: '', state: '' });
-      setSearchQuery('');
-      setSearchResults([]);
-      onRefresh();
-    } catch (err) {
-      console.error(err);
-      alert('Error: ' + err.message);
-    } finally {
-      setCreating(false);
     }
   };
 
@@ -854,115 +786,43 @@ function JobDetailModal({ job, submissions, collaborators, onClose, onRefresh })
 
           {showAddDriver && (
             <div style={styles.addDriverBox}>
-              {!showNewDriverForm ? (
-                <>
-                  <div style={styles.searchModeRow}>
-                    <button
-                      onClick={() => { setSearchMode('freeagents'); setSearchResults([]); }}
-                      style={searchMode === 'freeagents' ? styles.searchModeActive : styles.searchModeButton}
-                    >
-                      Free Agents
-                    </button>
-                    <button
-                      onClick={() => { setSearchMode('candidates'); setSearchResults([]); }}
-                      style={searchMode === 'candidates' ? styles.searchModeActive : styles.searchModeButton}
-                    >
-                      Existing
-                    </button>
-                  </div>
-                  <div style={styles.searchRow}>
-                    <input
-                      type="text"
-                      placeholder={searchMode === 'freeagents' ? 'Search Free Agents...' : 'Search existing drivers...'}
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                      style={styles.searchInputSmall}
-                    />
-                    <button onClick={handleSearch} disabled={searching} style={styles.searchButton}>{searching ? '...' : 'Search'}</button>
-                    <button onClick={() => setShowNewDriverForm(true)} style={styles.newDriverButton}>+ New</button>
-                    <button onClick={() => setShowAddDriver(false)} style={styles.cancelButton}>Cancel</button>
-                  </div>
-                  {searchResults.length > 0 && (
-                    <div style={styles.searchResults}>
-                      {searchResults.map(c => {
-                        const score = fitScores[c.uuid];
-                        const isLoading = loadingFit[c.uuid];
-                        const canShowFit = !c.synced_record_id && c.uuid;
-                        return (
-                          <div key={c.uuid} style={styles.searchResultItem}>
-                            <div style={{ flex: 1 }}>
-                              <div style={styles.candidateName}>{c.name || c.fullName}</div>
-                              <div style={styles.candidateMeta}>{c.city}, {c.state}</div>
-                            </div>
-                            {canShowFit && (
-                              <div style={styles.fitPreview}>
-                                {isLoading ? (
-                                  <span style={styles.fitLoading}>...</span>
-                                ) : score !== undefined && score !== null ? (
-                                  <span style={{ ...styles.fitScorePreview, color: score >= 85 ? '#059669' : score >= 70 ? '#D97706' : '#DC2626' }}>
-                                    {score}%
-                                  </span>
-                                ) : null}
-                              </div>
-                            )}
-                            <button onClick={() => handleSubmitDriver(c)} disabled={submitting} style={styles.submitButton}>Submit</button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div style={styles.newDriverForm}>
-                  <div style={styles.newDriverTitle}>Add New Driver</div>
-                  <div style={styles.newDriverGrid}>
-                    <input
-                      type="text"
-                      placeholder="Full Name *"
-                      value={newDriver.fullName}
-                      onChange={e => setNewDriver(prev => ({ ...prev, fullName: e.target.value }))}
-                      style={styles.newDriverInput}
-                    />
-                    <input
-                      type="email"
-                      placeholder="Email"
-                      value={newDriver.email}
-                      onChange={e => setNewDriver(prev => ({ ...prev, email: e.target.value }))}
-                      style={styles.newDriverInput}
-                    />
-                    <input
-                      type="tel"
-                      placeholder="Phone"
-                      value={newDriver.phone}
-                      onChange={e => setNewDriver(prev => ({ ...prev, phone: e.target.value }))}
-                      style={styles.newDriverInput}
-                    />
-                    <input
-                      type="text"
-                      placeholder="City"
-                      value={newDriver.city}
-                      onChange={e => setNewDriver(prev => ({ ...prev, city: e.target.value }))}
-                      style={styles.newDriverInput}
-                    />
-                    <input
-                      type="text"
-                      placeholder="State"
-                      value={newDriver.state}
-                      onChange={e => setNewDriver(prev => ({ ...prev, state: e.target.value }))}
-                      style={styles.newDriverInput}
-                    />
-                  </div>
-                  <div style={styles.newDriverActions}>
-                    <button onClick={() => setShowNewDriverForm(false)} style={styles.cancelButton}>Back</button>
-                    <button
-                      onClick={handleCreateAndSubmit}
-                      disabled={creating || !newDriver.fullName.trim()}
-                      style={styles.submitButton}
-                    >
-                      {creating ? 'Creating...' : 'Create & Submit'}
-                    </button>
-                  </div>
+              <div style={styles.searchRow}>
+                <input
+                  type="text"
+                  placeholder="Search existing drivers..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                  style={styles.searchInputSmall}
+                />
+                <button onClick={handleSearch} disabled={searching} style={styles.searchButton}>{searching ? '...' : 'Search'}</button>
+                <button onClick={() => setShowAddDriver(false)} style={styles.cancelButton}>Cancel</button>
+              </div>
+              <div style={styles.searchHint}>Drivers must be added on the Drivers page first</div>
+              {searchResults.length > 0 && (
+                <div style={styles.searchResults}>
+                  {searchResults.map(c => {
+                    const score = fitScores[c.uuid];
+                    const isLoading = loadingFit[c.uuid];
+                    return (
+                      <div key={c.uuid} style={styles.searchResultItem}>
+                        <div style={{ flex: 1 }}>
+                          <div style={styles.candidateName}>{c.name || c.fullName}</div>
+                          <div style={styles.candidateMeta}>{c.location || [c.city, c.state].filter(Boolean).join(', ')}</div>
+                        </div>
+                        <div style={styles.fitPreview}>
+                          {isLoading ? (
+                            <span style={styles.fitLoading}>...</span>
+                          ) : score !== undefined && score !== null ? (
+                            <span style={{ ...styles.fitScorePreview, color: score >= 85 ? '#059669' : score >= 70 ? '#D97706' : '#DC2626' }}>
+                              {score}%
+                            </span>
+                          ) : null}
+                        </div>
+                        <button onClick={() => handleSubmitDriver(c)} disabled={submitting} style={styles.submitButton}>Submit</button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1583,6 +1443,11 @@ const styles = {
     border: '1px solid #E8ECEE',
     borderRadius: 6,
     overflow: 'hidden',
+  },
+  searchHint: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 8,
   },
   searchResultItem: {
     display: 'flex',

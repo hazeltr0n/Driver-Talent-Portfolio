@@ -616,10 +616,6 @@ function SubmitDriverModal({ jobs, onClose, onSuccess }) {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [searchMode, setSearchMode] = useState('freeagents');
-  const [showNewDriverForm, setShowNewDriverForm] = useState(false);
-  const [newDriver, setNewDriver] = useState({ fullName: '', email: '', phone: '', city: '', state: '' });
-  const [creating, setCreating] = useState(false);
   const [fitScores, setFitScores] = useState({});
   const [loadingFit, setLoadingFit] = useState({});
 
@@ -650,19 +646,12 @@ function SubmitDriverModal({ jobs, onClose, onSuccess }) {
     setSearching(true);
     setFitScores({});
     try {
-      let results = [];
-      if (searchMode === 'freeagents') {
-        const response = await fetch(`/api/free-agents/search?q=${encodeURIComponent(searchQuery)}`);
-        const data = await response.json();
-        results = data.results || [];
-      } else {
-        results = await searchCandidates(searchQuery);
-      }
+      const results = await searchCandidates(searchQuery);
       setSearchResults(results);
-      // Auto-fetch fit scores for candidates that have a uuid (existing candidates)
+      // Auto-fetch fit scores
       if (selectedJob) {
         for (const c of results) {
-          if (c.uuid && !c.synced_record_id) {
+          if (c.uuid) {
             fetchFitScore(c.uuid);
           }
         }
@@ -678,25 +667,9 @@ function SubmitDriverModal({ jobs, onClose, onSuccess }) {
     if (!selectedJob) return;
     setSubmitting(true);
     try {
-      let finalCandidate = candidate;
-
-      // If from Free Agents, import to Candidates table first
-      if (candidate.synced_record_id) {
-        const importResponse = await fetch('/api/candidates', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(candidate),
-        });
-        if (!importResponse.ok) {
-          const err = await importResponse.json();
-          throw new Error(err.error || 'Failed to import driver');
-        }
-        finalCandidate = await importResponse.json();
-      }
-
       await createSubmission({
-        candidate_uuid: finalCandidate.uuid,
-        candidate_name: finalCandidate.name || finalCandidate.fullName,
+        candidate_uuid: candidate.uuid,
+        candidate_name: candidate.name || candidate.fullName,
         requisition_id: selectedJob.id,
         employer: selectedJob.employer,
         job_title: selectedJob.title,
@@ -707,37 +680,6 @@ function SubmitDriverModal({ jobs, onClose, onSuccess }) {
       alert('Error: ' + err.message);
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleCreateAndSubmit = async () => {
-    if (!newDriver.fullName.trim() || !selectedJob) return;
-    setCreating(true);
-    try {
-      const response = await fetch('/api/candidates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newDriver),
-      });
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to create driver');
-      }
-      const candidate = await response.json();
-
-      await createSubmission({
-        candidate_uuid: candidate.uuid,
-        candidate_name: candidate.fullName,
-        requisition_id: selectedJob.id,
-        employer: selectedJob.employer,
-        job_title: selectedJob.title,
-      });
-      onSuccess();
-    } catch (err) {
-      console.error(err);
-      alert('Error: ' + err.message);
-    } finally {
-      setCreating(false);
     }
   };
 
@@ -770,124 +712,53 @@ function SubmitDriverModal({ jobs, onClose, onSuccess }) {
             </select>
           </div>
 
-          {/* Step 2: Find or Create Driver (only shown after job selected) */}
+          {/* Step 2: Find Driver (only shown after job selected) */}
           {selectedJob && (
             <div style={styles.submitStep}>
-              <div style={styles.submitStepLabel}>2. Find or Create Driver</div>
+              <div style={styles.submitStepLabel}>2. Find Driver</div>
+              <div style={styles.searchHint}>Search for existing drivers. Add new drivers from the Drivers page first.</div>
 
-              {!showNewDriverForm ? (
-                <>
-                  <div style={styles.searchModeRow}>
-                    <button
-                      onClick={() => { setSearchMode('freeagents'); setSearchResults([]); }}
-                      style={searchMode === 'freeagents' ? styles.searchModeActive : styles.searchModeButton}
-                    >
-                      Free Agents
-                    </button>
-                    <button
-                      onClick={() => { setSearchMode('candidates'); setSearchResults([]); }}
-                      style={searchMode === 'candidates' ? styles.searchModeActive : styles.searchModeButton}
-                    >
-                      Existing
-                    </button>
-                  </div>
-                  <div style={styles.searchRow}>
-                    <input
-                      type="text"
-                      placeholder={searchMode === 'freeagents' ? 'Search Free Agents...' : 'Search existing drivers...'}
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                      style={styles.searchInputModal}
-                    />
-                    <button onClick={handleSearch} disabled={searching} style={styles.searchButton}>
-                      {searching ? '...' : 'Search'}
-                    </button>
-                    <button onClick={() => setShowNewDriverForm(true)} style={styles.newDriverButton}>
-                      + New
-                    </button>
-                  </div>
-                  {searchResults.length > 0 && (
-                    <div style={styles.searchResults}>
-                      {searchResults.map(c => {
-                        const score = fitScores[c.uuid];
-                        const isLoading = loadingFit[c.uuid];
-                        const canShowFit = !c.synced_record_id && c.uuid;
-                        return (
-                          <div key={c.uuid} style={styles.searchResultItem}>
-                            <div style={{ flex: 1 }}>
-                              <div style={styles.candidateName}>{c.name || c.fullName}</div>
-                              <div style={styles.candidateMeta}>{c.city}, {c.state}</div>
-                            </div>
-                            {canShowFit && (
-                              <div style={styles.fitPreview}>
-                                {isLoading ? (
-                                  <span style={styles.fitLoading}>...</span>
-                                ) : score !== undefined && score !== null ? (
-                                  <span style={{ ...styles.fitScorePreview, color: score >= 85 ? '#059669' : score >= 70 ? '#D97706' : '#DC2626' }}>
-                                    {score}%
-                                  </span>
-                                ) : null}
-                              </div>
-                            )}
-                            <button onClick={() => handleSubmitDriver(c)} disabled={submitting} style={styles.submitButton}>
-                              {submitting ? '...' : 'Submit'}
-                            </button>
+              <div style={styles.searchRow}>
+                <input
+                  type="text"
+                  placeholder="Search existing drivers..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                  style={styles.searchInputModal}
+                />
+                <button onClick={handleSearch} disabled={searching} style={styles.searchButton}>
+                  {searching ? '...' : 'Search'}
+                </button>
+              </div>
+              {searchResults.length > 0 && (
+                <div style={styles.searchResults}>
+                  {searchResults.map(c => {
+                    const score = fitScores[c.uuid];
+                    const isLoading = loadingFit[c.uuid];
+                    return (
+                      <div key={c.uuid} style={styles.searchResultItem}>
+                        <div style={{ flex: 1 }}>
+                          <div style={styles.candidateName}>{c.name || c.fullName}</div>
+                          <div style={styles.candidateMeta}>{c.location || [c.city, c.state].filter(Boolean).join(', ')}</div>
+                        </div>
+                        {c.uuid && (
+                          <div style={styles.fitPreview}>
+                            {isLoading ? (
+                              <span style={styles.fitLoading}>...</span>
+                            ) : score !== undefined && score !== null ? (
+                              <span style={{ ...styles.fitScorePreview, color: score >= 85 ? '#059669' : score >= 70 ? '#D97706' : '#DC2626' }}>
+                                {score}%
+                              </span>
+                            ) : null}
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div style={styles.newDriverForm}>
-                  <div style={styles.newDriverGrid}>
-                    <input
-                      type="text"
-                      placeholder="Full Name *"
-                      value={newDriver.fullName}
-                      onChange={e => setNewDriver(prev => ({ ...prev, fullName: e.target.value }))}
-                      style={styles.newDriverInput}
-                    />
-                    <input
-                      type="email"
-                      placeholder="Email"
-                      value={newDriver.email}
-                      onChange={e => setNewDriver(prev => ({ ...prev, email: e.target.value }))}
-                      style={styles.newDriverInput}
-                    />
-                    <input
-                      type="tel"
-                      placeholder="Phone"
-                      value={newDriver.phone}
-                      onChange={e => setNewDriver(prev => ({ ...prev, phone: e.target.value }))}
-                      style={styles.newDriverInput}
-                    />
-                    <input
-                      type="text"
-                      placeholder="City"
-                      value={newDriver.city}
-                      onChange={e => setNewDriver(prev => ({ ...prev, city: e.target.value }))}
-                      style={styles.newDriverInput}
-                    />
-                    <input
-                      type="text"
-                      placeholder="State"
-                      value={newDriver.state}
-                      onChange={e => setNewDriver(prev => ({ ...prev, state: e.target.value }))}
-                      style={styles.newDriverInput}
-                    />
-                  </div>
-                  <div style={styles.newDriverActions}>
-                    <button onClick={() => setShowNewDriverForm(false)} style={styles.cancelButton}>Back</button>
-                    <button
-                      onClick={handleCreateAndSubmit}
-                      disabled={creating || !newDriver.fullName.trim()}
-                      style={styles.submitButton}
-                    >
-                      {creating ? 'Creating...' : 'Create & Submit'}
-                    </button>
-                  </div>
+                        )}
+                        <button onClick={() => handleSubmitDriver(c)} disabled={submitting} style={styles.submitButton}>
+                          {submitting ? '...' : 'Submit'}
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1323,6 +1194,11 @@ const styles = {
     fontSize: 13,
     fontWeight: 600,
     color: '#004751',
+    marginBottom: 6,
+  },
+  searchHint: {
+    fontSize: 12,
+    color: '#5A7A82',
     marginBottom: 10,
   },
   jobSelect: {
