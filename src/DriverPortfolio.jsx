@@ -249,12 +249,14 @@ export default function DriverPortfolio({ slug }) {
                 <div style={styles.employmentTable} className="dfp-employment-table">
                   <div style={styles.employmentHeader} className="dfp-employment-header">
                     <span style={styles.employmentHeaderCell}>Company</span>
+                    <span style={styles.employmentHeaderCell}>Role</span>
                     <span style={styles.employmentHeaderCell}>Tenure</span>
                     <span style={styles.employmentHeaderCell}></span>
                   </div>
                   {d.experience.map((exp, i) => (
                     <div key={i} style={styles.employmentRow} className="dfp-employment-row">
                       <span style={styles.employmentCompany}>{exp.company}</span>
+                      <span style={styles.employmentRole}>{exp.role}</span>
                       <span style={styles.employmentTenure}>{exp.tenure || '-'}</span>
                       <span style={styles.employmentVerified}>
                         {exp.verified && <span style={styles.dotRegulatedBadge}>DOT-Regulated</span>}
@@ -690,7 +692,7 @@ const styles = {
   },
   employmentHeader: {
     display: 'grid',
-    gridTemplateColumns: '1fr auto auto',
+    gridTemplateColumns: '1fr auto auto auto',
     gap: 16,
     paddingBottom: 12,
     borderBottom: '1px solid #E8ECEE',
@@ -705,7 +707,7 @@ const styles = {
   },
   employmentRow: {
     display: 'grid',
-    gridTemplateColumns: '1fr auto auto',
+    gridTemplateColumns: '1fr auto auto auto',
     gap: 16,
     padding: '14px 0',
     borderBottom: '1px solid #F0F2F4',
