@@ -692,7 +692,7 @@ const styles = {
   },
   employmentHeader: {
     display: 'grid',
-    gridTemplateColumns: '1fr 120px 80px auto',
+    gridTemplateColumns: '2fr 1.5fr 1fr 1fr',
     gap: 16,
     paddingBottom: 12,
     borderBottom: '1px solid #E8ECEE',
@@ -708,7 +708,7 @@ const styles = {
   },
   employmentRow: {
     display: 'grid',
-    gridTemplateColumns: '1fr 120px 80px auto',
+    gridTemplateColumns: '2fr 1.5fr 1fr 1fr',
     gap: 16,
     padding: '14px 0',
     borderBottom: '1px solid #F0F2F4',
@@ -727,7 +727,10 @@ const styles = {
     fontSize: 14,
     color: '#1A2A30',
   },
-  employmentVerified: {},
+  employmentVerified: {
+    display: 'flex',
+    alignItems: 'center',
+  },
   dotRegulatedBadge: {
     fontSize: 11,
     fontWeight: 600,
