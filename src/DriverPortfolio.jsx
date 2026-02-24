@@ -101,7 +101,16 @@ export default function DriverPortfolio({ slug }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const videoRef = useRef(null);
+
+  // Detect mobile
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     if (!slug) {
@@ -147,7 +156,7 @@ export default function DriverPortfolio({ slug }) {
   return (
     <div style={styles.container}>
       {/* Main Content - everything constrained to same width */}
-      <div style={styles.content} className="dfp-content">
+      <div style={isMobile ? styles.contentMobile : styles.content} className="dfp-content">
         {/* Video Hero or Text Hero */}
         {d.videoUrl ? (
           <div style={styles.videoHero}>
@@ -222,7 +231,7 @@ export default function DriverPortfolio({ slug }) {
           </div>
         )}
 
-        <div style={styles.grid} className="dfp-grid">
+        <div style={isMobile ? styles.gridMobile : styles.grid} className="dfp-grid">
           {/* Left Column - Main Info */}
           <div style={styles.mainColumn}>
             {/* About / AI Narrative */}
@@ -600,6 +609,11 @@ const styles = {
     margin: '0 auto',
     padding: '20px 20px 0',
   },
+  contentMobile: {
+    width: '100%',
+    padding: 12,
+    boxSizing: 'border-box',
+  },
 
   // Pull Quote
   pullQuoteSection: {
@@ -641,6 +655,11 @@ const styles = {
     display: 'grid',
     gridTemplateColumns: '1fr 400px',
     gap: 24,
+  },
+  gridMobile: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 20,
   },
   mainColumn: {},
   sidebar: {},
