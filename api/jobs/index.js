@@ -96,8 +96,28 @@ async function createJob(req, res) {
 
   const record = await response.json();
 
+  // Trigger fit profile generation for this new job
+  try {
+    await generateFitProfiles(record.id);
+  } catch (err) {
+    console.error('Fit profile generation failed:', err);
+    // Don't fail the request, just log
+  }
+
   res.status(201).json({
     id: record.id,
     ...record.fields,
+  });
+}
+
+async function generateFitProfiles(requisitionId) {
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : 'http://localhost:3000';
+
+  await fetch(`${baseUrl}/api/fit-profiles/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requisition_id: requisitionId }),
   });
 }

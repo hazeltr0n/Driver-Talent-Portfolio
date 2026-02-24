@@ -4,7 +4,7 @@ import { sendMagicLinkEmail } from '../lib/email.js';
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 const EMPLOYERS_TABLE_ID = process.env.AIRTABLE_EMPLOYERS_TABLE_ID || 'tbl9bxGlAKtQfnPhY';
-const APP_URL = process.env.APP_URL || 'https://driver-talent-portfolio.vercel.app';
+const APP_URL = process.env.APP_URL || 'https://driver-talent-portfolio-sigma.vercel.app';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

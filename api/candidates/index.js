@@ -134,6 +134,15 @@ async function createCandidate(data, res) {
     }
 
     const record = await response.json();
+
+    // Trigger fit profile generation for this new candidate
+    try {
+      await generateFitProfiles(record.fields.uuid);
+    } catch (err) {
+      console.error('Fit profile generation failed:', err);
+      // Don't fail the request, just log
+    }
+
     res.status(201).json({
       uuid: record.fields.uuid,
       id: record.id,
@@ -143,4 +152,16 @@ async function createCandidate(data, res) {
     console.error('Create candidate error:', error);
     res.status(500).json({ error: error.message });
   }
+}
+
+async function generateFitProfiles(candidateUuid) {
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : 'http://localhost:3000';
+
+  await fetch(`${baseUrl}/api/fit-profiles/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ candidate_uuid: candidateUuid }),
+  });
 }
