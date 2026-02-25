@@ -199,7 +199,14 @@ export default function VideoRecorder({ uuid }) {
 
     gettingStreamRef.current = true;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 720 },
+          height: { ideal: 1280 },
+          facingMode: 'user',
+        },
+        audio: true,
+      });
       streamRef.current = stream;
       // Assign to video element if it exists
       if (videoRef.current) {
@@ -293,7 +300,10 @@ export default function VideoRecorder({ uuid }) {
     console.log('Using video mimeType:', videoMimeType);
     console.log('Using audio mimeType:', audioMimeType);
 
-    const recorderOptions = videoMimeType ? { mimeType: videoMimeType } : {};
+    const recorderOptions = {
+      ...(videoMimeType && { mimeType: videoMimeType }),
+      videoBitsPerSecond: 1500000, // 1.5 Mbps - good quality, ~2MB per 10sec instead of 12MB
+    };
     const recorder = new MediaRecorder(stream, recorderOptions);
     mediaRecorderRef.current = recorder;
 
