@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
-import { listEmployers, searchHubSpotCompanies, getHubSpotCompany, createEmployer } from '../lib/api';
+import { listEmployers, searchHubSpotCompanies, getHubSpotCompany, createEmployer, updateEmployer } from '../lib/api';
 
 function getLifecycleStyle(stage) {
   switch (stage) {
@@ -27,6 +27,7 @@ export default function Employers() {
   const [employers, setEmployers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingEmployer, setEditingEmployer] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -90,6 +91,7 @@ export default function Employers() {
           <div style={styles.tableHeaderCell}>Stage</div>
           <div style={styles.tableHeaderCell}>Enrichment</div>
           <div style={styles.tableHeaderCell}>Main Contact</div>
+          <div style={styles.tableHeaderCell}>Actions</div>
         </div>
 
         {filteredEmployers.map(employer => (
@@ -138,6 +140,14 @@ export default function Employers() {
                 </div>
               ) : '-'}
             </div>
+            <div style={styles.tableCell}>
+              <button
+                onClick={() => setEditingEmployer(employer)}
+                style={styles.editButton}
+              >
+                Edit
+              </button>
+            </div>
           </div>
         ))}
 
@@ -153,6 +163,17 @@ export default function Employers() {
           onClose={() => setShowAddModal(false)}
           onAdded={() => {
             setShowAddModal(false);
+            loadEmployers();
+          }}
+        />
+      )}
+
+      {editingEmployer && (
+        <EditEmployerModal
+          employer={editingEmployer}
+          onClose={() => setEditingEmployer(null)}
+          onSaved={() => {
+            setEditingEmployer(null);
             loadEmployers();
           }}
         />
@@ -369,6 +390,189 @@ function AddEmployerModal({ onClose, onAdded }) {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function EditEmployerModal({ employer, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    name: employer.name || '',
+    domain: employer.domain || '',
+    phone: employer.phone || '',
+    city: employer.city || '',
+    state: employer.state || '',
+    zip: employer.zip || '',
+    lifecycle_stage: employer.lifecycle_stage || '',
+    main_contact_name: employer.main_contact_name || '',
+    main_contact_email: employer.main_contact_email || '',
+    main_contact_phone: employer.main_contact_phone || '',
+    main_contact_mobile: employer.main_contact_mobile || '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleChange = (field, value) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await updateEmployer(employer.id, form);
+      onSaved();
+    } catch (err) {
+      setError('Failed to save: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={styles.modalOverlay} onClick={onClose}>
+      <div style={styles.modal} onClick={e => e.stopPropagation()}>
+        <div style={styles.modalHeader}>
+          <h2 style={styles.modalTitle}>Edit Employer</h2>
+          <button onClick={onClose} style={styles.closeButton}>x</button>
+        </div>
+
+        {error && <div style={styles.error}>{error}</div>}
+
+        <div style={styles.modalBody}>
+          <div style={styles.formSection}>
+            <h3 style={styles.sectionTitle}>Company Info</h3>
+            <div style={styles.formGrid}>
+              <div style={styles.formRow}>
+                <label style={styles.formLabel}>Name</label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={e => handleChange('name', e.target.value)}
+                  style={styles.formInput}
+                />
+              </div>
+              <div style={styles.formRow}>
+                <label style={styles.formLabel}>Domain</label>
+                <input
+                  type="text"
+                  value={form.domain}
+                  onChange={e => handleChange('domain', e.target.value)}
+                  style={styles.formInput}
+                />
+              </div>
+              <div style={styles.formRow}>
+                <label style={styles.formLabel}>Phone</label>
+                <input
+                  type="text"
+                  value={form.phone}
+                  onChange={e => handleChange('phone', e.target.value)}
+                  style={styles.formInput}
+                />
+              </div>
+              <div style={styles.formRowThird}>
+                <div>
+                  <label style={styles.formLabel}>City</label>
+                  <input
+                    type="text"
+                    value={form.city}
+                    onChange={e => handleChange('city', e.target.value)}
+                    style={styles.formInput}
+                  />
+                </div>
+                <div>
+                  <label style={styles.formLabel}>State</label>
+                  <input
+                    type="text"
+                    value={form.state}
+                    onChange={e => handleChange('state', e.target.value)}
+                    style={styles.formInput}
+                  />
+                </div>
+                <div>
+                  <label style={styles.formLabel}>ZIP</label>
+                  <input
+                    type="text"
+                    value={form.zip}
+                    onChange={e => handleChange('zip', e.target.value)}
+                    style={styles.formInput}
+                  />
+                </div>
+              </div>
+              <div style={styles.formRow}>
+                <label style={styles.formLabel}>Lifecycle Stage</label>
+                <select
+                  value={form.lifecycle_stage}
+                  onChange={e => handleChange('lifecycle_stage', e.target.value)}
+                  style={styles.formInput}
+                >
+                  <option value="">-</option>
+                  <option value="subscriber">Subscriber</option>
+                  <option value="lead">Lead</option>
+                  <option value="marketingqualifiedlead">Marketing Qualified Lead</option>
+                  <option value="salesqualifiedlead">Sales Qualified Lead</option>
+                  <option value="opportunity">Opportunity</option>
+                  <option value="customer">Customer</option>
+                  <option value="evangelist">Evangelist</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div style={styles.formSection}>
+            <h3 style={styles.sectionTitle}>Main Contact</h3>
+            <div style={styles.formGrid}>
+              <div style={styles.formRow}>
+                <label style={styles.formLabel}>Name</label>
+                <input
+                  type="text"
+                  value={form.main_contact_name}
+                  onChange={e => handleChange('main_contact_name', e.target.value)}
+                  style={styles.formInput}
+                />
+              </div>
+              <div style={styles.formRow}>
+                <label style={styles.formLabel}>Email</label>
+                <input
+                  type="email"
+                  value={form.main_contact_email}
+                  onChange={e => handleChange('main_contact_email', e.target.value)}
+                  style={styles.formInput}
+                />
+              </div>
+              <div style={styles.formRowHalf}>
+                <div>
+                  <label style={styles.formLabel}>Phone</label>
+                  <input
+                    type="text"
+                    value={form.main_contact_phone}
+                    onChange={e => handleChange('main_contact_phone', e.target.value)}
+                    style={styles.formInput}
+                  />
+                </div>
+                <div>
+                  <label style={styles.formLabel}>Mobile</label>
+                  <input
+                    type="text"
+                    value={form.main_contact_mobile}
+                    onChange={e => handleChange('main_contact_mobile', e.target.value)}
+                    style={styles.formInput}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={styles.modalActions}>
+            <button onClick={onClose} style={styles.backButton}>
+              Cancel
+            </button>
+            <button onClick={handleSave} disabled={saving} style={styles.createButton}>
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -641,5 +845,50 @@ const styles = {
     padding: '2px 6px',
     background: '#FFF1ED',
     borderRadius: 4,
+  },
+  editButton: {
+    background: '#F3F4F6',
+    color: '#374151',
+    border: 'none',
+    padding: '6px 12px',
+    borderRadius: 6,
+    fontSize: 13,
+    cursor: 'pointer',
+  },
+  formSection: {
+    marginBottom: 20,
+  },
+  formGrid: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+  },
+  formRow: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+  },
+  formRowHalf: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 12,
+  },
+  formRowThird: {
+    display: 'grid',
+    gridTemplateColumns: '2fr 1fr 1fr',
+    gap: 12,
+  },
+  formLabel: {
+    fontSize: 12,
+    fontWeight: 500,
+    color: '#6B7280',
+  },
+  formInput: {
+    padding: '8px 12px',
+    borderRadius: 6,
+    border: '1px solid #E5E7EB',
+    fontSize: 14,
+    width: '100%',
+    boxSizing: 'border-box',
   },
 };
