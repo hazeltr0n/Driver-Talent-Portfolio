@@ -42,17 +42,23 @@ app.post('/render', async (req, res) => {
   });
 });
 
-// Download video with timeout and retry
-async function downloadWithRetry(url, localPath, maxRetries = 3, timeoutMs = 120000) {
+// Download video with timeout, retry, and audio normalization
+async function downloadWithRetry(url, localPath, maxRetries = 3, timeoutMs = 180000) {
   let lastError;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       await new Promise((resolve, reject) => {
+        // Normalize audio to consistent levels (EBU R128 broadcast standard)
+        // -I=-16: target integrated loudness (LUFS)
+        // -TP=-1.5: true peak limit (dB)
+        // -LRA=11: loudness range target
         const ffmpeg = spawn('ffmpeg', [
           '-y',
           '-i', url,
-          '-c', 'copy',
+          '-c:v', 'copy',  // Keep video codec as-is
+          '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11',  // Normalize audio levels
+          '-c:a', 'aac', '-b:a', '128k',  // Re-encode audio as AAC
           localPath
         ]);
 
@@ -140,26 +146,25 @@ async function processRender({ uuid, driverName, driverLocation, clips, musicUrl
   const outputPath = `/tmp/${uuid}-final.mp4`;
   const propsPath = `/tmp/${uuid}-props.json`;
 
-  // Download clips and get durations using ffprobe
-  console.log('Downloading clips and getting durations...');
+  // Download clips, normalize audio, and get durations
+  console.log('Downloading clips with audio normalization...');
   const clipsWithDuration = [];
   for (let i = 0; i < clips.length; i++) {
     const c = clips[i];
-    // Use MKV for intermediate files - supports all codecs:
-    // iOS Safari (H.264/AAC), Android (VP8/VP9), Chrome/Firefox (VP8/VP9)
-    const localPath = `/tmp/${uuid}-q${i + 1}.mkv`;
+    // Use MP4 for normalized clips - Remotion reads these directly
+    const localPath = `/tmp/${uuid}-q${i + 1}-normalized.mp4`;
     const duration = await getVideoDuration(c.url, localPath);
     const frames = duration ? Math.ceil(duration * 30) : null;
-    console.log(`[Clip ${i + 1}] ${duration?.toFixed(1)}s (${frames} frames)`);
-    clipsWithDuration.push({ url: c.url, durationInFrames: frames, localPath });
+    console.log(`[Clip ${i + 1}] ${duration?.toFixed(1)}s (${frames} frames) - normalized`);
+    clipsWithDuration.push({ localPath, durationInFrames: frames });
   }
 
-  // Write props to file (use original URLs - Remotion fetches them)
+  // Write props to file - use local normalized files
   const props = {
     driverName: driverName || 'Driver',
     driverLocation: driverLocation || 'United States',
     clips: clipsWithDuration.map(c => ({
-      url: c.url,  // Use R2 URL - Remotion can't access local paths
+      url: c.localPath,  // Use local normalized file path
       durationInFrames: c.durationInFrames,
     })),
     musicUrl: musicUrl || null,

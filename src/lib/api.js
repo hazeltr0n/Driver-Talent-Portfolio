@@ -158,6 +158,28 @@ export async function deleteSubmission(id) {
   return response.json();
 }
 
+// Fit Profiles API
+export async function lookupFitProfile(candidateUuid, requisitionId) {
+  const response = await fetch(
+    `/api/fit-profiles/lookup?candidate_uuid=${encodeURIComponent(candidateUuid)}&requisition_id=${encodeURIComponent(requisitionId)}`
+  );
+  if (!response.ok) {
+    if (response.status === 404) return null;
+    throw new Error('Failed to lookup fit profile');
+  }
+  return response.json();
+}
+
+export async function updateFitProfile(id, updates) {
+  const response = await fetch(`/api/fit-profiles/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+  if (!response.ok) throw new Error('Update fit profile failed');
+  return response.json();
+}
+
 // Video Recording API
 export async function getVideoStatus(uuid) {
   const response = await fetch(`/api/videos/${uuid}`);

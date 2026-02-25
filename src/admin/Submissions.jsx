@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
-import { listSubmissions, updateSubmission, createSubmission, searchCandidates } from '../lib/api';
+import { listSubmissions, updateSubmission, createSubmission, searchCandidates, getCandidate, updateCandidate, lookupFitProfile, updateFitProfile } from '../lib/api';
 
 const STATUSES = ['Submitted', 'Interviewing', 'Offer Extended', 'Hired', 'Rejected', 'Withdrawn'];
 const REJECTION_REASONS = ['No Response', 'Failed Background', 'Client Rejected', 'Driver Declined', 'Position Filled'];
@@ -339,16 +339,80 @@ export default function Submissions() {
 function SubmissionModal({ submission, collaborators, onClose, onRefresh }) {
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({ ...submission });
+  const [candidateData, setCandidateData] = useState(null);
+  const [candidateForm, setCandidateForm] = useState({});
+  const [loadingCandidate, setLoadingCandidate] = useState(false);
+  const [fitProfileData, setFitProfileData] = useState(null);
+  const [fitProfileForm, setFitProfileForm] = useState({});
+  const [loadingFitProfile, setLoadingFitProfile] = useState(false);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Fetch candidate data on mount
+  useEffect(() => {
+    if (submission.candidate_uuid) {
+      setLoadingCandidate(true);
+      getCandidate(submission.candidate_uuid)
+        .then(data => {
+          setCandidateData(data);
+          setCandidateForm({
+            cdl_class: data.cdl_class || '',
+            years_experience: data.years_experience || '',
+            endorsements: data.endorsements || '',
+            home_time_preference: data.home_time_preference || '',
+            min_weekly_pay: data.min_weekly_pay || '',
+            target_weekly_pay: data.target_weekly_pay || '',
+            willing_touch_freight: data.willing_touch_freight || '',
+            mvr_status: data.mvr_status || '',
+            mvr_violations_3yr: data.mvr_violations_3yr || '',
+            mvr_accidents_3yr: data.mvr_accidents_3yr || '',
+            clearinghouse_status: data.clearinghouse_status || '',
+            placement_status: data.placement_status || '',
+            city: data.city || '',
+            state: data.state || '',
+            zipcode: data.zipcode || '',
+          });
+        })
+        .catch(err => console.error('Failed to load candidate:', err))
+        .finally(() => setLoadingCandidate(false));
+    }
+
+    // Fetch fit profile
+    if (submission.candidate_uuid && submission.requisition_id) {
+      setLoadingFitProfile(true);
+      lookupFitProfile(submission.candidate_uuid, submission.requisition_id)
+        .then(data => {
+          if (data) {
+            setFitProfileData(data);
+            setFitProfileForm({
+              fit_score: data.fit_score || '',
+              fit_recommendation: data.fit_recommendation || '',
+              fit_dimensions: data.fit_dimensions || [],
+              status: data.status || '',
+            });
+          }
+        })
+        .catch(err => console.error('Failed to load fit profile:', err))
+        .finally(() => setLoadingFitProfile(false));
+    }
+  }, [submission.candidate_uuid, submission.requisition_id]);
 
   const handleFieldChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleCandidateChange = (field, value) => {
+    setCandidateForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleFitProfileChange = (field, value) => {
+    setFitProfileForm(prev => ({ ...prev, [field]: value }));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Save submission data
       await updateSubmission(submission.id, {
         status: formData.status,
         rejection_reason: formData.rejection_reason,
@@ -359,6 +423,31 @@ function SubmissionModal({ submission, collaborators, onClose, onRefresh }) {
         fit_recommendation: formData.fit_recommendation,
         fit_dimensions: formData.fit_dimensions,
       });
+
+      // Save candidate data if we have a uuid
+      if (submission.candidate_uuid && candidateData) {
+        const candidateUpdates = {};
+        for (const [key, value] of Object.entries(candidateForm)) {
+          // Only include fields that changed
+          if (value !== '' && value !== candidateData[key]) {
+            candidateUpdates[key] = value;
+          }
+        }
+        if (Object.keys(candidateUpdates).length > 0) {
+          await updateCandidate(submission.candidate_uuid, candidateUpdates);
+        }
+      }
+
+      // Save fit profile data if we have one
+      if (fitProfileData?.id) {
+        await updateFitProfile(fitProfileData.id, {
+          fit_score: fitProfileForm.fit_score,
+          fit_recommendation: fitProfileForm.fit_recommendation,
+          fit_dimensions: fitProfileForm.fit_dimensions,
+          status: fitProfileForm.status,
+        });
+      }
+
       setEditing(false);
       onRefresh();
     } catch (err) {
@@ -495,51 +584,265 @@ function SubmissionModal({ submission, collaborators, onClose, onRefresh }) {
                 />
               </div>
 
+              {/* Driver Profile Fields */}
+              <div style={{ ...styles.formRow, marginTop: 20, paddingTop: 20, borderTop: '1px solid #E8ECEE' }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#004751', marginBottom: 12 }}>Driver Profile</div>
+              </div>
+
+              {loadingCandidate ? (
+                <div style={{ color: '#5A7A82', fontSize: 13 }}>Loading driver data...</div>
+              ) : (
+                <>
+                  <div style={styles.formRowGrid}>
+                    <div style={styles.formRow}>
+                      <label style={styles.formLabel}>CDL Class</label>
+                      <select
+                        value={candidateForm.cdl_class || ''}
+                        onChange={e => handleCandidateChange('cdl_class', e.target.value)}
+                        style={styles.formSelect}
+                      >
+                        <option value="">-</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                      </select>
+                    </div>
+                    <div style={styles.formRow}>
+                      <label style={styles.formLabel}>Years Experience</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={candidateForm.years_experience || ''}
+                        onChange={e => handleCandidateChange('years_experience', Number(e.target.value))}
+                        style={styles.formInput}
+                      />
+                    </div>
+                    <div style={styles.formRow}>
+                      <label style={styles.formLabel}>Endorsements</label>
+                      <input
+                        type="text"
+                        value={candidateForm.endorsements || ''}
+                        onChange={e => handleCandidateChange('endorsements', e.target.value)}
+                        style={styles.formInput}
+                        placeholder="H, N, T, X..."
+                      />
+                    </div>
+                  </div>
+
+                  <div style={styles.formRowGrid}>
+                    <div style={styles.formRow}>
+                      <label style={styles.formLabel}>Home Time Preference</label>
+                      <select
+                        value={candidateForm.home_time_preference || ''}
+                        onChange={e => handleCandidateChange('home_time_preference', e.target.value)}
+                        style={styles.formSelect}
+                      >
+                        <option value="">-</option>
+                        <option value="Daily">Daily</option>
+                        <option value="Weekly">Weekly</option>
+                        <option value="OTR">OTR</option>
+                        <option value="Flexible">Flexible</option>
+                      </select>
+                    </div>
+                    <div style={styles.formRow}>
+                      <label style={styles.formLabel}>Min Weekly Pay</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={candidateForm.min_weekly_pay || ''}
+                        onChange={e => handleCandidateChange('min_weekly_pay', Number(e.target.value))}
+                        style={styles.formInput}
+                      />
+                    </div>
+                    <div style={styles.formRow}>
+                      <label style={styles.formLabel}>Target Weekly Pay</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={candidateForm.target_weekly_pay || ''}
+                        onChange={e => handleCandidateChange('target_weekly_pay', Number(e.target.value))}
+                        style={styles.formInput}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={styles.formRowGrid}>
+                    <div style={styles.formRow}>
+                      <label style={styles.formLabel}>Touch Freight</label>
+                      <select
+                        value={candidateForm.willing_touch_freight || ''}
+                        onChange={e => handleCandidateChange('willing_touch_freight', e.target.value)}
+                        style={styles.formSelect}
+                      >
+                        <option value="">-</option>
+                        <option value="Very Light (No-Touch Freight)">Very Light (No-Touch)</option>
+                        <option value="Light (Pallet Jack)">Light (Pallet Jack)</option>
+                        <option value="Medium (Dolly/Liftgate)">Medium (Dolly/Liftgate)</option>
+                        <option value="Heavy (Very Physical Work)">Heavy (Physical)</option>
+                      </select>
+                    </div>
+                    <div style={styles.formRow}>
+                      <label style={styles.formLabel}>City</label>
+                      <input
+                        type="text"
+                        value={candidateForm.city || ''}
+                        onChange={e => handleCandidateChange('city', e.target.value)}
+                        style={styles.formInput}
+                      />
+                    </div>
+                    <div style={styles.formRow}>
+                      <label style={styles.formLabel}>State</label>
+                      <input
+                        type="text"
+                        value={candidateForm.state || ''}
+                        onChange={e => handleCandidateChange('state', e.target.value)}
+                        style={styles.formInput}
+                        maxLength={2}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ ...styles.formRow, marginTop: 16 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#5A7A82', marginBottom: 8 }}>Compliance</div>
+                  </div>
+
+                  <div style={styles.formRowGrid}>
+                    <div style={styles.formRow}>
+                      <label style={styles.formLabel}>MVR Status</label>
+                      <select
+                        value={candidateForm.mvr_status || ''}
+                        onChange={e => handleCandidateChange('mvr_status', e.target.value)}
+                        style={styles.formSelect}
+                      >
+                        <option value="">-</option>
+                        <option value="Clear">Clear</option>
+                        <option value="Has Violations">Has Violations</option>
+                      </select>
+                    </div>
+                    <div style={styles.formRow}>
+                      <label style={styles.formLabel}>MVR Violations (3yr)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={candidateForm.mvr_violations_3yr || ''}
+                        onChange={e => handleCandidateChange('mvr_violations_3yr', Number(e.target.value))}
+                        style={styles.formInput}
+                      />
+                    </div>
+                    <div style={styles.formRow}>
+                      <label style={styles.formLabel}>MVR Accidents (3yr)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={candidateForm.mvr_accidents_3yr || ''}
+                        onChange={e => handleCandidateChange('mvr_accidents_3yr', Number(e.target.value))}
+                        style={styles.formInput}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={styles.formRowGrid}>
+                    <div style={styles.formRow}>
+                      <label style={styles.formLabel}>Clearinghouse</label>
+                      <select
+                        value={candidateForm.clearinghouse_status || ''}
+                        onChange={e => handleCandidateChange('clearinghouse_status', e.target.value)}
+                        style={styles.formSelect}
+                      >
+                        <option value="">-</option>
+                        <option value="Clear">Clear</option>
+                        <option value="Not Clear">Not Clear</option>
+                      </select>
+                    </div>
+                    <div style={styles.formRow}>
+                      <label style={styles.formLabel}>Placement Status</label>
+                      <select
+                        value={candidateForm.placement_status || ''}
+                        onChange={e => handleCandidateChange('placement_status', e.target.value)}
+                        style={styles.formSelect}
+                      >
+                        <option value="">-</option>
+                        <option value="Unemployed and Looking">Unemployed and Looking</option>
+                        <option value="Working and Looking">Working and Looking</option>
+                        <option value="Active - Placed with Client">Active - Placed with Client</option>
+                        <option value="Inactive - Happy with Job">Inactive - Happy with Job</option>
+                        <option value="Inactive - Lost Contact">Inactive - Lost Contact</option>
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+
               {/* Job Fit Fields */}
               <div style={{ ...styles.formRow, marginTop: 20, paddingTop: 20, borderTop: '1px solid #E8ECEE' }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#004751', marginBottom: 12 }}>Job Fit Assessment</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#004751', marginBottom: 12 }}>
+                  Fit Profile
+                  {fitProfileData?.id && <span style={{ fontWeight: 400, fontSize: 12, color: '#5A7A82', marginLeft: 8 }}>(from Fit Profiles table)</span>}
+                </div>
               </div>
 
-              <div style={styles.formRow}>
-                <label style={styles.formLabel}>Overall Fit Score (0-100)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={formData.fit_score || ''}
-                  onChange={e => handleFieldChange('fit_score', Number(e.target.value))}
-                  style={styles.formInput}
-                />
-              </div>
+              {loadingFitProfile ? (
+                <div style={{ color: '#5A7A82', fontSize: 13 }}>Loading fit profile...</div>
+              ) : !fitProfileData ? (
+                <div style={{ color: '#9CA3AF', fontSize: 13 }}>No fit profile found for this candidate/job combination.</div>
+              ) : (
+                <>
+                  <div style={styles.formRowGrid}>
+                    <div style={styles.formRow}>
+                      <label style={styles.formLabel}>Fit Score (0-100)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={fitProfileForm.fit_score || ''}
+                        onChange={e => handleFitProfileChange('fit_score', Number(e.target.value))}
+                        style={styles.formInput}
+                      />
+                    </div>
+                    <div style={styles.formRow}>
+                      <label style={styles.formLabel}>Fit Profile Status</label>
+                      <select
+                        value={fitProfileForm.status || ''}
+                        onChange={e => handleFitProfileChange('status', e.target.value)}
+                        style={styles.formSelect}
+                      >
+                        <option value="">-</option>
+                        <option value="Active">Active</option>
+                        <option value="Archived">Archived</option>
+                        <option value="Converted">Converted</option>
+                      </select>
+                    </div>
+                  </div>
 
-              <div style={styles.formRow}>
-                <label style={styles.formLabel}>AI Recommendation</label>
-                <textarea
-                  value={formData.fit_recommendation || ''}
-                  onChange={e => handleFieldChange('fit_recommendation', e.target.value)}
-                  style={styles.formTextarea}
-                  rows={4}
-                  placeholder="AI-generated recommendation for this match..."
-                />
-              </div>
+                  <div style={styles.formRow}>
+                    <label style={styles.formLabel}>AI Recommendation</label>
+                    <textarea
+                      value={fitProfileForm.fit_recommendation || ''}
+                      onChange={e => handleFitProfileChange('fit_recommendation', e.target.value)}
+                      style={styles.formTextarea}
+                      rows={4}
+                      placeholder="AI-generated recommendation for this match..."
+                    />
+                  </div>
 
-              <div style={styles.formRow}>
-                <label style={styles.formLabel}>Fit Dimensions (JSON)</label>
-                <textarea
-                  value={typeof formData.fit_dimensions === 'string' ? formData.fit_dimensions : JSON.stringify(formData.fit_dimensions || [], null, 2)}
-                  onChange={e => {
-                    try {
-                      const parsed = JSON.parse(e.target.value);
-                      handleFieldChange('fit_dimensions', parsed);
-                    } catch {
-                      handleFieldChange('fit_dimensions', e.target.value);
-                    }
-                  }}
-                  style={{ ...styles.formTextarea, fontFamily: 'monospace', fontSize: 12 }}
-                  rows={8}
-                  placeholder='[{"name": "Experience", "score": 85, "note": "..."}]'
-                />
-              </div>
+                  <div style={styles.formRow}>
+                    <label style={styles.formLabel}>Fit Dimensions (JSON)</label>
+                    <textarea
+                      value={typeof fitProfileForm.fit_dimensions === 'string' ? fitProfileForm.fit_dimensions : JSON.stringify(fitProfileForm.fit_dimensions || [], null, 2)}
+                      onChange={e => {
+                        try {
+                          const parsed = JSON.parse(e.target.value);
+                          handleFitProfileChange('fit_dimensions', parsed);
+                        } catch {
+                          handleFitProfileChange('fit_dimensions', e.target.value);
+                        }
+                      }}
+                      style={{ ...styles.formTextarea, fontFamily: 'monospace', fontSize: 12 }}
+                      rows={8}
+                      placeholder='[{"name": "Experience", "score": 85, "note": "..."}]'
+                    />
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <>
@@ -1053,6 +1356,12 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: 6,
+  },
+  formRowGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: 12,
+    marginBottom: 12,
   },
   formLabel: {
     fontSize: 13,
