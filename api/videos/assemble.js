@@ -64,10 +64,15 @@ export default async function handler(req, res) {
       ? `${fields.city}, ${fields.state}`
       : 'United States';
 
-    // Just pass URLs - Remotion will read duration from the video files
+    // Pass URLs and Stream video IDs - Remotion will read duration from the video files
+    // Support both Stream (downloadUrl + streamVideoId) and R2 (url) formats
     const clips = requiredClips.map((key) => ({
-      url: videoClips[key].url,
+      url: videoClips[key].downloadUrl || videoClips[key].url,
+      streamVideoId: videoClips[key].streamVideoId || null,
     }));
+
+    // Collect Stream video IDs for cleanup after render
+    const streamVideoIds = clips.map(c => c.streamVideoId).filter(Boolean);
 
     // Background music
     const musicUrl = 'https://pub-422282bc0284434c83ea29192d0e301c.r2.dev/assets/UpbeatInspiration.mp3';
@@ -99,6 +104,7 @@ export default async function handler(req, res) {
         driverLocation,
         clips,
         musicUrl,
+        streamVideoIds, // For cleanup after render
       }),
     });
 

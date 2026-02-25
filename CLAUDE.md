@@ -31,9 +31,10 @@ Tables:
 Driver Story Video flow:
 1. Driver visits `/record/{uuid}`
 2. Records 7 video answers in browser (with live Deepgram transcription)
-3. Clips uploaded to Cloudflare R2
+3. Clips uploaded to Cloudflare Stream via TUS (resumable uploads for mobile reliability)
 4. Railway render service assembles final video with Remotion
 5. Video URL saved to Airtable `video_url` field
+6. Stream clips automatically deleted after render to minimize costs
 
 To re-render a video:
 ```bash
@@ -52,7 +53,8 @@ Both services **auto-deploy from git pushes to main**:
 ## External Services
 
 - **Airtable** - Database
-- **Cloudflare R2** - Video clip storage + public assets
+- **Cloudflare R2** - Final video storage + public assets
+- **Cloudflare Stream** - TUS resumable uploads for video clips (temp storage, deleted after render)
 - **Railway + Remotion** - Video assembly (render-service)
 - **OpenAI GPT-4** - Document parsing, AI content generation
 - **Deepgram** - Speech-to-text transcription for video clips
@@ -94,14 +96,29 @@ AIRTABLE_FIT_PROFILES_TABLE_ID
 # CareerOneStop API (for FitKit O*NET integration)
 CAREERONESTOP_USER_ID
 CAREERONESTOP_TOKEN
+
+# Cloudflare Stream (for TUS resumable video uploads)
+CF_ACCOUNT_ID
+CF_STREAM_API_TOKEN
+CF_STREAM_CUSTOMER_CODE
+VITE_CF_STREAM_CUSTOMER_CODE  # Same as CF_STREAM_CUSTOMER_CODE (for frontend)
 ```
 
 ## Commands
 
 ```bash
-npm run dev          # Start dev server
+vercel dev           # Start local dev server (USE THIS - runs frontend + API)
+npm run dev          # Frontend only (no API routes - don't use for full testing)
 npm run build        # Build for production
 node scripts/add-airtable-fields.mjs  # Add missing Airtable fields
+```
+
+## Mobile Testing
+
+Use ngrok to test on real devices with HTTPS (required for camera/mic):
+```bash
+vercel dev           # Terminal 1 - starts on port 3000
+ngrok http 3000      # Terminal 2 - creates public HTTPS URL
 ```
 
 ## Employer Portal

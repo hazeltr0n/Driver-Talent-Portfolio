@@ -158,6 +158,7 @@ export default function VideoRecorder({ uuid }) {
   const countdownRef = useRef(null);
   const gettingStreamRef = useRef(false); // Lock to prevent concurrent getUserMedia calls
   const audioChunksRef = useRef([]);
+  const backgroundUploadsRef = useRef({}); // Track background upload promises by question number
 
   // Load driver data
   useEffect(() => {
@@ -429,6 +430,13 @@ export default function VideoRecorder({ uuid }) {
       delete newClips[questionId];
       return newClips;
     });
+    // Clear any background upload for this question (user is re-recording)
+    delete backgroundUploadsRef.current[questionId];
+    setUploadProgress(prev => {
+      const newProgress = { ...prev };
+      delete newProgress[questionId];
+      return newProgress;
+    });
     setFeedback(null);
     setRecordingState('idle');
     // Reconnect stream to video element after returning from preview
@@ -440,8 +448,52 @@ export default function VideoRecorder({ uuid }) {
     });
   }, [currentQuestion]);
 
+  // Start uploading a clip in the background
+  const uploadClipInBackground = useCallback((questionNum, clip) => {
+    // Skip if already uploading or uploaded
+    if (backgroundUploadsRef.current[questionNum]) return;
+
+    setUploadProgress(prev => ({ ...prev, [questionNum]: 0 }));
+
+    const onProgress = (percentage) => {
+      setUploadProgress(prev => ({ ...prev, [questionNum]: percentage }));
+    };
+
+    const uploadPromise = uploadVideoClip(uuid, questionNum, clip.blob, onProgress)
+      .then(clipInfo => {
+        setUploadProgress(prev => ({ ...prev, [questionNum]: 'done' }));
+        // Free blob from memory after successful upload (helps Android)
+        // Keep the object URL for preview playback
+        setClips(prev => ({
+          ...prev,
+          [questionNum]: { ...prev[questionNum], blob: null, uploaded: true }
+        }));
+        return {
+          ...clipInfo,
+          transcript: clip.transcript || '',
+          speechStart: clip.speechStart,
+          speechEnd: clip.speechEnd,
+        };
+      })
+      .catch(err => {
+        console.error(`Background upload failed for Q${questionNum}:`, err);
+        setUploadProgress(prev => ({ ...prev, [questionNum]: 'error' }));
+        throw err;
+      });
+
+    backgroundUploadsRef.current[questionNum] = uploadPromise;
+  }, [uuid]);
+
   const acceptClip = useCallback(() => {
     setFeedback(null);
+    const questionNum = currentQuestion + 1;
+    const clip = clips[questionNum];
+
+    // Start uploading current clip in background
+    if (clip?.blob) {
+      uploadClipInBackground(questionNum, clip);
+    }
+
     if (currentQuestion < QUESTIONS.length - 1) {
       const nextQuestion = currentQuestion + 1;
       setCurrentQuestion(nextQuestion);
@@ -452,23 +504,34 @@ export default function VideoRecorder({ uuid }) {
         setShowCoaching(true);
       }
     } else {
-      uploadAllClips(clips);
+      finishAndConfirmUploads(clips);
     }
-  }, [currentQuestion, clips, seenCoaching]);
+  }, [currentQuestion, clips, seenCoaching, uploadClipInBackground]);
 
-  const uploadAllClips = async (clipsToUpload) => {
+  const finishAndConfirmUploads = async (clipsToUpload) => {
     setRecordingState('uploading');
     setProcessingStep('uploading');
+
+    // Collect all upload promises - either from background or start new ones
     const uploadPromises = [];
 
     for (let i = 1; i <= QUESTIONS.length; i++) {
       const clip = clipsToUpload[i];
-      if (clip?.blob) {
-        setUploadProgress(prev => ({ ...prev, [i]: 'uploading' }));
-        const promise = uploadVideoClip(uuid, i, clip.blob)
+      if (!clip) continue;
+
+      // Check if already uploading/uploaded in background
+      if (backgroundUploadsRef.current[i]) {
+        uploadPromises.push(backgroundUploadsRef.current[i]);
+      } else if (clip.blob) {
+        // Start upload now (shouldn't happen often - mostly just the last clip)
+        setUploadProgress(prev => ({ ...prev, [i]: 0 }));
+        const questionIndex = i; // Capture for closure
+        const onProgress = (percentage) => {
+          setUploadProgress(prev => ({ ...prev, [questionIndex]: percentage }));
+        };
+        const promise = uploadVideoClip(uuid, i, clip.blob, onProgress)
           .then(clipInfo => {
-            setUploadProgress(prev => ({ ...prev, [i]: 'done' }));
-            // Include transcript, timing, and duration captured during recording
+            setUploadProgress(prev => ({ ...prev, [questionIndex]: 'done' }));
             return {
               ...clipInfo,
               transcript: clip.transcript || '',
@@ -476,9 +539,13 @@ export default function VideoRecorder({ uuid }) {
               speechEnd: clip.speechEnd,
             };
           })
-          .catch(err => { setUploadProgress(prev => ({ ...prev, [i]: 'error' })); throw err; });
+          .catch(err => {
+            setUploadProgress(prev => ({ ...prev, [questionIndex]: 'error' }));
+            throw err;
+          });
         uploadPromises.push(promise);
       }
+      // If clip.uploaded is true and no blob, the background upload promise should exist
     }
 
     try {
@@ -594,15 +661,24 @@ export default function VideoRecorder({ uuid }) {
 
       {/* Progress */}
       <div className="progress-bar">
-        {QUESTIONS.map((q, idx) => (
-          <button
-            key={q.id}
-            onClick={() => goToQuestion(idx)}
-            className={`progress-dot ${idx === currentQuestion ? 'active' : ''} ${clips[idx + 1] ? 'complete' : ''}`}
-          >
-            {clips[idx + 1] ? '✓' : idx + 1}
-          </button>
-        ))}
+        {QUESTIONS.map((q, idx) => {
+          const questionNum = idx + 1;
+          const hasClip = !!clips[questionNum];
+          const uploadStatus = uploadProgress[questionNum];
+          const isUploaded = uploadStatus === 'done';
+          const isUploading = typeof uploadStatus === 'number';
+          const percentage = isUploading ? uploadStatus : null;
+          return (
+            <button
+              key={q.id}
+              onClick={() => goToQuestion(idx)}
+              className={`progress-dot ${idx === currentQuestion ? 'active' : ''} ${hasClip ? 'complete' : ''} ${isUploaded ? 'uploaded' : ''} ${isUploading ? 'uploading' : ''}`}
+              title={isUploading ? `Uploading: ${percentage}%` : undefined}
+            >
+              {isUploaded ? '✓' : hasClip ? '✓' : idx + 1}
+            </button>
+          );
+        })}
       </div>
 
       {/* Main */}
@@ -692,12 +768,17 @@ export default function VideoRecorder({ uuid }) {
               </p>
               {processingStep === 'uploading' && (
                 <div className="upload-progress">
-                  {QUESTIONS.map((q, idx) => (
-                    <div key={q.id} className={`upload-progress-item ${uploadProgress[idx + 1] || ''}`}>
-                      <span>Q{idx + 1}</span>
-                      <span>{uploadProgress[idx + 1] === 'done' ? '✓' : uploadProgress[idx + 1] === 'error' ? '✗' : uploadProgress[idx + 1] === 'uploading' ? '...' : '○'}</span>
-                    </div>
-                  ))}
+                  {QUESTIONS.map((q, idx) => {
+                    const status = uploadProgress[idx + 1];
+                    const isUploading = typeof status === 'number';
+                    const percentage = isUploading ? status : null;
+                    return (
+                      <div key={q.id} className={`upload-progress-item ${status === 'done' ? 'done' : status === 'error' ? 'error' : isUploading ? 'uploading' : ''}`}>
+                        <span>Q{idx + 1}</span>
+                        <span>{status === 'done' ? '✓' : status === 'error' ? '✗' : isUploading ? `${percentage}%` : '○'}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

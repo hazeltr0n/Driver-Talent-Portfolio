@@ -1,4 +1,5 @@
 // API client for frontend - all calls go through /api routes
+import { uploadVideoClipTUS } from './tus-upload';
 
 export async function searchCandidates(query) {
   const response = await fetch(`/api/candidates/search?q=${encodeURIComponent(query)}`);
@@ -179,7 +180,14 @@ export async function getUploadUrl(uuid, questionNumber) {
   return response.json();
 }
 
-export async function uploadVideoClip(uuid, questionNumber, blob) {
+export async function uploadVideoClip(uuid, questionNumber, blob, onProgress) {
+  // Use TUS resumable upload for reliable mobile uploads
+  const result = await uploadVideoClipTUS(uuid, questionNumber, blob, onProgress);
+  return result;
+}
+
+// Legacy R2 presigned URL upload (kept for rollback if needed)
+export async function uploadVideoClipLegacy(uuid, questionNumber, blob) {
   // Get presigned URL
   const { uploadUrl, clipKey } = await getUploadUrl(uuid, questionNumber);
 

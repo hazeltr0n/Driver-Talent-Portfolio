@@ -22,8 +22,11 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// API URL for cleanup (use Vercel API)
+const API_URL = process.env.API_URL || 'https://driver-talent-portfolio.vercel.app';
+
 app.post('/render', async (req, res) => {
-  const { uuid, driverName, driverLocation, clips, musicUrl } = req.body;
+  const { uuid, driverName, driverLocation, clips, musicUrl, streamVideoIds } = req.body;
 
   if (!uuid || !clips || clips.length === 0) {
     return res.status(400).json({ error: 'uuid and clips required' });
@@ -37,7 +40,7 @@ app.post('/render', async (req, res) => {
   });
 
   // Do the render in background
-  processRender({ uuid, driverName, driverLocation, clips, musicUrl }).catch(err => {
+  processRender({ uuid, driverName, driverLocation, clips, musicUrl, streamVideoIds }).catch(err => {
     console.error('Render failed:', err);
   });
 });
@@ -79,7 +82,7 @@ async function getVideoDuration(url, localPath) {
   });
 }
 
-async function processRender({ uuid, driverName, driverLocation, clips, musicUrl }) {
+async function processRender({ uuid, driverName, driverLocation, clips, musicUrl, streamVideoIds }) {
   const startTime = Date.now();
   console.log(`Starting render for ${uuid}...`);
 
@@ -190,11 +193,32 @@ async function processRender({ uuid, driverName, driverLocation, clips, musicUrl
     const elapsed = Math.round((Date.now() - startTime) / 1000);
     console.log(`Render complete for ${uuid} in ${elapsed}s`);
 
-    // Cleanup
+    // Cleanup local files
     fs.unlinkSync(outputPath);
     fs.unlinkSync(propsPath);
     for (const c of clipsWithDuration) {
       try { fs.unlinkSync(c.localPath); } catch {}
+    }
+
+    // Delete Stream clips to save storage costs
+    if (streamVideoIds && streamVideoIds.length > 0) {
+      console.log(`Cleaning up ${streamVideoIds.length} Stream clips...`);
+      try {
+        const deleteRes = await fetch(`${API_URL}/api/stream/delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoIds: streamVideoIds }),
+        });
+        if (deleteRes.ok) {
+          const result = await deleteRes.json();
+          console.log(`Stream cleanup: ${result.deleted} deleted, ${result.failed} failed`);
+        } else {
+          console.error('Stream cleanup failed:', deleteRes.status);
+        }
+      } catch (cleanupErr) {
+        console.error('Stream cleanup error:', cleanupErr.message);
+        // Don't fail the render for cleanup issues
+      }
     }
 
   } catch (err) {
