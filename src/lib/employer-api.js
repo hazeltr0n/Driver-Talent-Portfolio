@@ -66,6 +66,19 @@ export async function createEmployerJob(fields) {
   return response.json();
 }
 
+export async function parseJobDescription(description) {
+  const response = await fetch('/api/jobs/parse', {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ description }),
+  });
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.error || 'Failed to parse job description');
+  }
+  return response.json();
+}
+
 export async function getEmployerJob(jobId) {
   const response = await fetch(`/api/employer/jobs/${jobId}`, {
     headers: getAuthHeaders(),

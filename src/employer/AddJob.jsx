@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EmployerLayout from './EmployerLayout';
-import { createEmployerJob } from '../lib/employer-api';
+import { createEmployerJob, parseJobDescription } from '../lib/employer-api';
 
 export default function AddJob() {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
+  const [parsing, setParsing] = useState(false);
   const [error, setError] = useState(null);
+  const [parseText, setParseText] = useState('');
   const [formData, setFormData] = useState({
     title: '',
     location: '',
@@ -29,6 +31,31 @@ export default function AddJob() {
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleParse = async () => {
+    if (!parseText || parseText.length < 50) {
+      setError('Please paste a job description (at least 50 characters)');
+      return;
+    }
+
+    setParsing(true);
+    setError(null);
+
+    try {
+      const parsed = await parseJobDescription(parseText);
+
+      // Merge parsed data with form, keeping raw_description
+      setFormData(prev => ({
+        ...prev,
+        ...parsed,
+        raw_description: parseText,
+      }));
+    } catch (err) {
+      setError('Failed to parse: ' + err.message);
+    } finally {
+      setParsing(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -59,6 +86,26 @@ export default function AddJob() {
 
       <form onSubmit={handleSubmit} style={styles.form}>
         {error && <div style={styles.error}>{error}</div>}
+
+        <div style={styles.parseSection}>
+          <h2 style={styles.sectionTitle}>Quick Fill from Job Posting</h2>
+          <p style={styles.parseHint}>Paste your job description below and we'll extract the details automatically.</p>
+          <textarea
+            value={parseText}
+            onChange={e => setParseText(e.target.value)}
+            placeholder="Paste your full job posting here..."
+            style={styles.parseTextarea}
+            rows={5}
+          />
+          <button
+            type="button"
+            onClick={handleParse}
+            disabled={parsing || parseText.length < 50}
+            style={styles.parseButton}
+          >
+            {parsing ? 'Parsing...' : 'Parse & Fill Form'}
+          </button>
+        </div>
 
         <div style={styles.section}>
           <h2 style={styles.sectionTitle}>Basic Information</h2>
@@ -304,6 +351,39 @@ const styles = {
     borderRadius: 8,
     marginBottom: 16,
     fontSize: 14,
+  },
+  parseSection: {
+    background: '#F0FDF4',
+    borderRadius: 12,
+    border: '1px solid #86EFAC',
+    padding: 24,
+    marginBottom: 20,
+  },
+  parseHint: {
+    margin: '0 0 12px',
+    fontSize: 14,
+    color: '#166534',
+  },
+  parseTextarea: {
+    width: '100%',
+    padding: '12px',
+    fontSize: 14,
+    border: '1px solid #86EFAC',
+    borderRadius: 6,
+    fontFamily: 'inherit',
+    resize: 'vertical',
+    boxSizing: 'border-box',
+  },
+  parseButton: {
+    marginTop: 12,
+    padding: '10px 20px',
+    fontSize: 14,
+    fontWeight: 600,
+    background: '#059669',
+    color: '#FFFFFF',
+    border: 'none',
+    borderRadius: 6,
+    cursor: 'pointer',
   },
   section: {
     background: '#FFFFFF',
