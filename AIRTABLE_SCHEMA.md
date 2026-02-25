@@ -211,6 +211,7 @@ Employer job openings.
 | `status` | singleSelect | Active, Filled, Closed, On Hold |
 | `created_at` | dateTime | |
 | `yard_zip` | singleLineText | |
+| `hiring_radius` | number | Miles from yard_zip (default 50) |
 | `touch_freight` | singleSelect | Very Light, Light, Medium, Heavy |
 | `endorsements_required` | singleLineText | |
 | `raw_description` | multilineText | |

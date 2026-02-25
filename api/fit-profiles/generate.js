@@ -1,4 +1,5 @@
 import { calculateFitScores, generateRecommendation, parseJSON } from '../lib/fit-scoring.js';
+import zipcodes from 'zipcodes';
 
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
@@ -7,6 +8,32 @@ const FIT_PROFILES_TABLE = process.env.AIRTABLE_FIT_PROFILES_TABLE_ID || 'Fit Pr
 const REQUISITIONS_TABLE = 'Job Requisitions';
 
 const MIN_FIT_SCORE = 70; // Only generate profiles for scores >= 70
+const DEFAULT_HIRING_RADIUS = 50; // Default 50 miles if not specified
+
+// Calculate distance between two zip codes in miles
+function getZipDistance(zip1, zip2) {
+  if (!zip1 || !zip2) return null;
+
+  // Clean zip codes (take first 5 digits)
+  const cleanZip1 = String(zip1).slice(0, 5);
+  const cleanZip2 = String(zip2).slice(0, 5);
+
+  const distance = zipcodes.distance(cleanZip1, cleanZip2);
+  return distance; // Returns distance in miles or null if invalid
+}
+
+// Check if candidate is within hiring radius
+function isWithinHiringRadius(candidateZip, jobYardZip, hiringRadius) {
+  if (!jobYardZip) return true; // No yard zip = no distance filter
+  if (!candidateZip) return false; // No candidate zip = can't verify distance
+
+  const radius = hiringRadius || DEFAULT_HIRING_RADIUS;
+  const distance = getZipDistance(candidateZip, jobYardZip);
+
+  if (distance === null) return true; // Can't calculate = don't filter
+
+  return distance <= radius;
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -54,13 +81,24 @@ async function generateProfilesForJob(requisitionId) {
     throw new Error('Job not found');
   }
 
+  const yardZip = job.fields.yard_zip;
+  const hiringRadius = job.fields.hiring_radius || DEFAULT_HIRING_RADIUS;
+
   // Fetch all active candidates
   const candidates = await getActiveCandidates();
 
   let generated = 0;
   let skipped = 0;
+  let outOfRange = 0;
 
   for (const candidate of candidates) {
+    // Check distance filter first
+    const candidateZip = candidate.fields.zipcode;
+    if (!isWithinHiringRadius(candidateZip, yardZip, hiringRadius)) {
+      outOfRange++;
+      continue;
+    }
+
     const driverData = {
       ...candidate.fields,
       employment_history: parseJSON(candidate.fields.employment_history, []),
@@ -85,7 +123,8 @@ async function generateProfilesForJob(requisitionId) {
     }
   }
 
-  return { generated, skipped };
+  console.log(`Job ${requisitionId}: ${generated} generated, ${skipped} low score, ${outOfRange} out of ${hiringRadius}mi radius`);
+  return { generated, skipped, outOfRange };
 }
 
 async function generateProfilesForCandidate(candidateUuid) {
@@ -94,6 +133,8 @@ async function generateProfilesForCandidate(candidateUuid) {
   if (!candidate) {
     throw new Error('Candidate not found');
   }
+
+  const candidateZip = candidate.fields.zipcode;
 
   const driverData = {
     ...candidate.fields,
@@ -106,8 +147,18 @@ async function generateProfilesForCandidate(candidateUuid) {
 
   let generated = 0;
   let skipped = 0;
+  let outOfRange = 0;
 
   for (const job of jobs) {
+    // Check distance filter first
+    const yardZip = job.fields.yard_zip;
+    const hiringRadius = job.fields.hiring_radius || DEFAULT_HIRING_RADIUS;
+
+    if (!isWithinHiringRadius(candidateZip, yardZip, hiringRadius)) {
+      outOfRange++;
+      continue;
+    }
+
     const fitScores = calculateFitScores(driverData, job.fields);
 
     if (fitScores.overallScore >= MIN_FIT_SCORE) {
@@ -123,7 +174,8 @@ async function generateProfilesForCandidate(candidateUuid) {
     }
   }
 
-  return { generated, skipped };
+  console.log(`Candidate ${candidateUuid}: ${generated} generated, ${skipped} low score, ${outOfRange} out of range`);
+  return { generated, skipped, outOfRange };
 }
 
 async function getJob(jobId) {

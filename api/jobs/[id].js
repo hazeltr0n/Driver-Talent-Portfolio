@@ -4,7 +4,7 @@ const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 const REQUISITIONS_TABLE = 'Job Requisitions';
 
 const VALID_FIELDS = [
-  'employer', 'location', 'yard_zip', 'title', 'route_type', 'cdl_class',
+  'employer', 'location', 'yard_zip', 'hiring_radius', 'title', 'route_type', 'cdl_class',
   'min_experience_years', 'pay_min', 'pay_max', 'equipment_types',
   'home_time', 'touch_freight', 'endorsements_required', 'notes', 'status',
   'raw_description', 'received_date', 'filled_date', 'positions_available',
