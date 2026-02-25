@@ -11,9 +11,6 @@ const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID || '8b36f76f7271d135b183f7a7a7d0
 const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || 'driver-story-videos';
 const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || `https://pub-${R2_ACCOUNT_ID}.r2.dev`;
 
-// Cloudflare Stream - using HLS URLs (no download enable needed)
-const CF_STREAM_CUSTOMER_CODE = process.env.CF_STREAM_CUSTOMER_CODE;
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -58,33 +55,16 @@ export default async function handler(req, res) {
     if (clips && Array.isArray(clips)) {
       // Batch mode - add all clips at once
       for (const clip of clips) {
-        // Support both Stream (new) and R2 (legacy) formats
-        if (clip.streamVideoId) {
-          // Cloudflare Stream format - use HLS URL (immediately available, no download processing needed)
-          const hlsUrl = CF_STREAM_CUSTOMER_CODE
-            ? `https://customer-${CF_STREAM_CUSTOMER_CODE}.cloudflarestream.com/${clip.streamVideoId}/manifest/video.m3u8`
-            : null;
-          videoClips[`q${clip.questionNumber}`] = {
-            streamVideoId: clip.streamVideoId,
-            hlsUrl: hlsUrl,
-            transcript: clip.transcript || '',
-            speechStart: clip.speechStart ?? null,
-            speechEnd: clip.speechEnd ?? null,
-            uploadedAt: new Date().toISOString(),
-          };
-        } else {
-          // Legacy R2 format
-          const actualClipKey = clip.clipKey || `videos/${uuid}/q${clip.questionNumber}.webm`;
-          const clipUrl = `${R2_PUBLIC_URL}/${actualClipKey}`;
-          videoClips[`q${clip.questionNumber}`] = {
-            key: actualClipKey,
-            url: clipUrl,
-            transcript: clip.transcript || '',
-            speechStart: clip.speechStart ?? null,
-            speechEnd: clip.speechEnd ?? null,
-            uploadedAt: new Date().toISOString(),
-          };
-        }
+        const actualClipKey = clip.clipKey || `videos/${uuid}/q${clip.questionNumber}.webm`;
+        const clipUrl = `${R2_PUBLIC_URL}/${actualClipKey}`;
+        videoClips[`q${clip.questionNumber}`] = {
+          key: actualClipKey,
+          url: clipUrl,
+          transcript: clip.transcript || '',
+          speechStart: clip.speechStart ?? null,
+          speechEnd: clip.speechEnd ?? null,
+          uploadedAt: new Date().toISOString(),
+        };
       }
     } else {
       // Single clip mode (legacy)
