@@ -86,13 +86,14 @@ async function createCandidate(data, res) {
     }
   }
 
-  // Generate UUID and portfolio slug
+  // Generate UUID and portfolio slug (with UUID suffix for uniqueness)
   const uuid = data.uuid || randomUUID();
-  const portfolio_slug = fullName
+  const nameSlug = fullName
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s+/g, '-')
     .substring(0, 50);
+  const portfolio_slug = `${nameSlug}-${uuid.slice(-6)}`;
 
   const fields = {
     uuid,
