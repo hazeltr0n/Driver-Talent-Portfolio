@@ -202,7 +202,7 @@ export default function VideoRecorder({ uuid }) {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 720 },
-          height: { ideal: 1280 },
+          height: { ideal: 960 },  // 3:4 ratio to match container
           facingMode: 'user',
         },
         audio: true,
