@@ -42,31 +42,73 @@ app.post('/render', async (req, res) => {
   });
 });
 
+// Download video with timeout and retry
+async function downloadWithRetry(url, localPath, maxRetries = 3, timeoutMs = 120000) {
+  let lastError;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await new Promise((resolve, reject) => {
+        const ffmpeg = spawn('ffmpeg', [
+          '-y',
+          '-i', url,
+          '-c', 'copy',
+          localPath
+        ]);
+
+        let stderr = '';
+        let killed = false;
+
+        // Timeout - kill ffmpeg if it takes too long
+        const timeout = setTimeout(() => {
+          killed = true;
+          ffmpeg.kill('SIGKILL');
+          reject(new Error(`Download timeout after ${timeoutMs / 1000}s`));
+        }, timeoutMs);
+
+        ffmpeg.stderr.on('data', (data) => { stderr += data.toString(); });
+
+        ffmpeg.on('close', (code) => {
+          clearTimeout(timeout);
+          if (killed) return; // Already rejected by timeout
+
+          if (code === 0) {
+            resolve();
+          } else {
+            reject(new Error(`ffmpeg exited with code ${code}: ${stderr.slice(-200)}`));
+          }
+        });
+
+        ffmpeg.on('error', (err) => {
+          clearTimeout(timeout);
+          reject(err);
+        });
+      });
+
+      return; // Success
+    } catch (err) {
+      lastError = err;
+      console.error(`Download attempt ${attempt}/${maxRetries} failed:`, err.message);
+
+      if (attempt < maxRetries) {
+        // Wait before retry (exponential backoff: 2s, 4s)
+        const delay = Math.pow(2, attempt) * 1000;
+        console.log(`Retrying in ${delay / 1000}s...`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+  }
+
+  throw lastError;
+}
+
 // Download video and get duration using ffmpeg/ffprobe
 // Handles both direct URLs (R2) and HLS streams (Cloudflare Stream)
 async function getVideoDuration(url, localPath) {
-  // Use ffmpeg to download - works for both direct files and HLS streams
-  await new Promise((resolve, reject) => {
-    const ffmpeg = spawn('ffmpeg', [
-      '-y',
-      '-i', url,
-      '-c', 'copy',  // Just copy streams, no re-encoding
-      localPath
-    ]);
+  // Download with retry and timeout
+  await downloadWithRetry(url, localPath);
 
-    let stderr = '';
-    ffmpeg.stderr.on('data', (data) => { stderr += data.toString(); });
-    ffmpeg.on('close', (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        console.error('ffmpeg download failed:', stderr.slice(-500));
-        reject(new Error(`ffmpeg exited with code ${code}`));
-      }
-    });
-  });
-
-  // Get duration with ffprobe
+  // Get duration with ffprobe (with timeout)
   return new Promise((resolve) => {
     const child = spawn('ffprobe', [
       '-v', 'error',
@@ -75,9 +117,16 @@ async function getVideoDuration(url, localPath) {
       localPath
     ]);
 
+    // 30s timeout for ffprobe
+    const timeout = setTimeout(() => {
+      child.kill('SIGKILL');
+      resolve(null);
+    }, 30000);
+
     let output = '';
     child.stdout.on('data', (data) => { output += data.toString(); });
     child.on('close', (code) => {
+      clearTimeout(timeout);
       const duration = parseFloat(output.trim());
       resolve(code === 0 && !isNaN(duration) ? duration : null);
     });
