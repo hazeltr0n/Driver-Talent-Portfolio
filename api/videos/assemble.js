@@ -65,9 +65,9 @@ export default async function handler(req, res) {
       : 'United States';
 
     // Pass URLs and Stream video IDs - Remotion will read duration from the video files
-    // Support both Stream (downloadUrl + streamVideoId) and R2 (url) formats
+    // Support both Stream (hlsUrl) and R2 (url) formats
     const clips = requiredClips.map((key) => ({
-      url: videoClips[key].downloadUrl || videoClips[key].url,
+      url: videoClips[key].hlsUrl || videoClips[key].url,
       streamVideoId: videoClips[key].streamVideoId || null,
     }));
 

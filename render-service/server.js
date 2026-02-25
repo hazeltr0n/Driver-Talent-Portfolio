@@ -45,26 +45,31 @@ app.post('/render', async (req, res) => {
   });
 });
 
-// Get video duration using ffprobe (download, re-mux to fix metadata, then probe)
-// Uses MKV container which supports all codecs (H.264, VP8, VP9, etc)
+// Download video and get duration using ffmpeg/ffprobe
+// Handles both direct URLs (R2) and HLS streams (Cloudflare Stream)
 async function getVideoDuration(url, localPath) {
-  // Download the video
-  const response = await fetch(url);
-  const buffer = await response.arrayBuffer();
-  const rawPath = localPath + '.raw';
-  fs.writeFileSync(rawPath, Buffer.from(buffer));
+  // Use ffmpeg to download - works for both direct files and HLS streams
+  await new Promise((resolve, reject) => {
+    const ffmpeg = spawn('ffmpeg', [
+      '-y',
+      '-i', url,
+      '-c', 'copy',  // Just copy streams, no re-encoding
+      localPath
+    ]);
 
-  // Re-mux with ffmpeg to fix duration metadata (MediaRecorder webm lacks header duration)
-  // MKV container supports all codecs from iOS (H.264), Android (VP8/VP9), Chrome (VP8/VP9)
-  await new Promise((resolve) => {
-    const ffmpeg = spawn('ffmpeg', ['-y', '-i', rawPath, '-c', 'copy', localPath]);
-    ffmpeg.on('close', resolve);
+    let stderr = '';
+    ffmpeg.stderr.on('data', (data) => { stderr += data.toString(); });
+    ffmpeg.on('close', (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        console.error('ffmpeg download failed:', stderr.slice(-500));
+        reject(new Error(`ffmpeg exited with code ${code}`));
+      }
+    });
   });
 
-  // Clean up raw file
-  fs.unlinkSync(rawPath);
-
-  // Now ffprobe can read the duration
+  // Get duration with ffprobe
   return new Promise((resolve) => {
     const child = spawn('ffprobe', [
       '-v', 'error',

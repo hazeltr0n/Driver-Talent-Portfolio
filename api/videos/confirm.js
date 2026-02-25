@@ -11,38 +11,8 @@ const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID || '8b36f76f7271d135b183f7a7a7d0
 const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || 'driver-story-videos';
 const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || `https://pub-${R2_ACCOUNT_ID}.r2.dev`;
 
-// Cloudflare Stream
-const CF_ACCOUNT_ID = process.env.CF_ACCOUNT_ID;
-const CF_STREAM_API_TOKEN = process.env.CF_STREAM_API_TOKEN;
+// Cloudflare Stream - using HLS URLs (no download enable needed)
 const CF_STREAM_CUSTOMER_CODE = process.env.CF_STREAM_CUSTOMER_CODE;
-
-// Enable downloads for a Stream video (required before download URL works)
-async function enableStreamDownload(videoId) {
-  if (!CF_ACCOUNT_ID || !CF_STREAM_API_TOKEN) {
-    console.warn('Stream credentials not configured, skipping download enable');
-    return null;
-  }
-
-  const response = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/stream/${videoId}/downloads`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${CF_STREAM_API_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`Failed to enable download for ${videoId}:`, response.status, errorText);
-    return null;
-  }
-
-  const data = await response.json();
-  return data.result?.default?.url || null;
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -87,21 +57,16 @@ export default async function handler(req, res) {
     // Handle batch mode (multiple clips) or single clip
     if (clips && Array.isArray(clips)) {
       // Batch mode - add all clips at once
-      // Enable downloads for all Stream clips in parallel
-      const streamClips = clips.filter(c => c.streamVideoId);
-      const downloadPromises = streamClips.map(c => enableStreamDownload(c.streamVideoId));
-      await Promise.all(downloadPromises);
-
       for (const clip of clips) {
         // Support both Stream (new) and R2 (legacy) formats
         if (clip.streamVideoId) {
-          // Cloudflare Stream format
-          const downloadUrl = CF_STREAM_CUSTOMER_CODE
-            ? `https://customer-${CF_STREAM_CUSTOMER_CODE}.cloudflarestream.com/${clip.streamVideoId}/downloads/default.mp4`
-            : clip.downloadUrl;
+          // Cloudflare Stream format - use HLS URL (immediately available, no download processing needed)
+          const hlsUrl = CF_STREAM_CUSTOMER_CODE
+            ? `https://customer-${CF_STREAM_CUSTOMER_CODE}.cloudflarestream.com/${clip.streamVideoId}/manifest/video.m3u8`
+            : null;
           videoClips[`q${clip.questionNumber}`] = {
             streamVideoId: clip.streamVideoId,
-            downloadUrl: downloadUrl,
+            hlsUrl: hlsUrl,
             transcript: clip.transcript || '',
             speechStart: clip.speechStart ?? null,
             speechEnd: clip.speechEnd ?? null,
