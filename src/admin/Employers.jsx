@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
 import { listEmployers, searchHubSpotCompanies, getHubSpotCompany, createEmployer, updateEmployer } from '../lib/api';
 
+const AIRTABLE_BASE_ID = 'appjZUryTUrvwToXE';
+const AIRTABLE_EMPLOYERS_TABLE = 'tbl9bxGlAKtQfnPhY';
+
 function getLifecycleStyle(stage) {
   switch (stage) {
     case 'customer':
@@ -68,9 +71,19 @@ export default function Employers() {
     <AdminLayout>
       <div style={styles.header}>
         <h1 style={styles.title}>Employers</h1>
-        <button onClick={() => setShowAddModal(true)} style={styles.addButton}>
-          + Add Employer
-        </button>
+        <div style={styles.headerButtons}>
+          <a
+            href={`https://airtable.com/${AIRTABLE_BASE_ID}/${AIRTABLE_EMPLOYERS_TABLE}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={styles.airtableLink}
+          >
+            View in Airtable
+          </a>
+          <button onClick={() => setShowAddModal(true)} style={styles.addButton}>
+            + Add Employer
+          </button>
+        </div>
       </div>
 
       <div style={styles.filters}>
@@ -590,6 +603,20 @@ const styles = {
     fontSize: 24,
     fontWeight: 600,
     color: '#1F2937',
+  },
+  headerButtons: {
+    display: 'flex',
+    gap: 12,
+    alignItems: 'center',
+  },
+  airtableLink: {
+    padding: '10px 16px',
+    fontSize: 13,
+    fontWeight: 600,
+    background: '#FCB400',
+    color: '#1F2937',
+    borderRadius: 8,
+    textDecoration: 'none',
   },
   addButton: {
     background: '#004751',

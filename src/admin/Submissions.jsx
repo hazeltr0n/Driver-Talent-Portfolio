@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
 import { listSubmissions, updateSubmission, createSubmission, searchCandidates, getCandidate, updateCandidate, lookupFitProfile, updateFitProfile } from '../lib/api';
 
+const AIRTABLE_BASE_ID = 'appjZUryTUrvwToXE';
+const AIRTABLE_SUBMISSIONS_TABLE = 'tblRy25nM6WGZBq0J';
+
 const STATUSES = ['Submitted', 'Interviewing', 'Offer Extended', 'Hired', 'Rejected', 'Withdrawn'];
 const REJECTION_REASONS = ['No Response', 'Failed Background', 'Client Rejected', 'Driver Declined', 'Position Filled'];
 
@@ -171,9 +174,19 @@ export default function Submissions() {
     <AdminLayout>
       <div style={styles.header}>
         <h1 style={styles.title}>Submissions</h1>
-        <button onClick={() => setShowSubmitDriver(true)} style={styles.addButton}>
-          + Submit Driver
-        </button>
+        <div style={styles.headerButtons}>
+          <a
+            href={`https://airtable.com/${AIRTABLE_BASE_ID}/${AIRTABLE_SUBMISSIONS_TABLE}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={styles.airtableLink}
+          >
+            View in Airtable
+          </a>
+          <button onClick={() => setShowSubmitDriver(true)} style={styles.addButton}>
+            + Submit Driver
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -1085,6 +1098,21 @@ const styles = {
     fontWeight: 700,
     color: '#004751',
     fontFamily: 'Georgia, serif',
+  },
+  headerButtons: {
+    display: 'flex',
+    gap: 12,
+    alignItems: 'center',
+  },
+  airtableLink: {
+    padding: '10px 16px',
+    fontSize: 14,
+    fontWeight: 600,
+    background: '#FFFFFF',
+    color: '#004751',
+    border: '1px solid #D1D9DD',
+    borderRadius: 6,
+    textDecoration: 'none',
   },
   addButton: {
     padding: '10px 20px',

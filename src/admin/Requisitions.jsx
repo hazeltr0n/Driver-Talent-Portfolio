@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
 import { listSubmissions, createSubmission, updateSubmission, searchCandidates, parseJobDescription, createJob, listEmployers } from '../lib/api';
 
+const AIRTABLE_BASE_ID = 'appjZUryTUrvwToXE';
+const AIRTABLE_REQUISITIONS_TABLE = 'tblnLDyGMPLOGROnn';
+
 export default function Requisitions() {
   const [jobs, setJobs] = useState([]);
   const [submissions, setSubmissions] = useState({});
@@ -174,9 +177,19 @@ export default function Requisitions() {
     <AdminLayout>
       <div style={styles.header}>
         <h1 style={styles.title}>Requisitions</h1>
-        <button onClick={() => setShowAddJob(true)} style={styles.addButton}>
-          + Add Job
-        </button>
+        <div style={styles.headerButtons}>
+          <a
+            href={`https://airtable.com/${AIRTABLE_BASE_ID}/${AIRTABLE_REQUISITIONS_TABLE}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={styles.airtableLink}
+          >
+            View in Airtable
+          </a>
+          <button onClick={() => setShowAddJob(true)} style={styles.addButton}>
+            + Add Job
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -990,6 +1003,21 @@ const styles = {
     fontWeight: 700,
     color: '#004751',
     fontFamily: 'Georgia, serif',
+  },
+  headerButtons: {
+    display: 'flex',
+    gap: 12,
+    alignItems: 'center',
+  },
+  airtableLink: {
+    padding: '10px 16px',
+    fontSize: 14,
+    fontWeight: 600,
+    background: '#FFFFFF',
+    color: '#004751',
+    border: '1px solid #D1D9DD',
+    borderRadius: 6,
+    textDecoration: 'none',
   },
   addButton: {
     padding: '10px 20px',

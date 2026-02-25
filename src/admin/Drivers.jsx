@@ -3,6 +3,8 @@ import AdminLayout from './AdminLayout';
 import { searchFreeAgents, searchCandidates, createCandidate, parseDocuments, fileToBase64, shortenUrl } from '../lib/api';
 
 const API_BASE = '/api';
+const AIRTABLE_BASE_ID = 'appjZUryTUrvwToXE';
+const AIRTABLE_CANDIDATES_TABLE = 'tbl25tP2Nc17lx5Am';
 
 const PLACEMENT_STATUSES = [
   'Working and Looking',
@@ -171,9 +173,19 @@ export default function Drivers() {
     <AdminLayout>
       <div style={styles.header}>
         <h1 style={styles.title}>Drivers</h1>
-        <button onClick={() => setShowAddDriver(true)} style={styles.addButton}>
-          + Add Driver
-        </button>
+        <div style={styles.headerButtons}>
+          <a
+            href={`https://airtable.com/${AIRTABLE_BASE_ID}/${AIRTABLE_CANDIDATES_TABLE}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={styles.airtableLink}
+          >
+            View in Airtable
+          </a>
+          <button onClick={() => setShowAddDriver(true)} style={styles.addButton}>
+            + Add Driver
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -1375,6 +1387,20 @@ const styles = {
     border: 'none',
     borderRadius: 6,
     cursor: 'pointer',
+  },
+  headerButtons: {
+    display: 'flex',
+    gap: 12,
+    alignItems: 'center',
+  },
+  airtableLink: {
+    padding: '8px 14px',
+    fontSize: 13,
+    fontWeight: 600,
+    background: '#FCB400',
+    color: '#1F2937',
+    borderRadius: 6,
+    textDecoration: 'none',
   },
   empty: {
     padding: 48,
