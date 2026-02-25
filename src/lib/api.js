@@ -1,5 +1,4 @@
 // API client for frontend - all calls go through /api routes
-import { uploadVideoClipTUS } from './tus-upload';
 
 export async function searchCandidates(query) {
   const response = await fetch(`/api/candidates/search?q=${encodeURIComponent(query)}`);
@@ -181,13 +180,6 @@ export async function getUploadUrl(uuid, questionNumber) {
 }
 
 export async function uploadVideoClip(uuid, questionNumber, blob, onProgress) {
-  // Use TUS resumable upload for reliable mobile uploads
-  const result = await uploadVideoClipTUS(uuid, questionNumber, blob, onProgress);
-  return result;
-}
-
-// Legacy R2 presigned URL upload (kept for rollback if needed)
-export async function uploadVideoClipLegacy(uuid, questionNumber, blob) {
   // Get presigned URL
   const { uploadUrl, clipKey } = await getUploadUrl(uuid, questionNumber);
 
@@ -195,7 +187,7 @@ export async function uploadVideoClipLegacy(uuid, questionNumber, blob) {
   const contentType = blob.type || 'video/webm';
   console.log('Uploading with Content-Type:', contentType);
 
-  // Upload to storage
+  // Upload to R2
   const uploadResponse = await fetch(uploadUrl, {
     method: 'PUT',
     headers: { 'Content-Type': contentType },
@@ -203,6 +195,9 @@ export async function uploadVideoClipLegacy(uuid, questionNumber, blob) {
   });
 
   if (!uploadResponse.ok) throw new Error('Upload failed');
+
+  // Call progress callback at 100% when done
+  if (onProgress) onProgress(100);
 
   // Return clip info for batch confirmation later
   return { questionNumber, clipKey };
