@@ -360,9 +360,29 @@
 }
 
 /* Preview controls */
+.preview-controls-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 320px;
+}
+
 .preview-controls {
   display: flex;
   gap: 10px;
+}
+
+.coaching-btn-secondary {
+  width: 100%;
+  padding: 14px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  background: rgba(158, 240, 26, 0.15);
+  color: #9EF01A;
+  border: 1px solid #9EF01A;
+  border-radius: 12px;
+  cursor: pointer;
 }
 
 .retake-btn {
@@ -787,6 +807,279 @@
 
 .feedback-modal-buttons .accept-btn {
   flex: 2;
+}
+
+/* Talking Points on Recording Screen */
+.talking-points {
+  background: rgba(158, 240, 26, 0.08);
+  border-radius: 14px;
+  padding: 14px 16px;
+  border-left: 3px solid #9EF01A;
+}
+
+.talking-points-header {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9EF01A;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+.talking-points-list {
+  margin: 0;
+  padding: 0 0 0 16px;
+  list-style: none;
+}
+
+.talking-point-item {
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.85);
+  margin-bottom: 6px;
+  position: relative;
+}
+
+.talking-point-item::before {
+  content: '•';
+  position: absolute;
+  left: -14px;
+  color: #9EF01A;
+}
+
+.talking-point-item.personalized {
+  color: #fff;
+}
+
+.talking-point-item.personalized::before {
+  content: '→';
+}
+
+.talking-points-note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: rgba(255,255,255,0.6);
+  font-style: italic;
+}
+
+/* Take Badge */
+.take-badge {
+  display: inline-block;
+  background: #9EF01A;
+  color: #003840;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* Feedback Badge Variants */
+.feedback-badge-good {
+  background: linear-gradient(135deg, #9EF01A 0%, #7BC516 100%);
+}
+
+.feedback-badge-coaching {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+}
+
+.feedback-badge-tips {
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+}
+
+.feedback-badge-harmful {
+  background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+}
+
+/* Feedback Content Variants */
+.feedback-good {
+  border-left-color: #9EF01A;
+  background: rgba(158, 240, 26, 0.1);
+}
+
+.feedback-coaching {
+  border-left-color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.feedback-harmful {
+  border-left-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.feedback-harmful-message {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: rgba(255,255,255,0.85);
+  line-height: 1.5;
+}
+
+/* Stacked buttons layout */
+.feedback-modal-buttons-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Keep Anyway button */
+.keep-btn {
+  flex: 1;
+  padding: 14px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+/* Harmful Exit button */
+.harmful-exit-btn {
+  flex: 2;
+  padding: 14px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+/* Probing Questions */
+.probing-questions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.probing-question {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.probing-label {
+  font-size: 14px;
+  color: rgba(255,255,255,0.9);
+  line-height: 1.4;
+}
+
+.probing-input {
+  padding: 12px 14px;
+  font-size: 15px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 10px;
+  color: #fff;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.probing-input:focus {
+  border-color: #9EF01A;
+}
+
+.probing-input::placeholder {
+  color: rgba(255,255,255,0.4);
+}
+
+/* Personalized Tips */
+.personalized-tips-content {
+  margin-bottom: 20px;
+}
+
+.personalized-tips-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.personalized-tip-item {
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.9);
+  margin-bottom: 10px;
+  padding-left: 20px;
+  position: relative;
+}
+
+.personalized-tip-item::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: #60a5fa;
+}
+
+.suggested-opening {
+  background: rgba(96, 165, 250, 0.1);
+  border-radius: 12px;
+  padding: 14px;
+  margin-top: 16px;
+  border-left: 3px solid #60a5fa;
+}
+
+.suggested-opening-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #60a5fa;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.suggested-opening-text {
+  margin: 0;
+  font-size: 14px;
+  font-style: italic;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.85);
+}
+
+/* Blocked Screen */
+.blocked-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+}
+
+.blocked-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(251, 191, 36, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.blocked-title {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.blocked-text {
+  color: rgba(255,255,255,0.8);
+  font-size: 15px;
+  margin: 0;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+.blocked-subtext {
+  color: rgba(255,255,255,0.5);
+  font-size: 13px;
+  margin-top: 16px;
 }
 
 /* Desktop enhancements */

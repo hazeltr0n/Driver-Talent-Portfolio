@@ -42,22 +42,32 @@ app.post('/render', async (req, res) => {
   });
 });
 
-// Download video with timeout, retry, and audio normalization
+// Download video with timeout, retry, audio cleanup, and normalization
 async function downloadWithRetry(url, localPath, maxRetries = 3, timeoutMs = 180000) {
   let lastError;
+
+  // Audio filter chain:
+  // 1. highpass=f=80 - Remove low rumble/hum below 80Hz
+  // 2. lowpass=f=12000 - Remove high frequency hiss
+  // 3. afftdn=nf=-25 - FFT denoiser for steady background noise
+  // 4. agate - Noise gate to reduce breaths/silence noise (gentle, not hard cut)
+  // 5. loudnorm - Final normalization to broadcast standard
+  const audioFilters = [
+    'highpass=f=80',
+    'lowpass=f=12000',
+    'afftdn=nf=-25',
+    'agate=threshold=0.01:attack=10:release=100:ratio=2',
+    'loudnorm=I=-16:TP=-1.5:LRA=11'
+  ].join(',');
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       await new Promise((resolve, reject) => {
-        // Normalize audio to consistent levels (EBU R128 broadcast standard)
-        // -I=-16: target integrated loudness (LUFS)
-        // -TP=-1.5: true peak limit (dB)
-        // -LRA=11: loudness range target
         const ffmpeg = spawn('ffmpeg', [
           '-y',
           '-i', url,
           '-c:v', 'copy',  // Keep video codec as-is
-          '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11',  // Normalize audio levels
+          '-af', audioFilters,  // Clean up and normalize audio
           '-c:a', 'aac', '-b:a', '128k',  // Re-encode audio as AAC
           localPath
         ]);

@@ -6,7 +6,6 @@ const QUESTIONS = [
   { title: 'Your turning point', subtitle: 'Your journey and support system' },
   { title: 'Why trucking?', subtitle: 'What do you love about this career?' },
   { title: 'Your next chapter', subtitle: 'What are you looking for?' },
-  { title: 'Your reputation', subtitle: 'What would others say about you?' },
   { title: 'Your message', subtitle: 'What would you like employers to know?' },
 ];
 

@@ -30,11 +30,15 @@ Tables:
 
 Driver Story Video flow:
 1. Driver visits `/record/{uuid}`
-2. Records 7 video answers in browser (with live Deepgram transcription)
-3. Clips uploaded to Cloudflare Stream via TUS (resumable uploads for mobile reliability)
-4. Railway render service assembles final video with Remotion
-5. Video URL saved to Airtable `video_url` field
-6. Stream clips automatically deleted after render to minimize costs
+2. Records 6 video answers in browser (with live Deepgram transcription)
+3. AI Coach provides adaptive feedback:
+   - "Good" answers proceed to next question
+   - "Needs coaching" answers get probing questions → personalized tips → re-record
+   - "Harmful" answers (red flags) block progress and notify Career Agent
+4. Clips uploaded to Cloudflare Stream via TUS (resumable uploads for mobile reliability)
+5. Railway render service assembles final video with Remotion
+6. Video URL saved to Airtable `video_url` field
+7. Stream clips automatically deleted after render to minimize costs
 
 To re-render a video:
 ```bash

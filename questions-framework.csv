@@ -1,0 +1,39 @@
+Question Number,Title,Prompt,Objective,Talking Points,Example Answer,Probing Questions (for coaching),Key Elements (AI looks for),Coaching Focus,Relevant Airtable Data,
+1,Who are you?,Tell me about yourself,"Hook the viewer, make them interested in seeing the rest of the video. Make them see you as a human, just like them, with a family, hobbies, etc.","1. ""I'm [name] from [city, state]""
+2. Things you enjoy outside work that show your personality (family, hobbies, sports, interests)
+3. What kind of person/worker you are","I'm Marcus from Memphis, Tennessee. Outside of work, I'm all about my family - I've got two daughters who keep me busy. I'm also big into fishing when I get the chance. At work, I'm the guy who shows up early and stays late if that's what it takes.","1. What do you enjoy doing when you're not working?
+2. What would your friends or family say you're like? 3. What about you makes you a good worker?","1. name and where they're from
+2. personal interests/hobbies that show personality
+3. relatable human details 4. Quick mention about work ethic","Hook the viewer with personality, make them see you as a relatable human with a life outside work, then tease with one reason why you're a good worker.","city, state",
+2,What is your why?,What drives you every day?,"Show the viewer what you value, what makes you tick. Show that you are a human just like them, with goals, desires, and people you love or things you care about.","1. Who or what are you doing this for? (You is an acceptable answer!)
+2. What are you working toward? (What are your goals)
+3. What gets you up in the morning? (What motivates you?)","Everything I do is for my kids. I want them to see their dad as someone who never gave up, who worked hard and built something real. That's what drives me every single day.","1. Who are you doing this for?
+2. What does success look like for you in 5 years? 3. If someone says the word love, what is the first thing you think about?","1. clear motivation (who or what they're working for)
+2. authentic passion/drive
+3. relatable goals","Show your values and what makes you tick - your goals, desires, the people you love",None,
+3,Your turning point,Tell me about your journey and support system,"Show that though you have a background, you have moved past that part of your life. Briefly share what happened if you wish. Then talk about your support system, how FreeWorld helped you, and why there's no way you'll go back. Convince the viewer you are reformed. 'XYZ led me to make bad choices. Now that I have ABC, I won't ever have that problem again.'","1. Brief acknowledgment of your past (as much or little detail as you're comfortable with)
+2. What's different now - your support system, FreeWorld, family
+3. Why you won't go back - what's changed in your life","I made some bad choices that landed me in prison for 3 years. But that chapter is closed. When I got out, FreeWorld helped me get my CDL and gave me real support. My family is behind me. I have too much to lose now - I'm never going back to that life. The person I am today is focused, ready, and set up to succeed.","1. What support do you have now that you didn't have before?
+2. What's different about your life that makes you confident you won't go back?","1. acknowledges past without dwelling 2. Accepts personal responsibility, doesn't blame their circumstances.
+2. strong support system
+3. clear reason they won't reoffend
+4. forward-looking and ready","Show you've moved past your background, explain what's changed, convince them you're reformed and won't go back",None,
+4,Why trucking?,What do you love about this career?,"Show them that you are committed to the industry, that you respect the work, and that it enables you to achieve what you want in life.","1. Why you're proud to be a driver / respect for the industry
+2. Why trucking is the right fit for you
+3. How this career enables you to build the life you want",I'm proud to be a driver. We keep this country moving and I respect that. Trucking fits me - I love the independence and being responsible for my rig. This career lets me provide for my family and build the future I want for my kids.,"1. What do you respect about trucking as a profession?
+2. How does this career help you achieve your goals? 3. What do you love most about the idea of being a driver?","1. respect/pride for the industry
+2. why trucking fits them personally
+3. connection to their life goals","Show commitment to trucking, respect for the work, and how it enables your goals",None,
+5,Your next chapter,What are you looking for in your next company?,Tell them what you're looking for from them. Stress your emphasis on safety and whatever else matters to you.,"1. What matters most to you in a company (safety, respect, equipment, home time)
+2. The kind of culture you thrive in
+3. What growth looks like for you long-term in your career (how you become a better driver, or grow into other roles)","Safety is number one for me - I want a company that takes it seriously, not just talks about it. I want to be treated with respect and have good equipment. I'm looking for somewhere I can build a career long-term, maybe become a trainer someday.","1. What's the most important thing you look for in a company?
+2. Where do you see yourself growing in this career? ","1. clear priorities (especially safety)
+2. specific about what they want
+3. growth mindset",Tell them what you want from them - emphasize safety and what matters to you. There is nothing  wrong with being a career driver.,None,
+6,Your message to employers,Thank them for watching and tell them why they should hire you,"Position yourself at the top of the candidate pool (humbly). Thank them, sell yourself, and tell them how you won't let them down.","1. Thank them for their time and consideration
+2. Why you're worth hiring - what sets you apart
+3. Your commitment - how you'll take care of their equipment, customers, and reputation","Thank you for taking the time to watch this. If you hire me, you're getting a driver with 5 years experience and a Hazmat endorsement who will show up every day, take care of your equipment like it's my own, and never let you down. I'm ready to prove myself.","1. What makes you stand out from other candidates?
+2. What can you promise an employer who takes a chance on you?","1. gratitude
+2. clear value proposition
+3. specific commitments
+4. confident but humble","Sell yourself humbly - why hire you, what sets you apart, your commitments","years_experience, endorsements, cdl_class, equipment_experience",
