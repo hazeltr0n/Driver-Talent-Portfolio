@@ -63,40 +63,33 @@ async function fetchCandidateData(uuid) {
   }
 }
 
-const SYSTEM_PROMPT = `You are a career coach helping CDL drivers with criminal records create compelling video introductions for employers.
+const SYSTEM_PROMPT = `You write video scripts for CDL drivers creating intro videos for employers.
 
 ## Your Task
-Generate personalized talking points for the driver's next recording attempt. Use:
-1. What they said in their first attempt (keep the good parts)
-2. Their answers to the probing questions (incorporate these)
-3. ONLY use background data if it's marked as "relevant to this question"
+Write a short, natural script they can read or use as a guide. Use:
+1. The good parts from their first attempt
+2. Personal details from their coaching chat
+3. Background data if provided and relevant
 
 ## Output Format (JSON)
 {
-  "personalizedTips": [
-    "✓ You said: [something good from their recording] - great!",
-    "→ Also mention: [new thing based on probing answers]",
-    "→ [Another personalized tip]"
-  ],
-  "suggestedOpening": "A natural opening sentence they could use"
+  "script": "The full script they can say, written in first person. 3-5 sentences max. Natural, conversational tone - not corporate or stiff."
 }
 
 ## Guidelines
-- Start tips with ✓ for things they did well, → for things to add
-- Keep tips short and actionable (1 line each)
-- The suggested opening should sound natural, not scripted
-- Use their actual words and details whenever possible
-- IMPORTANT: Only suggest mentioning background data (experience, endorsements, etc.) if it's provided AND relevant to this specific question
-- Keep tips focused on THIS question's topic - don't suggest unrelated things
-- 3-4 tips max
-- Make it feel personal, not generic`;
+- Write in THEIR voice - casual, real, human
+- Use their actual details (names, specifics they shared)
+- Keep it SHORT - this is a 30-60 second video clip
+- No filler phrases like "I would say that" or "I believe that"
+- Start strong - no "Hi, my name is..." unless it fits the question
+- Make it sound like something a real person would say, not a script`;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { transcript, probingAnswers, questionNumber, candidateUuid } = req.body;
+  const { transcript, probingAnswers, chatHistory, questionNumber, candidateUuid } = req.body;
 
   if (!questionNumber) {
     return res.status(400).json({ error: 'questionNumber required' });
@@ -138,9 +131,17 @@ export default async function handler(req, res) {
       }
     }
 
-    // Format probing answers
+    // Format probing answers OR chat history
     let probingContext = '';
-    if (probingAnswers && Object.keys(probingAnswers).length > 0) {
+    if (chatHistory && chatHistory.length > 0) {
+      // Extract user messages from chat history
+      const userMessages = chatHistory
+        .filter(m => m.role === 'user')
+        .map(m => m.content);
+      if (userMessages.length > 0) {
+        probingContext = `\n\nFrom their coaching chat:\n${userMessages.map(m => `- "${m}"`).join('\n')}`;
+      }
+    } else if (probingAnswers && Object.keys(probingAnswers).length > 0) {
       const answers = Object.values(probingAnswers).filter(a => a && a.trim());
       if (answers.length > 0) {
         probingContext = `\n\nTheir probing question answers:\n${answers.map((a, i) => `- "${a}"`).join('\n')}`;
@@ -159,7 +160,7 @@ Focus areas: ${q.focus}
 Their first recording attempt:
 "${transcript || '(no transcript available)'}"${probingContext}${candidateContext}
 
-Generate personalized tips for their next attempt.`
+Write a short script for their next take.`
         }
       ],
       response_format: { type: 'json_object' },
@@ -169,12 +170,8 @@ Generate personalized tips for their next attempt.`
     const coaching = JSON.parse(response.choices[0].message.content);
 
     // Ensure we have the required fields
-    if (!coaching.personalizedTips || coaching.personalizedTips.length === 0) {
-      coaching.personalizedTips = [
-        '→ Try mentioning where you\'re from',
-        '→ Share something about yourself outside of work',
-        '→ Tell them how you show up on the job',
-      ];
+    if (!coaching.script) {
+      coaching.script = "I'm [your name] from [your city]. Outside of work, I [what you do for fun or with family]. When I'm on the job, I'm the kind of person who [how you show up at work].";
     }
 
     res.status(200).json(coaching);

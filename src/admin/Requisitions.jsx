@@ -317,7 +317,7 @@ export default function Requisitions() {
                     value={job.career_agent?.id || ''}
                     onChange={(e) => {
                       const selected = collaborators.find(c => c.id === e.target.value);
-                      handleInlineSave(job.id, 'career_agent', selected ? { id: selected.id } : null);
+                      handleInlineSave(job.id, 'career_agent', selected ? { id: selected.id, name: selected.name } : null);
                     }}
                     onBlur={() => setEditingCell(null)}
                     onClick={(e) => e.stopPropagation()}

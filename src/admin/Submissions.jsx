@@ -295,7 +295,7 @@ export default function Submissions() {
                     value={sub.career_agent?.id || ''}
                     onChange={(e) => {
                       const selected = collaborators.find(c => c.id === e.target.value);
-                      handleInlineSave(sub.id, 'career_agent', selected ? { id: selected.id } : null);
+                      handleInlineSave(sub.id, 'career_agent', selected ? { id: selected.id, name: selected.name } : null);
                     }}
                     onBlur={() => setEditingCell(null)}
                     onClick={(e) => e.stopPropagation()}

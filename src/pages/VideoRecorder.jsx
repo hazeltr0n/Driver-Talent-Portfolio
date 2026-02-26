@@ -114,11 +114,19 @@ export default function VideoRecorder({ uuid }) {
   const [gettingFeedback, setGettingFeedback] = useState(false);
 
   // Coaching flow state
-  const [coachingStep, setCoachingStep] = useState(null); // 'probing_questions' | 'personalized_tips' | null
+  const [coachingStep, setCoachingStep] = useState(null); // 'chat' | 'probing_questions' | 'personalized_tips' | 'edit_script' | null
   const [probingAnswers, setProbingAnswers] = useState({});
   const [personalizedTips, setPersonalizedTips] = useState(null);
+  const [suggestedScript, setSuggestedScript] = useState('');
   const [isReRecord, setIsReRecord] = useState(false);
   const [generatingTips, setGeneratingTips] = useState(false);
+
+  // Chat state
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatReadyForTips, setChatReadyForTips] = useState(false);
+  const chatMessagesEndRef = useRef(null);
 
   const videoRef = useRef(null);
   const previewRef = useRef(null);
@@ -397,6 +405,12 @@ export default function VideoRecorder({ uuid }) {
     setFeedback(null);
     setShowFeedbackModal(false);
     setCoachingStep(null);
+    setChatMessages([]);
+    setChatInput('');
+    setChatReadyForTips(false);
+    if (!withPersonalizedTips) {
+      setSuggestedScript('');
+    }
     setIsReRecord(withPersonalizedTips);
     setRecordingState('idle');
     requestAnimationFrame(() => {
@@ -493,6 +507,10 @@ export default function VideoRecorder({ uuid }) {
     setCoachingStep(null);
     setPersonalizedTips(null);
     setProbingAnswers({});
+    setChatMessages([]);
+    setChatInput('');
+    setChatReadyForTips(false);
+    setSuggestedScript('');
     setIsReRecord(false);
 
     const questionNum = currentQuestion + 1;
@@ -520,6 +538,10 @@ export default function VideoRecorder({ uuid }) {
       setCoachingStep(null);
       setPersonalizedTips(null);
       setProbingAnswers({});
+      setChatMessages([]);
+      setChatInput('');
+      setChatReadyForTips(false);
+      setSuggestedScript('');
       setIsReRecord(false);
     }
   };
@@ -527,6 +549,112 @@ export default function VideoRecorder({ uuid }) {
   const handleShowProbingQuestions = () => {
     setCoachingStep('probing_questions');
   };
+
+  // Start coaching chat with AI-generated opening
+  const startCoachingChat = async () => {
+    setCoachingStep('chat');
+    setChatMessages([]);
+    setChatInput('');
+    setChatReadyForTips(false);
+    setChatLoading(true);
+
+    try {
+      const res = await fetch('/api/videos/coaching-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [], // Empty = generate opening message
+          transcript: feedback?.transcript,
+          questionNumber: currentQuestion + 1,
+          candidateUuid: uuid,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to start chat');
+      const data = await res.json();
+      setChatMessages([{ role: 'assistant', content: data.message }]);
+    } catch (err) {
+      console.error('Failed to start coaching chat:', err);
+      setChatMessages([{ role: 'assistant', content: "Hey! I just watched your take. Tell me a bit more about yourself - what's something you enjoy doing outside of work?" }]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  // Send message in coaching chat
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+
+    const userMessage = { role: 'user', content: chatInput.trim() };
+    const newMessages = [...chatMessages, userMessage];
+    setChatMessages(newMessages);
+    setChatInput('');
+    setChatLoading(true);
+
+    try {
+      const res = await fetch('/api/videos/coaching-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: newMessages,
+          transcript: feedback?.transcript,
+          questionNumber: currentQuestion + 1,
+          candidateUuid: uuid,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to send message');
+      const data = await res.json();
+      setChatMessages(prev => [...prev, { role: 'assistant', content: data.message }]);
+      setChatReadyForTips(data.readyForTips);
+    } catch (err) {
+      console.error('Chat message failed:', err);
+      setChatMessages(prev => [...prev, { role: 'assistant', content: "I didn't catch that. Can you tell me more?" }]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  // Handle Enter key in chat input
+  const handleChatKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendChatMessage();
+    }
+  };
+
+  // Generate script from chat history
+  const generateTipsFromChat = async () => {
+    setGeneratingTips(true);
+    try {
+      const res = await fetch('/api/videos/generate-coaching', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transcript: feedback?.transcript || '',
+          chatHistory: chatMessages,
+          questionNumber: currentQuestion + 1,
+          candidateUuid: uuid,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to generate script');
+      const data = await res.json();
+      setSuggestedScript(data.script || '');
+      setCoachingStep('edit_script');
+    } catch (err) {
+      console.error('Failed to generate script:', err);
+      retakeRecording(false);
+    } finally {
+      setGeneratingTips(false);
+    }
+  };
+
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    if (chatMessagesEndRef.current) {
+      chatMessagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, chatLoading]);
 
   const handleProbingAnswerChange = (index, value) => {
     setProbingAnswers(prev => ({ ...prev, [index]: value }));
@@ -666,7 +794,7 @@ export default function VideoRecorder({ uuid }) {
 
   const question = QUESTIONS[currentQuestion];
   const hasCurrentClip = !!clips[currentQuestion + 1];
-  const tipsToShow = isReRecord && personalizedTips ? personalizedTips.personalizedTips : question.talkingPoints;
+  const showScript = isReRecord && suggestedScript;
 
   return (
     <div className="recorder">
@@ -710,6 +838,29 @@ export default function VideoRecorder({ uuid }) {
           <p className="question-prompt">{question.prompt}</p>
         </div>
 
+        {/* Talking Points or Script - shown above video during idle, countdown, and recording */}
+        {(recordingState === 'idle' || recordingState === 'countdown' || recordingState === 'recording') && (
+          <div className={`talking-points ${showScript ? 'script-mode' : ''}`}>
+            <div className="talking-points-header">
+              {showScript ? 'Your Script:' : 'Talking Points:'}
+            </div>
+            {showScript ? (
+              <p className="script-display">{suggestedScript}</p>
+            ) : (
+              <ul className="talking-points-list">
+                {question.talkingPoints.map((tip, idx) => (
+                  <li key={idx} className="talking-point-item">
+                    {tip}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {question.note && !showScript && (
+              <p className="talking-points-note">{question.note}</p>
+            )}
+          </div>
+        )}
+
         {/* Video */}
         <div className="video-container">
           <video
@@ -740,25 +891,6 @@ export default function VideoRecorder({ uuid }) {
             </div>
           )}
         </div>
-
-        {/* Talking Points - shown during idle, countdown, and recording */}
-        {(recordingState === 'idle' || recordingState === 'countdown' || recordingState === 'recording') && (
-          <div className="talking-points">
-            <div className="talking-points-header">
-              {isReRecord && personalizedTips ? 'Your Personalized Tips:' : 'Talking Points:'}
-            </div>
-            <ul className="talking-points-list">
-              {tipsToShow.map((tip, idx) => (
-                <li key={idx} className={`talking-point-item ${isReRecord && personalizedTips ? 'personalized' : ''}`}>
-                  {tip}
-                </li>
-              ))}
-            </ul>
-            {question.note && !isReRecord && (
-              <p className="talking-points-note">{question.note}</p>
-            )}
-          </div>
-        )}
 
         {/* Controls */}
         <div className="controls">
@@ -791,7 +923,7 @@ export default function VideoRecorder({ uuid }) {
           {recordingState === 'preview' && !gettingFeedback && !showFeedbackModal && !coachingStep && (
             <div className="preview-controls-stack">
               {feedback?.probingQuestions && feedback.probingQuestions.length > 0 && (
-                <button onClick={handleShowProbingQuestions} className="coaching-btn-secondary">
+                <button onClick={startCoachingChat} className="coaching-btn-secondary">
                   Get Personalized Tips
                 </button>
               )}
@@ -867,7 +999,7 @@ export default function VideoRecorder({ uuid }) {
             </div>
             <div className="feedback-modal-buttons-stack">
               {feedback.probingQuestions && feedback.probingQuestions.length > 0 && (
-                <button onClick={handleShowProbingQuestions} className="coaching-btn">
+                <button onClick={startCoachingChat} className="coaching-btn">
                   Get Personalized Tips
                 </button>
               )}
@@ -879,6 +1011,68 @@ export default function VideoRecorder({ uuid }) {
                 <button onClick={() => retakeRecording(false)} className="retake-btn">Re-record</button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Coaching Chat Modal */}
+      {feedback && recordingState === 'preview' && coachingStep === 'chat' && (
+        <div className="coaching-overlay">
+          <div className="coaching-modal coaching-chat-modal">
+            <div className="chat-header">
+              <span className="feedback-badge feedback-badge-coaching">Your AI Career Agent</span>
+            </div>
+
+            <div className="chat-messages">
+              {chatMessages.map((msg, idx) => (
+                <div key={idx} className={`chat-bubble ${msg.role}`}>
+                  {msg.content}
+                </div>
+              ))}
+              {chatLoading && (
+                <div className="chat-typing">
+                  <span className="typing-dot"></span>
+                  <span className="typing-dot"></span>
+                  <span className="typing-dot"></span>
+                </div>
+              )}
+              <div ref={chatMessagesEndRef} />
+            </div>
+
+            <div className="chat-input-area">
+              <input
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={handleChatKeyDown}
+                placeholder="Type your response..."
+                className="chat-input"
+                disabled={chatLoading}
+              />
+              <button
+                onClick={sendChatMessage}
+                className="chat-send-btn"
+                disabled={chatLoading || !chatInput.trim()}
+              >
+                Send
+              </button>
+            </div>
+
+            {chatReadyForTips && (
+              <button
+                onClick={generateTipsFromChat}
+                className="coaching-btn chat-tips-btn"
+                disabled={generatingTips}
+              >
+                {generatingTips ? 'Generating...' : 'Get My Personalized Tips'}
+              </button>
+            )}
+
+            <button
+              onClick={() => { setCoachingStep(null); setChatMessages([]); }}
+              className="chat-back-btn"
+            >
+              Back
+            </button>
           </div>
         </div>
       )}
@@ -919,28 +1113,24 @@ export default function VideoRecorder({ uuid }) {
         </div>
       )}
 
-      {/* Personalized Tips Modal */}
-      {feedback && recordingState === 'preview' && coachingStep === 'personalized_tips' && personalizedTips && (
+      {/* Edit Script Modal */}
+      {feedback && recordingState === 'preview' && coachingStep === 'edit_script' && (
         <div className="coaching-overlay">
           <div className="coaching-modal">
             <div className="feedback-header">
-              <span className="feedback-badge feedback-badge-tips">Your Personalized Tips</span>
+              <span className="feedback-badge feedback-badge-tips">Your Script</span>
+              <p className="script-subtitle">Edit this however you want, then use it as a guide when you re-record.</p>
             </div>
-            <div className="personalized-tips-content">
-              <ul className="personalized-tips-list">
-                {personalizedTips.personalizedTips.map((tip, idx) => (
-                  <li key={idx} className="personalized-tip-item">{tip}</li>
-                ))}
-              </ul>
-              {personalizedTips.suggestedOpening && (
-                <div className="suggested-opening">
-                  <span className="suggested-opening-label">Try starting with:</span>
-                  <p className="suggested-opening-text">"{personalizedTips.suggestedOpening}"</p>
-                </div>
-              )}
+            <div className="script-editor-content">
+              <textarea
+                className="script-textarea"
+                value={suggestedScript}
+                onChange={(e) => setSuggestedScript(e.target.value)}
+                rows={6}
+              />
             </div>
             <button onClick={() => retakeRecording(true)} className="coaching-btn">
-              Record Again with These Tips
+              Record with This Script
             </button>
           </div>
         </div>

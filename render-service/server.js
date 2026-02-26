@@ -169,12 +169,12 @@ async function processRender({ uuid, driverName, driverLocation, clips, musicUrl
     clipsWithDuration.push({ localPath, durationInFrames: frames });
   }
 
-  // Write props to file - use local normalized files
+  // Write props to file - use file:// URLs for local normalized files
   const props = {
     driverName: driverName || 'Driver',
     driverLocation: driverLocation || 'United States',
     clips: clipsWithDuration.map(c => ({
-      url: c.localPath,  // Use local normalized file path
+      url: `file://${c.localPath}`,  // Use file:// URL for local files
       durationInFrames: c.durationInFrames,
     })),
     musicUrl: musicUrl || null,
