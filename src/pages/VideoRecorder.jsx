@@ -1000,7 +1000,7 @@ export default function VideoRecorder({ uuid }) {
             <div className="success-detail-item"><span className="success-check">✓</span><span>Story responses saved</span></div>
             <div className="success-detail-item"><span className="success-check">✓</span><span>Video assembly started</span></div>
           </div>
-          <p className="success-subtext">Your Career Agent will review your profile soon.</p>
+          <p className="success-subtext">We'll email you a link to your portfolio when your video is ready. Your Career Agent will review your profile soon.</p>
         </div>
       </div>
     );

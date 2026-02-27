@@ -256,6 +256,9 @@ async function processRender({ uuid, driverName, driverLocation, clips, musicUrl
     // Update Airtable
     await updateAirtable(uuid, videoUrl);
 
+    // Send completion email to driver
+    await sendCompletionEmail(uuid, videoUrl);
+
     const elapsed = Math.round((Date.now() - startTime) / 1000);
     console.log(`Render complete for ${uuid} in ${elapsed}s`);
 
@@ -297,6 +300,25 @@ async function updateAirtable(uuid, videoUrl) {
         },
       }),
     });
+  }
+}
+
+async function sendCompletionEmail(uuid, videoUrl) {
+  const apiUrl = process.env.APP_URL || 'https://driver-talent-portfolio-sigma.vercel.app';
+  try {
+    const res = await fetch(`${apiUrl}/api/videos/send-completion-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uuid, videoUrl }),
+    });
+    if (res.ok) {
+      console.log(`Completion email sent for ${uuid}`);
+    } else {
+      const err = await res.json();
+      console.error('Failed to send completion email:', err.error);
+    }
+  } catch (err) {
+    console.error('Failed to send completion email:', err.message);
   }
 }
 
