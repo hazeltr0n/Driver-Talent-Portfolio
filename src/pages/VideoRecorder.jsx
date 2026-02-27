@@ -71,6 +71,59 @@ const QUESTIONS = [
   },
 ];
 
+// Form-based coaching questions (shown chat-style)
+const COACHING_FORMS = {
+  1: {
+    intro: "This question shows employers who you are as a person - not just another application. They want to see the real you.",
+    questions: [
+      "What do you do when you're not working?",
+      "Who's important in your life? (names and ages are great)",
+      "How would your coworkers describe you?",
+    ],
+  },
+  2: {
+    intro: "This is about what drives you. Employers want to see your motivation - the deeper, the better.",
+    questions: [
+      "Who are you doing this for?",
+      "What are you working toward?",
+      "What keeps you going when it gets hard?",
+    ],
+  },
+  3: {
+    intro: "This is where you address your past directly. You're not hiding from it - you're showing you've moved beyond it. State what happened, take responsibility, and show what's changed.",
+    questions: [
+      { text: "Are you comfortable sharing specifics about your charges? Just say yes or no.", type: "yesno" },
+      { text: "What was the charge, and roughly when? (Just the facts - like '5 years ago, possession charge')", showIf: "yes" },
+      { text: "What did you learn from that experience? What changed in how you think?", showAlways: true },
+      { text: "What's your turning point? (Family, FreeWorld, something else that made you different)", showAlways: true },
+      { text: "What do you have to lose now that you didn't have before?", showAlways: true },
+    ],
+    noShareFallback: "I made some mistakes in my past and paid my debt to society.",
+  },
+  4: {
+    intro: "Show your connection to trucking. Employers want drivers who chose this career, not just ended up here.",
+    questions: [
+      "Why did you choose trucking?",
+      "What do you love about driving?",
+    ],
+  },
+  5: {
+    intro: "Help employers understand what kind of company you'd thrive at. This helps with matching.",
+    questions: [
+      "What matters most to you in a company?",
+      "Why is safety important to you personally?",
+      "Where do you see yourself in 5 years?",
+    ],
+  },
+  6: {
+    intro: "This is your closing pitch. Thank them for watching and for considering you, then tell them why you're worth hiring.",
+    questions: [
+      "What do you bring that other drivers don't?",
+      "What can you promise an employer who gives you a shot?",
+    ],
+  },
+};
+
 const MAX_RECORDING_SECONDS = 60;
 
 // Detect supported video mime type (iOS Safari uses mp4, others use webm)
@@ -98,7 +151,7 @@ function getSupportedAudioMimeType() {
 }
 
 export default function VideoRecorder({ uuid }) {
-  const [_driver, setDriver] = useState(null);
+  const [driver, setDriver] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showIntro, setShowIntro] = useState(true);
@@ -121,7 +174,16 @@ export default function VideoRecorder({ uuid }) {
   const [isReRecord, setIsReRecord] = useState(false);
   const [generatingTips, setGeneratingTips] = useState(false);
 
-  // Chat state
+  // Form-chat state (replaces LLM chat)
+  const [formChatMessages, setFormChatMessages] = useState([]); // { role: 'assistant'|'user', content: string }
+  const [formChatInput, setFormChatInput] = useState('');
+  const [formCurrentQuestionIndex, setFormCurrentQuestionIndex] = useState(0);
+  const [formAnswers, setFormAnswers] = useState({}); // { questionIndex: answer }
+  const [allFormAnswers, setAllFormAnswers] = useState({}); // { questionNumber: { 0: "...", 1: "...", ... } }
+  const [allTranscripts, setAllTranscripts] = useState({}); // { questionNumber: "transcript..." }
+  const formChatEndRef = useRef(null);
+
+  // Legacy chat state (keeping for backward compatibility)
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
@@ -405,6 +467,12 @@ export default function VideoRecorder({ uuid }) {
     setFeedback(null);
     setShowFeedbackModal(false);
     setCoachingStep(null);
+    // Reset form chat state
+    setFormChatMessages([]);
+    setFormChatInput('');
+    setFormCurrentQuestionIndex(0);
+    setFormAnswers({});
+    // Reset legacy chat state
     setChatMessages([]);
     setChatInput('');
     setChatReadyForTips(false);
@@ -502,19 +570,35 @@ export default function VideoRecorder({ uuid }) {
   }, [uuid]);
 
   const acceptClip = useCallback(() => {
+    const questionNum = currentQuestion + 1;
+    const clip = clips[questionNum];
+
+    // Save transcript for future questions
+    if (clip?.transcript) {
+      setAllTranscripts(prev => ({ ...prev, [questionNum]: clip.transcript }));
+    }
+
+    // Save form answers for future questions (if any were filled out)
+    if (Object.keys(formAnswers).length > 0) {
+      setAllFormAnswers(prev => ({ ...prev, [questionNum]: formAnswers }));
+    }
+
     setFeedback(null);
     setShowFeedbackModal(false);
     setCoachingStep(null);
     setPersonalizedTips(null);
     setProbingAnswers({});
+    // Reset form chat state
+    setFormChatMessages([]);
+    setFormChatInput('');
+    setFormCurrentQuestionIndex(0);
+    setFormAnswers({});
+    // Reset legacy chat state
     setChatMessages([]);
     setChatInput('');
     setChatReadyForTips(false);
     setSuggestedScript('');
     setIsReRecord(false);
-
-    const questionNum = currentQuestion + 1;
-    const clip = clips[questionNum];
 
     if (clip?.blob) {
       uploadClipInBackground(questionNum, clip);
@@ -527,7 +611,7 @@ export default function VideoRecorder({ uuid }) {
     } else {
       finishAndConfirmUploads(clips);
     }
-  }, [currentQuestion, clips, uploadClipInBackground, finishAndConfirmUploads]);
+  }, [currentQuestion, clips, formAnswers, uploadClipInBackground, finishAndConfirmUploads]);
 
   const goToQuestion = (index) => {
     if (clips[index + 1] || index <= currentQuestion) {
@@ -538,6 +622,12 @@ export default function VideoRecorder({ uuid }) {
       setCoachingStep(null);
       setPersonalizedTips(null);
       setProbingAnswers({});
+      // Reset form chat state
+      setFormChatMessages([]);
+      setFormChatInput('');
+      setFormCurrentQuestionIndex(0);
+      setFormAnswers({});
+      // Reset legacy chat state
       setChatMessages([]);
       setChatInput('');
       setChatReadyForTips(false);
@@ -551,7 +641,8 @@ export default function VideoRecorder({ uuid }) {
   };
 
   // Start coaching chat with AI-generated opening
-  const startCoachingChat = async () => {
+  // preRecord = true means they haven't recorded yet, just want help
+  const startCoachingChat = async (preRecord = false) => {
     setCoachingStep('chat');
     setChatMessages([]);
     setChatInput('');
@@ -564,9 +655,10 @@ export default function VideoRecorder({ uuid }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: [], // Empty = generate opening message
-          transcript: feedback?.transcript,
+          transcript: preRecord ? null : feedback?.transcript,
           questionNumber: currentQuestion + 1,
           candidateUuid: uuid,
+          preRecord,
         }),
       });
 
@@ -575,7 +667,10 @@ export default function VideoRecorder({ uuid }) {
       setChatMessages([{ role: 'assistant', content: data.message }]);
     } catch (err) {
       console.error('Failed to start coaching chat:', err);
-      setChatMessages([{ role: 'assistant', content: "Hey! I just watched your take. Tell me a bit more about yourself - what's something you enjoy doing outside of work?" }]);
+      const fallback = preRecord
+        ? "Hey! Let's get you set up for this question. What do you enjoy doing outside of work?"
+        : "Hey! I just watched your take. Tell me a bit more about yourself - what's something you enjoy doing outside of work?";
+      setChatMessages([{ role: 'assistant', content: fallback }]);
     } finally {
       setChatLoading(false);
     }
@@ -623,18 +718,131 @@ export default function VideoRecorder({ uuid }) {
     }
   };
 
-  // Generate script from chat history
+  // Helper to get question text (handles both string and object formats)
+  const getQuestionText = (q) => typeof q === 'string' ? q : q.text;
+
+  // Start form-based coaching chat
+  const startFormChat = (preRecord = false) => {
+    const questionNum = currentQuestion + 1;
+    const form = COACHING_FORMS[questionNum];
+    const firstQ = form.questions[0];
+
+    setCoachingStep('form_chat');
+    setFormChatMessages([
+      { role: 'assistant', content: form.intro },
+      { role: 'assistant', content: getQuestionText(firstQ) },
+    ]);
+    setFormCurrentQuestionIndex(0);
+    setFormAnswers({});
+    setFormChatInput('');
+  };
+
+  // Handle form chat answer submission
+  const submitFormAnswer = () => {
+    if (!formChatInput.trim()) return;
+
+    const questionNum = currentQuestion + 1;
+    const form = COACHING_FORMS[questionNum];
+    const answer = formChatInput.trim();
+    const currentIdx = formCurrentQuestionIndex;
+
+    // Save the answer
+    const newFormAnswers = { ...formAnswers, [currentIdx]: answer };
+    setFormAnswers(newFormAnswers);
+
+    // Add user message to chat
+    const newMessages = [...formChatMessages, { role: 'user', content: answer }];
+
+    // Find next question (with branching logic)
+    const findNextQuestion = (startIdx) => {
+      for (let i = startIdx; i < form.questions.length; i++) {
+        const q = form.questions[i];
+        if (typeof q === 'string') return i; // Simple string question
+        if (q.showAlways) return i; // Always show
+        if (q.showIf === 'yes') {
+          // Check if first answer was yes
+          const firstAnswer = (newFormAnswers[0] || '').toLowerCase();
+          if (firstAnswer.includes('yes')) return i;
+        }
+        // Skip this question (doesn't match showIf condition)
+      }
+      return -1; // No more questions
+    };
+
+    const nextIdx = findNextQuestion(currentIdx + 1);
+
+    if (nextIdx >= 0) {
+      // Add next question
+      const nextQ = form.questions[nextIdx];
+      newMessages.push({ role: 'assistant', content: getQuestionText(nextQ) });
+      setFormChatMessages(newMessages);
+      setFormCurrentQuestionIndex(nextIdx);
+      setFormChatInput('');
+    } else {
+      // All questions answered - add completion message and enable script generation
+      newMessages.push({ role: 'assistant', content: "Got it! Hit 'Generate My Script' below." });
+      setFormChatMessages(newMessages);
+      setFormChatInput('');
+    }
+  };
+
+  // Handle Enter key in form chat input
+  const handleFormChatKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      submitFormAnswer();
+    }
+  };
+
+  // Check if form is complete (accounts for skipped questions due to branching)
+  const isFormComplete = () => {
+    const questionNum = currentQuestion + 1;
+    const form = COACHING_FORMS[questionNum];
+
+    // Count how many questions should be answered based on branching
+    let requiredCount = 0;
+    const firstAnswer = (formAnswers[0] || '').toLowerCase();
+
+    for (let i = 0; i < form.questions.length; i++) {
+      const q = form.questions[i];
+      if (typeof q === 'string') {
+        requiredCount++;
+      } else if (q.showAlways || q.type === 'yesno') {
+        requiredCount++;
+      } else if (q.showIf === 'yes' && firstAnswer.includes('yes')) {
+        requiredCount++;
+      }
+      // Skip questions that don't match their showIf condition
+    }
+
+    return Object.keys(formAnswers).length >= requiredCount;
+  };
+
+  // Auto-scroll form chat
+  useEffect(() => {
+    if (formChatEndRef.current) {
+      formChatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [formChatMessages]);
+
+  // Generate script from form answers (new) or chat history (legacy)
   const generateTipsFromChat = async () => {
     setGeneratingTips(true);
     try {
+      const questionNum = currentQuestion + 1;
+
       const res = await fetch('/api/videos/generate-coaching', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           transcript: feedback?.transcript || '',
-          chatHistory: chatMessages,
-          questionNumber: currentQuestion + 1,
+          formAnswers: formAnswers,
+          allFormAnswers: allFormAnswers,
+          allTranscripts: allTranscripts,
+          questionNumber: questionNum,
           candidateUuid: uuid,
+          // Legacy fallback
+          chatHistory: chatMessages.length > 0 ? chatMessages : undefined,
         }),
       });
       if (!res.ok) throw new Error('Failed to generate script');
@@ -738,6 +946,12 @@ export default function VideoRecorder({ uuid }) {
               <div className="intro-tip"><span className="intro-tip-bullet">•</span><span><strong>Be yourself:</strong> Speak naturally.</span></div>
             </div>
           </div>
+          <div className="intro-section">
+            <h3 className="intro-section-title">Your AI Career Agent</h3>
+            <p className="intro-coach-text">
+              After each recording, your AI Career Agent reviews your answer and gives you feedback. If there's a stronger way to say something, it'll help you craft a better response. If anything might not land well with employers, it'll guide you toward a better approach - we're here to help you put your best foot forward.
+            </p>
+          </div>
           <div className="intro-reminder">
             <strong>Remember:</strong> Your story is your strength. Focus on who you are today, not where you've been.
           </div>
@@ -794,7 +1008,7 @@ export default function VideoRecorder({ uuid }) {
 
   const question = QUESTIONS[currentQuestion];
   const hasCurrentClip = !!clips[currentQuestion + 1];
-  const showScript = isReRecord && suggestedScript;
+  const showScript = !!suggestedScript;
 
   return (
     <div className="recorder">
@@ -848,11 +1062,22 @@ export default function VideoRecorder({ uuid }) {
               <p className="script-display">{suggestedScript}</p>
             ) : (
               <ul className="talking-points-list">
-                {question.talkingPoints.map((tip, idx) => (
-                  <li key={idx} className="talking-point-item">
-                    {tip}
-                  </li>
-                ))}
+                {question.talkingPoints.map((tip, idx) => {
+                  // For Q1, personalize the name/location prompt
+                  let displayTip = tip;
+                  if (currentQuestion === 0 && idx === 0 && driver) {
+                    const name = driver.fullName || driver.name || '[name]';
+                    const location = (driver.city && driver.state)
+                      ? `${driver.city}, ${driver.state}`
+                      : '[city, state]';
+                    displayTip = `"I'm ${name} from ${location}"`;
+                  }
+                  return (
+                    <li key={idx} className="talking-point-item">
+                      {displayTip}
+                    </li>
+                  );
+                })}
               </ul>
             )}
             {question.note && !showScript && (
@@ -895,10 +1120,15 @@ export default function VideoRecorder({ uuid }) {
         {/* Controls */}
         <div className="controls">
           {recordingState === 'idle' && (
-            <button onClick={handleStartRecording} className="record-btn">
-              <div className="record-btn-circle" />
-              <span className="record-btn-text">Tap to Record</span>
-            </button>
+            <div className="idle-controls">
+              <button onClick={handleStartRecording} className="record-btn">
+                <div className="record-btn-circle" />
+                <span className="record-btn-text">Tap to Record</span>
+              </button>
+              <button onClick={() => startFormChat(true)} className="need-help-btn">
+                Need help? Get a script first
+              </button>
+            </div>
           )}
 
           {recordingState === 'countdown' && (
@@ -923,8 +1153,8 @@ export default function VideoRecorder({ uuid }) {
           {recordingState === 'preview' && !gettingFeedback && !showFeedbackModal && !coachingStep && (
             <div className="preview-controls-stack">
               {feedback?.probingQuestions && feedback.probingQuestions.length > 0 && (
-                <button onClick={startCoachingChat} className="coaching-btn-secondary">
-                  Get Personalized Tips
+                <button onClick={() => startFormChat()} className="coaching-btn-secondary">
+                  Generate Personalized Script
                 </button>
               )}
               <div className="preview-controls">
@@ -998,11 +1228,9 @@ export default function VideoRecorder({ uuid }) {
               <p className="feedback-encouragement">{feedback.encouragement}</p>
             </div>
             <div className="feedback-modal-buttons-stack">
-              {feedback.probingQuestions && feedback.probingQuestions.length > 0 && (
-                <button onClick={startCoachingChat} className="coaching-btn">
-                  Get Personalized Tips
-                </button>
-              )}
+              <button onClick={() => startFormChat()} className="coaching-btn">
+                Generate Personalized Script
+              </button>
               <button onClick={acceptClip} className="keep-btn">
                 Keep Anyway
               </button>
@@ -1016,7 +1244,7 @@ export default function VideoRecorder({ uuid }) {
       )}
 
       {/* Coaching Chat Modal */}
-      {feedback && recordingState === 'preview' && coachingStep === 'chat' && (
+      {coachingStep === 'chat' && (
         <div className="coaching-overlay">
           <div className="coaching-modal coaching-chat-modal">
             <div className="chat-header">
@@ -1057,18 +1285,72 @@ export default function VideoRecorder({ uuid }) {
               </button>
             </div>
 
-            {chatReadyForTips && (
+            <button
+              onClick={generateTipsFromChat}
+              className="coaching-btn chat-tips-btn"
+              disabled={!chatReadyForTips || generatingTips}
+            >
+              {generatingTips ? 'Generating...' : 'Generate My Script'}
+            </button>
+
+            <button
+              onClick={() => { setCoachingStep(null); setChatMessages([]); }}
+              className="chat-back-btn"
+            >
+              Back
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Form-based Chat Modal (replaces LLM chat) */}
+      {coachingStep === 'form_chat' && (
+        <div className="coaching-overlay">
+          <div className="coaching-modal coaching-chat-modal">
+            <div className="chat-header">
+              <span className="feedback-badge feedback-badge-coaching">Your AI Career Agent</span>
+            </div>
+
+            <div className="chat-messages">
+              {formChatMessages.map((msg, idx) => (
+                <div key={idx} className={`chat-bubble ${msg.role}`}>
+                  {msg.content}
+                </div>
+              ))}
+              <div ref={formChatEndRef} />
+            </div>
+
+            {!isFormComplete() && (
+              <div className="chat-input-area">
+                <input
+                  value={formChatInput}
+                  onChange={e => setFormChatInput(e.target.value)}
+                  onKeyDown={handleFormChatKeyDown}
+                  placeholder="Type your answer..."
+                  className="chat-input"
+                />
+                <button
+                  onClick={submitFormAnswer}
+                  className="chat-send-btn"
+                  disabled={!formChatInput.trim()}
+                >
+                  Send
+                </button>
+              </div>
+            )}
+
+            {isFormComplete() && (
               <button
                 onClick={generateTipsFromChat}
                 className="coaching-btn chat-tips-btn"
                 disabled={generatingTips}
               >
-                {generatingTips ? 'Generating...' : 'Get My Personalized Tips'}
+                {generatingTips ? 'Generating...' : 'Generate My Script'}
               </button>
             )}
 
             <button
-              onClick={() => { setCoachingStep(null); setChatMessages([]); }}
+              onClick={() => { setCoachingStep(null); setFormChatMessages([]); setFormAnswers({}); }}
               className="chat-back-btn"
             >
               Back
@@ -1106,7 +1388,7 @@ export default function VideoRecorder({ uuid }) {
                 className="accept-btn"
                 disabled={generatingTips || Object.keys(probingAnswers).length === 0}
               >
-                {generatingTips ? 'Generating...' : 'Get My Tips'}
+                {generatingTips ? 'Generating...' : 'Generate My Script'}
               </button>
             </div>
           </div>
@@ -1114,12 +1396,12 @@ export default function VideoRecorder({ uuid }) {
       )}
 
       {/* Edit Script Modal */}
-      {feedback && recordingState === 'preview' && coachingStep === 'edit_script' && (
+      {coachingStep === 'edit_script' && (
         <div className="coaching-overlay">
           <div className="coaching-modal">
             <div className="feedback-header">
               <span className="feedback-badge feedback-badge-tips">Your Script</span>
-              <p className="script-subtitle">Edit this however you want, then use it as a guide when you re-record.</p>
+              <p className="script-subtitle">Edit this however you want, then use it as a guide when you record.</p>
             </div>
             <div className="script-editor-content">
               <textarea
@@ -1129,8 +1411,11 @@ export default function VideoRecorder({ uuid }) {
                 rows={6}
               />
             </div>
-            <button onClick={() => retakeRecording(true)} className="coaching-btn">
+            <button onClick={() => { setCoachingStep(null); setRecordingState('idle'); }} className="coaching-btn">
               Record with This Script
+            </button>
+            <button onClick={() => setCoachingStep('chat')} className="chat-back-btn">
+              Back to Chat
             </button>
           </div>
         </div>

@@ -60,7 +60,8 @@ Both services **auto-deploy from git pushes to main**:
 - **Cloudflare R2** - Final video storage + public assets
 - **Cloudflare Stream** - TUS resumable uploads for video clips (temp storage, deleted after render)
 - **Railway + Remotion** - Video assembly (render-service)
-- **OpenAI GPT-4** - Document parsing, AI content generation
+- **OpenAI GPT-4** - Document parsing, initial video feedback (4o-mini)
+- **Anthropic Claude** - AI coaching chat and script generation (Sonnet)
 - **Deepgram** - Speech-to-text transcription for video clips
 - **Vercel** - Frontend hosting + serverless API
 - **Resend** - Email delivery for employer portal magic links
@@ -75,6 +76,7 @@ AIRTABLE_BASE_ID
 AIRTABLE_CANDIDATES_TABLE_ID
 AIRTABLE_FREE_AGENTS_TABLE_ID
 OPENAI_API_KEY
+ANTHROPIC_API_KEY
 DEEPGRAM_API_KEY
 R2_ACCOUNT_ID
 R2_ACCESS_KEY_ID

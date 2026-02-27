@@ -1219,9 +1219,14 @@
   cursor: not-allowed;
 }
 
-/* Tips button in chat */
+/* Generate script button in chat */
 .chat-tips-btn {
   margin-top: 8px;
+}
+
+.chat-tips-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* Back button in chat */
@@ -1283,6 +1288,39 @@
   line-height: 1.6;
   color: rgba(255, 255, 255, 0.95);
   white-space: pre-wrap;
+}
+
+/* Idle controls - record button + help */
+.idle-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.need-help-btn {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.need-help-btn:hover {
+  color: #9EF01A;
+  border-color: #9EF01A;
+}
+
+/* Intro coach text */
+.intro-coach-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0;
 }
 
 /* Desktop enhancements */

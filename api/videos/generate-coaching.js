@@ -1,95 +1,62 @@
-// Generate personalized coaching tips based on transcript, probing answers, and candidate data
-import OpenAI from 'openai';
+// Generate personalized script from form answers, transcripts, and candidate data
+import { anthropic, CONTEXT, QUESTIONS, COACHING_FORMS, fetchCandidateData } from './coaching-shared.js';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const SYSTEM_PROMPT = `${CONTEXT}
 
-const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
-const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
-const CANDIDATES_TABLE_ID = process.env.AIRTABLE_CANDIDATES_TABLE_ID;
-
-const QUESTIONS = {
-  1: {
-    title: 'Who are you?',
-    focus: 'Hook the viewer with personality, make them see you as a relatable human with a life outside work, then tease with one reason why you\'re a good worker',
-    relevantData: ['city', 'state'],
-  },
-  2: {
-    title: 'What is your why?',
-    focus: 'Show your values and what makes you tick - your goals, desires, the people you love',
-    relevantData: [],
-  },
-  3: {
-    title: 'Your turning point',
-    focus: 'Show you\'ve moved past your background, explain what\'s changed, convince them you\'re reformed and won\'t go back',
-    relevantData: [],
-  },
-  4: {
-    title: 'Why trucking?',
-    focus: 'Show commitment to trucking, respect for the work, and how it enables your goals',
-    relevantData: [],
-  },
-  5: {
-    title: 'Your next chapter',
-    focus: 'Tell them what you want from them - emphasize safety and what matters to you. There is nothing wrong with being a career driver.',
-    relevantData: [],
-  },
-  6: {
-    title: 'Your message to employers',
-    focus: 'Sell yourself humbly - why hire you, what sets you apart, your commitments',
-    relevantData: ['years_experience', 'endorsements', 'cdl_class', 'equipment_experience'],
-  },
-};
-
-async function fetchCandidateData(uuid) {
-  if (!uuid) return null;
-
-  try {
-    const formula = encodeURIComponent(`{uuid} = "${uuid}"`);
-    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${CANDIDATES_TABLE_ID}?filterByFormula=${formula}&maxRecords=1`;
-
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` },
-    });
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    if (!data.records || data.records.length === 0) return null;
-
-    return data.records[0].fields;
-  } catch (err) {
-    console.error('Failed to fetch candidate data:', err);
-    return null;
-  }
-}
-
-const SYSTEM_PROMPT = `You write video scripts for CDL drivers creating intro videos for employers.
+## Your Role
+You write scripts for the driver to use as a guide when recording.
 
 ## Your Task
-Write a short, natural script they can read or use as a guide. Use:
-1. The good parts from their first attempt
-2. Personal details from their coaching chat
-3. Background data if provided and relevant
+Write a script they can read/reference while recording. Each question has about 60 seconds.
+
+The goal isn't brevity - it's helping the employer SEE this person. At their job. At home with their family. As a real human they'd want on their team.
+
+Use ONLY what they actually told you. Don't add details, don't infer specifics, don't embellish. If they said "I like football" write "I like football" - don't assume a team. If they said "my kids" don't add names or ages they didn't give you.
+
+You have context from earlier questions, but don't repeat it all in every answer. Each question has its own scope and objective. A brief callback is fine ("like I said, my daughter is everything to me") but don't stuff every script with the same details. Focus on THIS question's objective.
 
 ## Output Format (JSON)
 {
-  "script": "The full script they can say, written in first person. 3-5 sentences max. Natural, conversational tone - not corporate or stiff."
+  "script": "The script in first person. Use their actual words and details. Can be several sentences - they have 60 seconds."
 }
 
-## Guidelines
-- Write in THEIR voice - casual, real, human
-- Use their actual details (names, specifics they shared)
-- Keep it SHORT - this is a 30-60 second video clip
-- No filler phrases like "I would say that" or "I believe that"
-- Start strong - no "Hi, my name is..." unless it fits the question
-- Make it sound like something a real person would say, not a script`;
+## Voice Examples
+
+If they gave you details (daughter Kayla, age 11, soccer, guitar for 2 years):
+GOOD: "I'm Marcus, from Dallas. When I'm not driving, I'm usually playing guitar - been learning for about two years now - or watching my daughter Kayla's soccer games. She's 11, plays midfielder. On the job, I'm the guy who shows up early and stays until it's done right."
+
+If they gave you less (just "football" and "my daughter"):
+GOOD: "I'm Marcus, from Dallas. Outside of work, I'm watching football and spending time with my daughter. At work, I'm the guy who shows up early and gets it done."
+
+BAD: "When I'm not behind the wheel, you'll find me cheering on the Cowboys with my little girl Mia!" (Don't invent team names or kid's names they didn't give you!)
+
+Only include details they actually provided. Sparse answers = sparse script. That's fine.
+
+## Rules
+- ONLY use facts they actually gave you. If they said "football" don't write "Cowboys fan". If they said "my daughter" don't add an age they didn't mention.
+- Never invent names, ages, teams, places, or details they didn't provide
+- Use the EXACT spelling of names they gave you. Don't "correct" Kayla to Kaila or Mia to Mya. They know how to spell their family's names.
+- Don't awkwardly list equipment types (dry van, reefer, end dump, etc.) in the script - it sounds clunky. Years of experience is fine, but skip the equipment list.
+- Use their actual words when possible
+- No corny phrases like "let's hit the road", "ready to roll", "all business"
+- They have 60 seconds - make it count, but don't rush`;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { transcript, probingAnswers, chatHistory, questionNumber, candidateUuid } = req.body;
+  const {
+    transcript,           // Current question's transcript attempt (if any)
+    formAnswers,          // Current question's form answers { 0: "...", 1: "...", 2: "..." }
+    allFormAnswers,       // All previous questions' form answers { 1: {...}, 2: {...}, ... }
+    allTranscripts,       // All previous transcripts { 1: "...", 2: "...", ... }
+    questionNumber,
+    candidateUuid,
+    // Legacy support
+    probingAnswers,
+    chatHistory,
+  } = req.body;
 
   if (!questionNumber) {
     return res.status(400).json({ error: 'questionNumber required' });
@@ -97,77 +64,133 @@ export default async function handler(req, res) {
 
   try {
     const q = QUESTIONS[questionNumber] || QUESTIONS[1];
+    const form = COACHING_FORMS[questionNumber] || COACHING_FORMS[1];
 
     // Fetch candidate data
     const candidateData = candidateUuid ? await fetchCandidateData(candidateUuid) : null;
 
-    // Build candidate context - ONLY include data relevant to this question
+    // Build ALL candidate context
     let candidateContext = '';
-    if (candidateData && q.relevantData && q.relevantData.length > 0) {
-      const contextParts = [];
-      const relevant = q.relevantData;
-
-      if (relevant.includes('fullName') && candidateData.fullName) {
-        contextParts.push(`Name: ${candidateData.fullName}`);
-      }
-      if ((relevant.includes('city') || relevant.includes('state')) && candidateData.city && candidateData.state) {
-        contextParts.push(`Location: ${candidateData.city}, ${candidateData.state}`);
-      }
-      if (relevant.includes('years_experience') && candidateData.years_experience) {
-        contextParts.push(`Years driving: ${candidateData.years_experience}`);
-      }
-      if (relevant.includes('endorsements') && candidateData.endorsements) {
-        contextParts.push(`Endorsements: ${candidateData.endorsements}`);
-      }
-      if (relevant.includes('equipment_experience') && candidateData.equipment_experience) {
-        contextParts.push(`Equipment experience: ${candidateData.equipment_experience}`);
-      }
-      if (relevant.includes('cdl_class') && candidateData.cdl_class) {
-        contextParts.push(`CDL Class: ${candidateData.cdl_class}`);
-      }
-
-      if (contextParts.length > 0) {
-        candidateContext = `\n\nRelevant background data for this question:\n${contextParts.join('\n')}`;
+    if (candidateData) {
+      const parts = [];
+      if (candidateData.fullName) parts.push(`Name: ${candidateData.fullName}`);
+      if (candidateData.city && candidateData.state) parts.push(`From: ${candidateData.city}, ${candidateData.state}`);
+      if (candidateData.years_experience) parts.push(`${candidateData.years_experience} years driving experience`);
+      if (candidateData.endorsements) parts.push(`Endorsements: ${candidateData.endorsements}`);
+      if (candidateData.cdl_class) parts.push(`CDL Class: ${candidateData.cdl_class}`);
+      if (parts.length > 0) {
+        candidateContext = `\n\nCandidate background:\n${parts.join('\n')}`;
       }
     }
 
-    // Format probing answers OR chat history
-    let probingContext = '';
-    if (chatHistory && chatHistory.length > 0) {
-      // Extract user messages from chat history
-      const userMessages = chatHistory
-        .filter(m => m.role === 'user')
-        .map(m => m.content);
-      if (userMessages.length > 0) {
-        probingContext = `\n\nFrom their coaching chat:\n${userMessages.map(m => `- "${m}"`).join('\n')}`;
+    // Build context from ALL previous questions
+    let previousContext = '';
+    if (allFormAnswers || allTranscripts) {
+      const prevParts = [];
+      for (let i = 1; i < questionNumber; i++) {
+        const prevQ = QUESTIONS[i];
+        const prevForm = COACHING_FORMS[i];
+        const prevAnswers = allFormAnswers?.[i];
+        const prevTranscript = allTranscripts?.[i];
+
+        if (prevAnswers || prevTranscript) {
+          let qContext = `\n### Q${i}: ${prevQ.title}`;
+          if (prevTranscript) {
+            qContext += `\nTheir recording: "${prevTranscript}"`;
+          }
+          if (prevAnswers) {
+            const answerPairs = prevForm.questions.map((question, idx) => {
+              const answer = prevAnswers[idx];
+              return answer ? `- ${question}\n  "${answer}"` : null;
+            }).filter(Boolean);
+            if (answerPairs.length > 0) {
+              qContext += `\nTheir answers:\n${answerPairs.join('\n')}`;
+            }
+          }
+          prevParts.push(qContext);
+        }
       }
-    } else if (probingAnswers && Object.keys(probingAnswers).length > 0) {
+      if (prevParts.length > 0) {
+        previousContext = `\n\n## What you know from previous questions:${prevParts.join('')}`;
+      }
+    }
+
+    // Build current question's form answers
+    let currentFormContext = '';
+    let useNoShareFallback = false;
+
+    if (formAnswers && Object.keys(formAnswers).length > 0) {
+      const answerPairs = [];
+
+      form.questions.forEach((question, idx) => {
+        const answer = formAnswers[idx];
+        if (!answer) return;
+
+        const questionText = typeof question === 'string' ? question : question.text;
+
+        // Check if this is Q3 and they said no to sharing specifics
+        if (questionNumber === 3 && idx === 0) {
+          const lowerAnswer = answer.toLowerCase();
+          if (lowerAnswer.includes('no') && !lowerAnswer.includes('yes')) {
+            useNoShareFallback = true;
+            return; // Don't include the yes/no answer itself
+          }
+        }
+
+        answerPairs.push(`- ${questionText}\n  "${answer}"`);
+      });
+
+      if (answerPairs.length > 0) {
+        currentFormContext = `\n\nTheir answers for this question:\n${answerPairs.join('\n')}`;
+      }
+
+      // Add fallback instruction for Q3 if they don't want to share specifics
+      if (useNoShareFallback && form.noShareFallback) {
+        currentFormContext += `\n\nIMPORTANT: They chose not to share specifics about their charges. Use this general language instead: "${form.noShareFallback}" Then continue with what they learned and their turning point.`;
+      }
+    }
+
+    // Legacy: support old chat history format
+    let legacyContext = '';
+    if (!formAnswers && chatHistory && chatHistory.length > 0) {
+      const formattedChat = chatHistory.map(m => {
+        const role = m.role === 'assistant' ? 'Coach' : 'Driver';
+        return `${role}: "${m.content}"`;
+      });
+      legacyContext = `\n\nCoaching conversation:\n${formattedChat.join('\n')}`;
+    } else if (!formAnswers && probingAnswers && Object.keys(probingAnswers).length > 0) {
       const answers = Object.values(probingAnswers).filter(a => a && a.trim());
       if (answers.length > 0) {
-        probingContext = `\n\nTheir probing question answers:\n${answers.map((a, i) => `- "${a}"`).join('\n')}`;
+        legacyContext = `\n\nTheir probing answers:\n${answers.map(a => `- "${a}"`).join('\n')}`;
       }
     }
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content: `Question: "${q.title}"
-Focus areas: ${q.focus}
+    const userPrompt = `Question ${questionNumber}: "${q.title}"
+Focus: ${q.focus}${q.scriptRequired ? `\nRequired: ${q.scriptRequired}` : ''}${form.scriptMustInclude ? `\nMUST INCLUDE: ${form.scriptMustInclude}` : ''}
+${candidateContext}${previousContext}
+${transcript ? `\nTheir recording attempt for this question:\n"${transcript}"` : ''}${currentFormContext}${legacyContext}
 
-Their first recording attempt:
-"${transcript || '(no transcript available)'}"${probingContext}${candidateContext}
+Write a script for this question. Use all the context you have about this person - names, details, stories from any question. Paint a picture the employer can visualize.`;
 
-Write a short script for their next take.`
-        }
-      ],
-      response_format: { type: 'json_object' },
-      max_tokens: 400,
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 600,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userPrompt }],
     });
 
-    const coaching = JSON.parse(response.choices[0].message.content);
+    // Parse JSON from Claude's response
+    const responseText = response.content[0].text;
+    let coaching;
+
+    // Try to extract JSON from the response
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      coaching = JSON.parse(jsonMatch[0]);
+    } else {
+      // Fallback if no JSON found
+      coaching = { script: responseText };
+    }
 
     // Ensure we have the required fields
     if (!coaching.script) {

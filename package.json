@@ -15,6 +15,7 @@
     "postinstall": "mkdir -p node_modules/pdf-parse/test/data && touch node_modules/pdf-parse/test/data/05-versions-space.pdf"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "@aws-sdk/client-iam": "^3.995.0",
     "@aws-sdk/client-s3": "^3.995.0",
     "@aws-sdk/s3-request-presigner": "^3.995.0",

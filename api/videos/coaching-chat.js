@@ -1,122 +1,48 @@
 // Conversational coaching chat for driver story video
-import OpenAI from 'openai';
+import { anthropic, CONTEXT, QUESTIONS, fetchCandidateData } from './coaching-shared.js';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const SYSTEM_PROMPT = `${CONTEXT}
 
-const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
-const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
-const CANDIDATES_TABLE_ID = process.env.AIRTABLE_CANDIDATES_TABLE_ID;
+## Your Role
+You are their AI Career Agent - you're on their team, helping them create a strong video.
 
-const QUESTIONS = {
-  1: {
-    title: 'Who are you?',
-    prompt: 'Tell me about yourself',
-    objective: `Show the human side - beyond what's on their resume. Employers want to see a real person.
+You've got 50+ drivers on your roster. You care about each one, but you can't spend all day on one conversation. And your drivers are busy too - they're working, in trucking school, or hustling to find a job. Respect everyone's time. Make every question count.
 
-You need TWO things:
-1. Something personal - family, hobby, interest (doesn't need to be detailed, just real)
-2. How they show up at work - one line is fine ("I'm the guy who...", "coworkers would say...")
-
-If they give you both, you're done. Don't over-ask. "I go to the park with my daughter" is enough - you don't need to know what they do at the park.`,
-  },
-  2: {
-    title: 'What is your why?',
-    prompt: 'What drives you every day?',
-    objective: `Show what motivates them.
-
-You need: Who or what they're doing this for. Family, a goal, themselves - one clear answer is enough.`,
-  },
-  3: {
-    title: 'Your turning point',
-    prompt: 'Tell me about your journey and support system',
-    objective: `Address their record and show they've changed.
-
-You need: What's different now. Could be support system, mindset, what they have to lose. One or two things - don't ask for their whole life story.`,
-  },
-  4: {
-    title: 'Why trucking?',
-    prompt: 'What do you love about this career?',
-    objective: `Show commitment to trucking as a career.
-
-You need: Why trucking works for them. Independence, the work, the lifestyle - one genuine reason is enough.`,
-  },
-  5: {
-    title: 'Your next chapter',
-    prompt: 'What are you looking for in your next company?',
-    objective: `Tell employers what matters to them.
-
-You need: What they prioritize - safety, home time, equipment, respect. One or two things.`,
-  },
-  6: {
-    title: 'Your message to employers',
-    prompt: 'Thank them for watching and tell them why they should hire you',
-    objective: `Close the sale.
-
-You need: Why they're worth hiring. Their experience, their attitude, what they'll bring. Keep it simple.`,
-  },
-};
-
-async function fetchCandidateData(uuid) {
-  if (!uuid) return null;
-
-  try {
-    const formula = encodeURIComponent(`{uuid} = "${uuid}"`);
-    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${CANDIDATES_TABLE_ID}?filterByFormula=${formula}&maxRecords=1`;
-
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` },
-    });
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    if (!data.records || data.records.length === 0) return null;
-
-    return data.records[0].fields;
-  } catch (err) {
-    console.error('Failed to fetch candidate data:', err);
-    return null;
-  }
-}
-
-const SYSTEM_PROMPT = `You're an AI coach helping a driver record a strong video intro for employers.
+Keep it SHORT. 2-3 sentences max per message. Many of your drivers aren't strong readers - don't overwhelm them with walls of text.
 
 ## Your Job
-Help them understand what the question is trying to accomplish, then get the specific info you need to write them personalized tips for their re-record.
-
-## How to Talk
-- Be direct and human. Not corporate, not scripted.
-- Short messages. 2-3 sentences.
-- One question at a time.
-- Actually respond to what they say - don't just move to the next thing.
+Help them understand what the question is trying to accomplish, then gather the context you need to write them a great personalized script.
 
 ## The Flow
-1. **Opening**: Acknowledge their attempt, explain what the question is trying to accomplish.
-2. **Get what you need**: Ask for the missing pieces. ONE question at a time.
-3. **Wrap up fast**: Once you have what the objective says you need, STOP. Don't dig for more detail than necessary. 2-3 exchanges max.
+1. **Opening**: Explain what this question is about and what employers want to see. Ask your first question.
+2. **Gather context**: Ask follow-up questions. ONE at a time. Really listen to their answers.
+3. **When ready**: Let them know you have enough, but encourage them to share more if they want. More context = better script.
+
+## When to Set readyForTips: true
+
+The test: Could another driver say the exact same things? If yes, you need more specifics. If no, you're ready.
+
+You're ready when you could write a script that sounds like THIS person, not just any person.
+
+Once you're ready:
+- Set readyForTips: true
+- Let them know you have enough
+- Invite more sharing as optional, not required
+- ONE follow-up max if any, never stack questions
 
 ## Output Format (JSON)
 Respond with this JSON structure:
 {
   "message": "Your response",
   "readyForTips": false
-}
-
-Set readyForTips: true as soon as you have what the objective requires. Don't keep digging - wrap up and let them record.
-
-## What You Need (varies by question)
-You'll be told the question's objective. Get what the objective asks for - nothing more.
-
-Don't over-ask. If the objective says you need "something personal about outside work" and they say "I go to the park with my daughter" - that's enough. You don't need to know what they do at the park.
-
-"I'm a hard worker" is a bit generic, but "my coworkers struggle to keep up with me" is good enough. Don't ask for a whole story unless the objective requires it.`;
+}`;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { messages, transcript, questionNumber, candidateUuid } = req.body;
+  const { messages, transcript, questionNumber, candidateUuid, preRecord } = req.body;
 
   if (!questionNumber) {
     return res.status(400).json({ error: 'questionNumber required' });
@@ -141,27 +67,26 @@ export default async function handler(req, res) {
       }
     }
 
-    // Build the conversation for the AI
-    const aiMessages = [
-      { role: 'system', content: SYSTEM_PROMPT },
-      {
-        role: 'user',
-        content: `Question: "${q.title}" - ${q.prompt}
+    // Build user prompt with question context
+    let userPrompt = `Question: "${q.title}" - ${q.prompt}
 
 OBJECTIVE FOR THIS QUESTION:
 ${q.objective}
-
+${transcript ? `
 Their recording attempt:
-"${transcript || '(no transcript)'}"${candidateContext}
+"${transcript}"` : ''}${candidateContext}
 
-${messages && messages.length > 0 ? 'Continue the conversation.' : 'Start by acknowledging their attempt, explain what this question is trying to accomplish, then ask for what you need.'}`
-      }
-    ];
+${messages && messages.length > 0
+  ? 'Continue the conversation based on the history below.'
+  : 'Explain what this question is about and what employers want to see, then ask your first question to gather info for their script.'}`;
+
+    // Build Claude messages array
+    const claudeMessages = [];
 
     // Add conversation history
     if (messages && messages.length > 0) {
       for (const msg of messages) {
-        aiMessages.push({
+        claudeMessages.push({
           role: msg.role === 'assistant' ? 'assistant' : 'user',
           content: msg.role === 'assistant'
             ? JSON.stringify({ message: msg.content, readyForTips: false })
@@ -170,18 +95,35 @@ ${messages && messages.length > 0 ? 'Continue the conversation.' : 'Start by ack
       }
     }
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: aiMessages,
-      response_format: { type: 'json_object' },
-      max_tokens: 300,
+    // Add current user prompt as final message
+    claudeMessages.push({ role: 'user', content: userPrompt });
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 400,
+      system: SYSTEM_PROMPT,
+      messages: claudeMessages,
     });
 
-    const result = JSON.parse(response.choices[0].message.content);
+    // Parse JSON from Claude's response
+    const responseText = response.content[0].text;
+    let result;
+
+    // Try to extract JSON from the response
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      result = JSON.parse(jsonMatch[0]);
+    } else {
+      // Fallback if no JSON found
+      result = {
+        message: responseText,
+        readyForTips: false
+      };
+    }
 
     // Ensure required fields
     if (!result.message) {
-      result.message = "Hey! I just watched your take. Tell me more about yourself - what's something you enjoy doing outside of work?";
+      result.message = "Hey! Tell me more about yourself - what's something you enjoy doing outside of work?";
     }
     if (typeof result.readyForTips !== 'boolean') {
       result.readyForTips = false;
