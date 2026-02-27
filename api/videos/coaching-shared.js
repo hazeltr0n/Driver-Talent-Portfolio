@@ -55,7 +55,7 @@ export const COACHING_FORMS = {
     intro: "This question shows employers who you are as a person - not just another application. They want to see the real you.",
     questions: [
       "What do you do when you're not working?",
-      "Who's important in your life? (names and ages are great)",
+      "Who's important in your life? (names are great)",
       "How would your coworkers describe you?",
     ],
   },

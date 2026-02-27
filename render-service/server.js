@@ -6,6 +6,9 @@ import fs from 'fs';
 const app = express();
 app.use(express.json());
 
+// Serve local video files for Remotion to access during rendering
+app.use('/tmp', express.static('/tmp'));
+
 const PORT = process.env.PORT || 3001;
 
 // S3/R2 client for uploading final video
@@ -169,12 +172,12 @@ async function processRender({ uuid, driverName, driverLocation, clips, musicUrl
     clipsWithDuration.push({ localPath, durationInFrames: frames });
   }
 
-  // Write props to file - use file:// URLs for local normalized files
+  // Write props to file - use HTTP URLs served by this server
   const props = {
     driverName: driverName || 'Driver',
     driverLocation: driverLocation || 'United States',
     clips: clipsWithDuration.map(c => ({
-      url: `file://${c.localPath}`,  // Use file:// URL for local files
+      url: `http://localhost:${PORT}${c.localPath}`,  // Serve via HTTP
       durationInFrames: c.durationInFrames,
     })),
     musicUrl: musicUrl || null,

@@ -38,7 +38,7 @@ export default async function handler(req, res) {
     const candidate = searchData.records[0].fields;
     const email = candidate.email;
     const firstName = candidate.fullName?.split(' ')[0] || candidate.name?.split(' ')[0] || 'Driver';
-    const portfolioUrl = `${APP_URL}/candidate/${uuid}`;
+    const portfolioUrl = `${APP_URL}/portfolio/${uuid}`;
 
     if (!email) {
       console.log(`No email on file for candidate ${uuid}`);
