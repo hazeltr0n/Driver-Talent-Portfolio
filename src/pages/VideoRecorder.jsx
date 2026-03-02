@@ -90,21 +90,18 @@ const COACHING_FORMS = {
     ],
   },
   3: {
-    intro: "This is where you address your past directly. You're not hiding from it - you're showing you've moved beyond it. State what happened, take responsibility, and show what's changed.",
+    intro: "This is about your journey. Share it however feels right to you.",
     questions: [
-      { text: "Are you comfortable sharing specifics about your charges? Just say yes or no.", type: "yesno" },
-      { text: "What was the charge, and roughly when? (Just the facts - like '5 years ago, possession charge')", showIf: "yes" },
-      { text: "What did you learn from that experience? What changed in how you think?", showAlways: true },
-      { text: "What's your turning point? (Family, FreeWorld, something else that made you different)", showAlways: true },
-      { text: "What do you have to lose now that you didn't have before?", showAlways: true },
+      "What would you want an employer to know about where you've been and where you're going?",
+      "Who helped you along the way to where you are now? (Family, Friends, Community, FreeWorld)",
     ],
-    noShareFallback: "I made some mistakes in my past and paid my debt to society.",
   },
   4: {
     intro: "Show your connection to trucking. Employers want drivers who chose this career, not just ended up here.",
     questions: [
       "Why did you choose trucking?",
       "What do you love about driving?",
+      "How does trucking help you build the life you want?",
     ],
   },
   5: {
@@ -112,13 +109,11 @@ const COACHING_FORMS = {
     questions: [
       "What matters most to you in a company?",
       "Why is safety important to you personally?",
-      "Where do you see yourself in 5 years?",
     ],
   },
   6: {
     intro: "This is your closing pitch. Thank them for watching and for considering you, then tell them why you're worth hiring.",
     questions: [
-      "What do you bring that other drivers don't?",
       "What can you promise an employer who gives you a shot?",
     ],
   },
@@ -170,7 +165,7 @@ export default function VideoRecorder({ uuid }) {
   const [coachingStep, setCoachingStep] = useState(null); // 'chat' | 'probing_questions' | 'personalized_tips' | 'edit_script' | null
   const [probingAnswers, setProbingAnswers] = useState({});
   const [personalizedTips, setPersonalizedTips] = useState(null);
-  const [suggestedScript, setSuggestedScript] = useState('');
+  const [generatedTalkingPoints, setGeneratedTalkingPoints] = useState([]);
   const [isReRecord, setIsReRecord] = useState(false);
   const [generatingTips, setGeneratingTips] = useState(false);
 
@@ -477,7 +472,7 @@ export default function VideoRecorder({ uuid }) {
     setChatInput('');
     setChatReadyForTips(false);
     if (!withPersonalizedTips) {
-      setSuggestedScript('');
+      setGeneratedTalkingPoints([]);
     }
     setIsReRecord(withPersonalizedTips);
     setRecordingState('idle');
@@ -597,7 +592,7 @@ export default function VideoRecorder({ uuid }) {
     setChatMessages([]);
     setChatInput('');
     setChatReadyForTips(false);
-    setSuggestedScript('');
+    setGeneratedTalkingPoints([]);
     setIsReRecord(false);
 
     if (clip?.blob) {
@@ -631,7 +626,7 @@ export default function VideoRecorder({ uuid }) {
       setChatMessages([]);
       setChatInput('');
       setChatReadyForTips(false);
-      setSuggestedScript('');
+      setGeneratedTalkingPoints([]);
       setIsReRecord(false);
     }
   };
@@ -847,7 +842,7 @@ export default function VideoRecorder({ uuid }) {
       });
       if (!res.ok) throw new Error('Failed to generate script');
       const data = await res.json();
-      setSuggestedScript(data.script || '');
+      setGeneratedTalkingPoints(data.talkingPoints || []);
       setCoachingStep('edit_script');
     } catch (err) {
       console.error('Failed to generate script:', err);
@@ -1008,7 +1003,7 @@ export default function VideoRecorder({ uuid }) {
 
   const question = QUESTIONS[currentQuestion];
   const hasCurrentClip = !!clips[currentQuestion + 1];
-  const showScript = !!suggestedScript;
+  const showGeneratedTips = generatedTalkingPoints.length > 0;
 
   return (
     <div className="recorder">
@@ -1052,35 +1047,31 @@ export default function VideoRecorder({ uuid }) {
           <p className="question-prompt">{question.prompt}</p>
         </div>
 
-        {/* Talking Points or Script - shown above video during idle, countdown, and recording */}
+        {/* Talking Points - shown above video during idle, countdown, and recording */}
         {(recordingState === 'idle' || recordingState === 'countdown' || recordingState === 'recording') && (
-          <div className={`talking-points ${showScript ? 'script-mode' : ''}`}>
+          <div className="talking-points">
             <div className="talking-points-header">
-              {showScript ? 'Your Script:' : 'Talking Points:'}
+              {showGeneratedTips ? 'Your Talking Points:' : 'Talking Points:'}
             </div>
-            {showScript ? (
-              <p className="script-display">{suggestedScript}</p>
-            ) : (
-              <ul className="talking-points-list">
-                {question.talkingPoints.map((tip, idx) => {
-                  // For Q1, personalize the name/location prompt
-                  let displayTip = tip;
-                  if (currentQuestion === 0 && idx === 0 && driver) {
-                    const name = driver.fullName || driver.name || '[name]';
-                    const location = (driver.city && driver.state)
-                      ? `${driver.city}, ${driver.state}`
-                      : '[city, state]';
-                    displayTip = `"I'm ${name} from ${location}"`;
-                  }
-                  return (
-                    <li key={idx} className="talking-point-item">
-                      {displayTip}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-            {question.note && !showScript && (
+            <ul className="talking-points-list">
+              {(showGeneratedTips ? generatedTalkingPoints : question.talkingPoints).map((tip, idx) => {
+                // For Q1 default tips, personalize the name/location prompt
+                let displayTip = tip;
+                if (!showGeneratedTips && currentQuestion === 0 && idx === 0 && driver) {
+                  const name = driver.fullName || driver.name || '[name]';
+                  const location = (driver.city && driver.state)
+                    ? `${driver.city}, ${driver.state}`
+                    : '[city, state]';
+                  displayTip = `"I'm ${name} from ${location}"`;
+                }
+                return (
+                  <li key={idx} className="talking-point-item">
+                    {displayTip}
+                  </li>
+                );
+              })}
+            </ul>
+            {question.note && !showGeneratedTips && (
               <p className="talking-points-note">{question.note}</p>
             )}
           </div>
@@ -1290,7 +1281,7 @@ export default function VideoRecorder({ uuid }) {
               className="coaching-btn chat-tips-btn"
               disabled={!chatReadyForTips || generatingTips}
             >
-              {generatingTips ? 'Generating...' : 'Generate My Script'}
+              {generatingTips ? 'Generating...' : 'Generate Talking Points'}
             </button>
 
             <button
@@ -1345,7 +1336,7 @@ export default function VideoRecorder({ uuid }) {
                 className="coaching-btn chat-tips-btn"
                 disabled={generatingTips}
               >
-                {generatingTips ? 'Generating...' : 'Generate My Script'}
+                {generatingTips ? 'Generating...' : 'Generate Talking Points'}
               </button>
             )}
 
@@ -1388,34 +1379,35 @@ export default function VideoRecorder({ uuid }) {
                 className="accept-btn"
                 disabled={generatingTips || Object.keys(probingAnswers).length === 0}
               >
-                {generatingTips ? 'Generating...' : 'Generate My Script'}
+                {generatingTips ? 'Generating...' : 'Generate Talking Points'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Edit Script Modal */}
+      {/* Talking Points Modal */}
       {coachingStep === 'edit_script' && (
         <div className="coaching-overlay">
           <div className="coaching-modal">
             <div className="feedback-header">
-              <span className="feedback-badge feedback-badge-tips">Your Script</span>
-              <p className="script-subtitle">Edit this however you want, then use it as a guide when you record.</p>
+              <span className="feedback-badge feedback-badge-tips">Your Talking Points</span>
+              <p className="script-subtitle">Use these as a guide - say it in your own words.</p>
             </div>
             <div className="script-editor-content">
-              <textarea
-                className="script-textarea"
-                value={suggestedScript}
-                onChange={(e) => setSuggestedScript(e.target.value)}
-                rows={6}
-              />
+              <ul className="talking-points-list" style={{ textAlign: 'left', margin: '0 auto', maxWidth: '300px' }}>
+                {generatedTalkingPoints.map((point, idx) => (
+                  <li key={idx} className="talking-point-item" style={{ marginBottom: '8px' }}>
+                    {point}
+                  </li>
+                ))}
+              </ul>
             </div>
             <button onClick={() => { setCoachingStep(null); setRecordingState('idle'); }} className="coaching-btn">
-              Record with This Script
+              Record Now
             </button>
             <button onClick={() => setCoachingStep('chat')} className="chat-back-btn">
-              Back to Chat
+              Back
             </button>
           </div>
         </div>

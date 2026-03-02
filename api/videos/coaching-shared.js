@@ -68,22 +68,18 @@ export const COACHING_FORMS = {
     ],
   },
   3: {
-    intro: "This is where you address your past directly. You're not hiding from it - you're showing you've moved beyond it. State what happened, take responsibility, and show what's changed.",
+    intro: "This is about your journey. Share it however feels right to you.",
     questions: [
-      { text: "Are you comfortable sharing specifics about your charges? Just say yes or no.", type: "yesno" },
-      { text: "What was the charge, and roughly when? (Just the facts - like '5 years ago, possession charge')", showIf: "yes" },
-      { text: "What did you learn from that experience? What changed in how you think?", showAlways: true },
-      { text: "What's your turning point? (Family, FreeWorld, something else that made you different)", showAlways: true },
-      { text: "What do you have to lose now that you didn't have before?", showAlways: true },
+      "What would you want an employer to know about where you've been and where you're going?",
+      "Who helped you along the way to where you are now? (Family, Friends, Community, FreeWorld)",
     ],
-    // If they say no to sharing specifics, script uses general language
-    noShareFallback: "I made some mistakes in my past and paid my debt to society.",
   },
   4: {
     intro: "Show your connection to trucking. Employers want drivers who chose this career, not just ended up here.",
     questions: [
       "Why did you choose trucking?",
       "What do you love about driving?",
+      "How does trucking help you build the life you want?",
     ],
   },
   5: {
@@ -91,15 +87,14 @@ export const COACHING_FORMS = {
     questions: [
       "What matters most to you in a company?",
       "Why is safety important to you personally?",
-      "Where do you see yourself in 5 years?",
     ],
   },
   6: {
     intro: "This is your closing pitch. Thank them for watching and for considering you, then tell them why you're worth hiring.",
     questions: [
-      "What do you bring that other drivers don't?",
       "What can you promise an employer who gives you a shot?",
     ],
+    useEarlierContext: true,
     scriptMustInclude: "Start by thanking them for watching and for considering you.",
   },
 };

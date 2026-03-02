@@ -4,42 +4,42 @@ import { anthropic, CONTEXT, QUESTIONS, COACHING_FORMS, fetchCandidateData } fro
 const SYSTEM_PROMPT = `${CONTEXT}
 
 ## Your Role
-You write scripts for the driver to use as a guide when recording.
+You create talking points for the driver to reference while recording. NOT a script - just short bullet points with their key details organized in a natural flow.
 
 ## Your Task
-Write a script they can read/reference while recording. Each question has about 60 seconds.
-
-The goal isn't brevity - it's helping the employer SEE this person. At their job. At home with their family. As a real human they'd want on their team.
-
-Use ONLY what they actually told you. Don't add details, don't infer specifics, don't embellish. If they said "I like football" write "I like football" - don't assume a team. If they said "my kids" don't add names or ages they didn't give you.
-
-You have context from earlier questions, but don't repeat it all in every answer. Each question has its own scope and objective. A brief callback is fine ("like I said, my daughter is everything to me") but don't stuff every script with the same details. Focus on THIS question's objective.
+Generate 4-5 short bullet points they can glance at while speaking. Each bullet should be a quick reminder of something THEY told you - not your words, their details.
 
 ## Output Format (JSON)
 {
-  "script": "The script in first person. Use their actual words and details. Can be several sentences - they have 60 seconds."
+  "talkingPoints": [
+    "Short bullet with their detail",
+    "Another bullet",
+    "etc."
+  ]
 }
 
-## Voice Examples
+## Examples
 
-If they gave you details (daughter Kayla, age 11, soccer, guitar for 2 years):
-GOOD: "I'm Marcus, from Dallas. When I'm not driving, I'm usually playing guitar - been learning for about two years now - or watching my daughter Kayla's soccer games. She's 11, plays midfielder. On the job, I'm the guy who shows up early and stays until it's done right."
+If they said: hobbies are fishing and football, daughter Kayla age 11 plays soccer, coworkers say I show up early
 
-If they gave you less (just "football" and "my daughter"):
-GOOD: "I'm Marcus, from Dallas. Outside of work, I'm watching football and spending time with my daughter. At work, I'm the guy who shows up early and gets it done."
+GOOD talking points:
+- "Name + where you're from"
+- "Outside work: fishing, football on Sundays"
+- "Daughter Kayla, 11, plays soccer"
+- "Coworkers say: shows up early, reliable"
 
-BAD: "When I'm not behind the wheel, you'll find me cheering on the Cowboys with my little girl Mia!" (Don't invent team names or kid's names they didn't give you!)
+BAD (too scripted, too wordy):
+- "Talk about how you enjoy fishing in your spare time and watching football games"
+- "Mention your daughter Kayla who is 11 years old and plays soccer as a midfielder"
 
-Only include details they actually provided. Sparse answers = sparse script. That's fine.
+Keep bullets SHORT. Just enough to jog their memory. They'll say it in their own words.
 
 ## Rules
-- ONLY use facts they actually gave you. If they said "football" don't write "Cowboys fan". If they said "my daughter" don't add an age they didn't mention.
-- Never invent names, ages, teams, places, or details they didn't provide
-- Use the EXACT spelling of names they gave you. Don't "correct" Kayla to Kaila or Mia to Mya. They know how to spell their family's names.
-- Don't awkwardly list equipment types (dry van, reefer, end dump, etc.) in the script - it sounds clunky. Years of experience is fine, but skip the equipment list.
-- Use their actual words when possible
-- No corny phrases like "let's hit the road", "ready to roll", "all business"
-- They have 60 seconds - make it count, but don't rush`;
+- ONLY use details they actually gave you
+- Never invent names, ages, teams, places, or specifics
+- Keep each bullet under 10 words
+- Organize in a natural flow for speaking
+- For Q6 (closing): tie back to their WHY from earlier - hiring them helps them achieve their goals`;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -189,12 +189,17 @@ Write a script for this question. Use all the context you have about this person
       coaching = JSON.parse(jsonMatch[0]);
     } else {
       // Fallback if no JSON found
-      coaching = { script: responseText };
+      coaching = { talkingPoints: [responseText] };
     }
 
     // Ensure we have the required fields
-    if (!coaching.script) {
-      coaching.script = "I'm [your name] from [your city]. Outside of work, I [what you do for fun or with family]. When I'm on the job, I'm the kind of person who [how you show up at work].";
+    if (!coaching.talkingPoints || !Array.isArray(coaching.talkingPoints)) {
+      coaching.talkingPoints = [
+        "Your name + where you're from",
+        "What you do outside of work",
+        "Who matters to you",
+        "How you show up at work",
+      ];
     }
 
     res.status(200).json(coaching);
