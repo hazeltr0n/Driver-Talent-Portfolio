@@ -1026,6 +1026,12 @@ function EmailPreviewModal({ submission, onClose }) {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState(null);
 
+  // Subject and message
+  const candidateName = submission.candidate_name?.split(' ')[0] || 'Driver';
+  const defaultSubject = `Driver Profile: ${candidateName} for ${submission.employer || 'Job'} - ${submission.job_title || 'Open Position'}`;
+  const [subject, setSubject] = useState(defaultSubject);
+  const [message, setMessage] = useState('');
+
   // HubSpot contact search
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -1084,6 +1090,8 @@ function EmailPreviewModal({ submission, onClose }) {
           submissionId: submission.id,
           toEmail,
           ccEmail: ccEmail || undefined,
+          subject: subject !== defaultSubject ? subject : undefined,
+          message: message || undefined,
         }),
       });
 
@@ -1182,6 +1190,27 @@ function EmailPreviewModal({ submission, onClose }) {
                   onChange={e => setCcEmail(e.target.value)}
                   placeholder="Optional CC recipients"
                   style={styles.emailInput}
+                />
+              </div>
+
+              <div style={styles.emailInputRow}>
+                <label style={styles.emailLabel}>Subject:</label>
+                <input
+                  type="text"
+                  value={subject}
+                  onChange={e => setSubject(e.target.value)}
+                  style={styles.emailInput}
+                />
+              </div>
+
+              <div style={styles.emailInputRow}>
+                <label style={{...styles.emailLabel, alignSelf: 'flex-start', marginTop: 10}}>Message:</label>
+                <textarea
+                  value={message}
+                  onChange={e => setMessage(e.target.value)}
+                  placeholder="Optional personal message (appears at top of email)"
+                  style={{...styles.emailInput, minHeight: 80, resize: 'vertical', fontFamily: 'inherit'}}
+                  rows={3}
                 />
               </div>
 

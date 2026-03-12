@@ -22,7 +22,7 @@ const BRAND = {
   successBg: '#D1FAE5',
 };
 
-function generateEmailHtml({ candidate, submission, pdfUrl }) {
+function generateEmailHtml({ candidate, submission, pdfUrl, customMessage }) {
   const {
     fullName,
     city,
@@ -102,6 +102,17 @@ function generateEmailHtml({ candidate, submission, pdfUrl }) {
               </table>
             </td>
           </tr>
+
+          ${customMessage ? `
+          <!-- Custom Message -->
+          <tr>
+            <td style="padding: 24px 28px 12px;">
+              <div style="color: ${BRAND.textDark}; font-size: 15px; line-height: 1.6;">
+                ${customMessage.replace(/\n/g, '<br>')}
+              </div>
+            </td>
+          </tr>
+          ` : ''}
 
           <!-- Video Thumbnail Section -->
           <tr>
@@ -254,7 +265,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { submissionId, toEmail, ccEmail } = req.body;
+  const { submissionId, toEmail, ccEmail, subject: customSubject, message: customMessage } = req.body;
 
   if (!submissionId) {
     return res.status(400).json({ error: 'submissionId required' });
@@ -308,17 +319,18 @@ export default async function handler(req, res) {
     const pdfUrl = submission.pdf_url || `${APP_URL}/api/pdf/driver-profile?uuid=${candidateUuid}&submissionId=${submissionId}`;
 
     // Generate email HTML
-    const html = generateEmailHtml({ candidate, submission, pdfUrl });
+    const html = generateEmailHtml({ candidate, submission, pdfUrl, customMessage });
 
-    // Get employer name for subject
+    // Get employer name for subject (use custom if provided)
     const employer = submission.employer || 'Job';
     const candidateName = candidate.fullName?.split(' ')[0] || 'Driver';
+    const defaultSubject = `Driver Profile: ${candidateName} for ${employer} - ${submission.job_title || 'Open Position'}`;
 
     // Send email (supports comma-separated emails for To and CC)
     const result = await sendEmail({
       to: toEmail,
       cc: ccEmail || undefined,
-      subject: `Driver Profile: ${candidateName} for ${employer} - ${submission.job_title || 'Open Position'}`,
+      subject: customSubject || defaultSubject,
       html,
     });
 
