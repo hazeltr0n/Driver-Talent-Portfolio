@@ -29,14 +29,7 @@ function generateEmailHtml({ candidate, submission, pdfUrl, customMessage }) {
     state,
     video_url,
     ai_pull_quote,
-    cdl_class,
-    years_experience,
-    endorsements,
-    mvr_status,
-    clearinghouse_status,
-    home_time_preference,
     portfolio_slug,
-    uuid,
   } = candidate;
 
   const firstName = fullName?.split(' ')[0] || 'Driver';
@@ -48,22 +41,6 @@ function generateEmailHtml({ candidate, submission, pdfUrl, customMessage }) {
 
   // Clean up quote
   const quote = ai_pull_quote?.replace(/^["']|["']$/g, '').trim() || null;
-
-  // Build stats
-  const stats = [];
-  if (cdl_class) stats.push({ label: 'CDL', value: `Class ${cdl_class}` });
-  if (years_experience !== undefined && years_experience > 0) stats.push({ label: 'Experience', value: `${years_experience} yr${years_experience !== 1 ? 's' : ''}` });
-  if (endorsements) stats.push({ label: 'Endorsements', value: endorsements });
-  if (mvr_status) stats.push({ label: 'MVR', value: mvr_status });
-  if (clearinghouse_status) stats.push({ label: 'Clearinghouse', value: clearinghouse_status });
-  if (home_time_preference) stats.push({ label: 'Home Time', value: home_time_preference });
-
-  const statsHtml = stats.slice(0, 4).map(s => `
-    <td style="padding: 12px 8px; text-align: center; width: 25%;">
-      <div style="color: ${BRAND.textMuted}; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">${s.label}</div>
-      <div style="color: ${BRAND.textDark}; font-size: 15px; font-weight: 700; margin-top: 4px;">${s.value}</div>
-    </td>
-  `).join('');
 
   const fitScore = submission.fit_score;
   const jobTitle = submission.job_title;
@@ -181,18 +158,6 @@ function generateEmailHtml({ candidate, submission, pdfUrl, customMessage }) {
           </tr>
           ` : ''}
 
-          <!-- Stats Section -->
-          ${stats.length > 0 ? `
-          <tr>
-            <td style="padding: 0 28px 24px;">
-              <table width="100%" cellpadding="0" cellspacing="0" style="background: ${BRAND.bgCard}; border-radius: 10px; border: 1px solid #E8ECEE;">
-                <tr>
-                  ${statsHtml}
-                </tr>
-              </table>
-            </td>
-          </tr>
-          ` : ''}
 
           <!-- CTA Button - Download PDF -->
           <tr>
