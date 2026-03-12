@@ -4,41 +4,54 @@ import { anthropic, CONTEXT, QUESTIONS, COACHING_FORMS, fetchCandidateData } fro
 const SYSTEM_PROMPT = `${CONTEXT}
 
 ## Your Role
-You create talking points for the driver to reference while recording. NOT a script - just short bullet points with their key details organized in a natural flow.
+You create conversational talking points that guide the driver on what to say while recording. These should be natural prompts that feel like a friend reminding them what to cover.
 
 ## Your Task
-Generate 4-5 short bullet points they can glance at while speaking. Each bullet should be a quick reminder of something THEY told you - not your words, their details.
+Generate 3-5 talking points as conversational sentences. Each one tells them what to say next, using THEIR specific details to make it personal.
 
 ## Output Format (JSON)
 {
   "talkingPoints": [
-    "Short bullet with their detail",
-    "Another bullet",
+    "First thing to cover...",
+    "Then talk about...",
     "etc."
   ]
 }
 
 ## Examples
 
-If they said: hobbies are fishing and football, daughter Kayla age 11 plays soccer, coworkers say I show up early
+**Question 1 (Who are you?):**
+If they said: name is Marcus, from Dallas TX, 5 years experience, hobbies are fishing and Cowboys football, daughter Kayla age 11 plays soccer, coworkers say he shows up early
 
 GOOD talking points:
-- "Name + where you're from"
-- "Outside work: fishing, football on Sundays"
-- "Daughter Kayla, 11, plays soccer"
-- "Coworkers say: shows up early, reliable"
+- "Say your name, that you're from Dallas, and you've been driving for 5 years."
+- "Talk about how you love fishing and watching the Cowboys on Sundays."
+- "Mention your daughter Kayla - she's 11 and plays soccer."
+- "Share that coworkers say you're the guy who shows up early and stays late."
 
-BAD (too scripted, too wordy):
-- "Talk about how you enjoy fishing in your spare time and watching football games"
-- "Mention your daughter Kayla who is 11 years old and plays soccer as a midfielder"
+**Question 2 (What is your why?):**
+If they said: doing this for wife Maria and kids, saving for a house, wants to give them stability
 
-Keep bullets SHORT. Just enough to jog their memory. They'll say it in their own words.
+GOOD talking points:
+- "Talk about Maria and the kids - they're your why."
+- "Share your goal of buying a house and giving your family stability."
+- "Explain what keeps you motivated when the work gets tough."
+
+**Question 3 (Turning point):**
+If they said: made mistakes 8 years ago, learned accountability, FreeWorld helped, now has too much to lose
+
+GOOD talking points:
+- "Acknowledge what happened - 8 years ago you made some mistakes."
+- "Share what you learned and how you've changed."
+- "Give FreeWorld a shoutout for helping you get here."
+- "Talk about what you have now that you'd never risk losing."
 
 ## Rules
-- ONLY use details they actually gave you
-- Never invent names, ages, teams, places, or specifics
-- Keep each bullet under 10 words
-- Organize in a natural flow for speaking
+- ONLY use details they actually provided - never invent names, ages, places, or specifics
+- Write as natural sentences, like you're coaching them: "Talk about..." or "Share how..." or "Mention that..."
+- Include their specific details: names, places, numbers, teams, etc.
+- Keep each point to 1-2 sentences max
+- Organize in a natural speaking flow
 - For Q6 (closing): tie back to their WHY from earlier - hiring them helps them achieve their goals`;
 
 export default async function handler(req, res) {
@@ -170,7 +183,7 @@ Focus: ${q.focus}${q.scriptRequired ? `\nRequired: ${q.scriptRequired}` : ''}${f
 ${candidateContext}${previousContext}
 ${transcript ? `\nTheir recording attempt for this question:\n"${transcript}"` : ''}${currentFormContext}${legacyContext}
 
-Write a script for this question. Use all the context you have about this person - names, details, stories from any question. Paint a picture the employer can visualize.`;
+Generate conversational talking points for this question. Use all their specific details - names, places, numbers. Each point should guide them on what to say next.`;
 
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
@@ -195,10 +208,10 @@ Write a script for this question. Use all the context you have about this person
     // Ensure we have the required fields
     if (!coaching.talkingPoints || !Array.isArray(coaching.talkingPoints)) {
       coaching.talkingPoints = [
-        "Your name + where you're from",
-        "What you do outside of work",
-        "Who matters to you",
-        "How you show up at work",
+        "Say your name and where you're from.",
+        "Talk about what you like to do outside of work.",
+        "Mention who's important in your life.",
+        "Share how your coworkers would describe you.",
       ];
     }
 

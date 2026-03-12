@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import AdminLayout from './AdminLayout';
+import AdminLayout, { useAdminAuth } from './AdminLayout';
 import { listEmployers, searchHubSpotCompanies, getHubSpotCompany, createEmployer, updateEmployer } from '../lib/api';
 
 const AIRTABLE_BASE_ID = 'appjZUryTUrvwToXE';
@@ -27,11 +27,21 @@ function getEnrichmentStyle(tier) {
 }
 
 export default function Employers() {
+  const { admin } = useAdminAuth();
   const [employers, setEmployers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEmployer, setEditingEmployer] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showOnlyMine, setShowOnlyMine] = useState(() => {
+    const saved = localStorage.getItem('employers_showOnlyMine');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  // Persist showOnlyMine preference
+  useEffect(() => {
+    localStorage.setItem('employers_showOnlyMine', JSON.stringify(showOnlyMine));
+  }, [showOnlyMine]);
 
   useEffect(() => {
     loadEmployers();
@@ -50,6 +60,10 @@ export default function Employers() {
   };
 
   const filteredEmployers = employers.filter(e => {
+    // "My Employers" filter
+    if (showOnlyMine && admin?.email) {
+      if (e.career_agent_email !== admin.email) return false;
+    }
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -87,6 +101,15 @@ export default function Employers() {
       </div>
 
       <div style={styles.filters}>
+        <label style={styles.toggleLabel}>
+          <input
+            type="checkbox"
+            checked={showOnlyMine}
+            onChange={e => setShowOnlyMine(e.target.checked)}
+            style={styles.toggleCheckbox}
+          />
+          My Employers
+        </label>
         <input
           type="text"
           placeholder="Search employers..."
@@ -196,6 +219,7 @@ export default function Employers() {
 }
 
 function AddEmployerModal({ onClose, onAdded }) {
+  const { getAuthHeaders } = useAdminAuth();
   const [step, setStep] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -254,7 +278,7 @@ function AddEmployerModal({ onClose, onAdded }) {
         main_contact_phone: companyDetails.main_contact?.phone,
         main_contact_mobile: companyDetails.main_contact?.mobile,
       };
-      const result = await createEmployer(data);
+      const result = await createEmployer(data, getAuthHeaders());
       if (result.already_existed) {
         setError('This employer already exists in CAP.');
       } else {
@@ -597,6 +621,23 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 24,
+  },
+  toggleLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#004751',
+    cursor: 'pointer',
+    padding: '8px 12px',
+    background: '#E8ECEE',
+    borderRadius: 6,
+  },
+  toggleCheckbox: {
+    width: 16,
+    height: 16,
+    cursor: 'pointer',
   },
   title: {
     margin: 0,

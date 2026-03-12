@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import AdminLayout from './AdminLayout';
+import AdminLayout, { useAdminAuth } from './AdminLayout';
 import { listSubmissions, createSubmission, updateSubmission, searchCandidates, parseJobDescription, createJob, listEmployers } from '../lib/api';
 
 const AIRTABLE_BASE_ID = 'appjZUryTUrvwToXE';
 const AIRTABLE_REQUISITIONS_TABLE = 'tblnLDyGMPLOGROnn';
 
 export default function Requisitions() {
+  const { admin } = useAdminAuth();
   const [jobs, setJobs] = useState([]);
   const [submissions, setSubmissions] = useState({});
   const [collaborators, setCollaborators] = useState([]);
@@ -22,10 +23,19 @@ export default function Requisitions() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('employer');
   const [sortDir, setSortDir] = useState('asc');
+  const [showOnlyMine, setShowOnlyMine] = useState(() => {
+    const saved = localStorage.getItem('requisitions_showOnlyMine');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
 
   // Inline editing
   const [editingCell, setEditingCell] = useState(null);
   const [savingCell, setSavingCell] = useState(null);
+
+  // Persist showOnlyMine preference
+  useEffect(() => {
+    localStorage.setItem('requisitions_showOnlyMine', JSON.stringify(showOnlyMine));
+  }, [showOnlyMine]);
 
   useEffect(() => {
     loadData();
@@ -106,6 +116,11 @@ export default function Requisitions() {
 
   // Apply filters
   const filteredJobs = jobs.filter(job => {
+    // "My Jobs" filter
+    if (showOnlyMine && admin?.email) {
+      const agentEmail = job.career_agent_email || job.career_agent?.email;
+      if (agentEmail !== admin.email) return false;
+    }
     if (filterAgent && (job.career_agent?.name || job.career_agent_name) !== filterAgent) return false;
     if (filterRoute && job.route_type !== filterRoute) return false;
     if (filterEmployer && job.employer !== filterEmployer) return false;
@@ -194,6 +209,15 @@ export default function Requisitions() {
 
       {/* Filters */}
       <div style={styles.filters}>
+        <label style={styles.toggleLabel}>
+          <input
+            type="checkbox"
+            checked={showOnlyMine}
+            onChange={e => setShowOnlyMine(e.target.checked)}
+            style={styles.toggleCheckbox}
+          />
+          My Jobs
+        </label>
         <select
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
@@ -379,6 +403,7 @@ export default function Requisitions() {
 }
 
 function AddJobModal({ onClose, onSuccess }) {
+  const { getAuthHeaders } = useAdminAuth();
   const [step, setStep] = useState(1);
   const [description, setDescription] = useState('');
   const [parsing, setParsing] = useState(false);
@@ -439,7 +464,7 @@ function AddJobModal({ onClose, onSuccess }) {
         ...parsedJob,
         employer_id: selectedEmployerId,
         employer: selectedEmployer?.name || '', // Keep text field for backwards compatibility
-      });
+      }, getAuthHeaders());
       onSuccess();
     } catch (err) {
       setError(err.message);
@@ -565,6 +590,7 @@ function FormField({ label, value, onChange, type = 'text', options = [], placeh
 }
 
 function JobDetailModal({ job, submissions, collaborators, onClose, onRefresh }) {
+  const { getAuthHeaders } = useAdminAuth();
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({ ...job });
   const [saving, setSaving] = useState(false);
@@ -653,7 +679,7 @@ function JobDetailModal({ job, submissions, collaborators, onClose, onRefresh })
         requisition_id: job.id,
         employer: job.employer,
         job_title: job.title,
-      });
+      }, getAuthHeaders());
       setShowAddDriver(false);
       setSearchQuery('');
       setSearchResults([]);
@@ -996,6 +1022,23 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+  },
+  toggleLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#004751',
+    cursor: 'pointer',
+    padding: '8px 12px',
+    background: '#E8ECEE',
+    borderRadius: 6,
+  },
+  toggleCheckbox: {
+    width: 16,
+    height: 16,
+    cursor: 'pointer',
   },
   title: {
     margin: 0,

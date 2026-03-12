@@ -1,3 +1,5 @@
+import { verifyAdminToken } from '../lib/auth.js';
+
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 
@@ -8,7 +10,9 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       return await listJobs(req, res);
     } else if (req.method === 'POST') {
-      return await createJob(req, res);
+      // Get admin from token if available (for auto-setting career_agent)
+      const admin = verifyAdminToken(req);
+      return await createJob(req, res, admin);
     } else {
       return res.status(405).json({ error: 'Method not allowed' });
     }
@@ -48,7 +52,7 @@ async function listJobs(req, res) {
   res.status(200).json({ jobs });
 }
 
-async function createJob(req, res) {
+async function createJob(req, res, admin = null) {
   const body = req.body;
 
   // Require employer_id (linked record) and title
@@ -77,6 +81,11 @@ async function createJob(req, res) {
   // Set defaults
   fields.status = fields.status || 'Active';
   fields.received_date = fields.received_date || new Date().toISOString().split('T')[0];
+
+  // Auto-set career_agent if admin is authenticated
+  if (admin && admin.email) {
+    fields.career_agent_email = admin.email;
+  }
 
   const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(REQUISITIONS_TABLE)}`;
 

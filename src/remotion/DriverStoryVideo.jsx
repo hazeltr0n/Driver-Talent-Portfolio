@@ -76,7 +76,7 @@ export const DriverStoryVideo = ({ driverName, driverLocation, clips, musicUrl }
     <AbsoluteFill style={{ backgroundColor: '#004751' }}>
       {sequences}
       {musicUrl && (
-        <Audio src={musicUrl} volume={0.05} />
+        <Audio src={musicUrl} volume={0.05} loop />
       )}
     </AbsoluteFill>
   );

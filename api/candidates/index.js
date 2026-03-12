@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { verifyAdminToken } from '../lib/auth.js';
 
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
@@ -6,7 +7,9 @@ const CANDIDATES_TABLE_ID = process.env.AIRTABLE_CANDIDATES_TABLE_ID;
 
 export default async function handler(req, res) {
   if (req.method === 'POST') {
-    return createCandidate(req.body, res);
+    // Get admin from token if available (for auto-setting career_agent)
+    const admin = verifyAdminToken(req);
+    return createCandidate(req.body, res, admin);
   }
 
   if (req.method !== 'GET') {
@@ -52,7 +55,7 @@ function parseJSON(field) {
   }
 }
 
-async function createCandidate(data, res) {
+async function createCandidate(data, res, admin = null) {
   const {
     fullName, email, phone, city, state,
     synced_record_id, cdl_class, years_experience, endorsements
@@ -116,6 +119,11 @@ async function createCandidate(data, res) {
   if (cdl_class) fields.cdl_class = cdl_class;
   if (years_experience) fields.years_experience = years_experience;
   if (endorsements) fields.endorsements = endorsements;
+
+  // Auto-set career_agent if admin is authenticated
+  if (admin && admin.email) {
+    fields.career_agent_email = admin.email;
+  }
 
   try {
     const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${CANDIDATES_TABLE_ID}`;

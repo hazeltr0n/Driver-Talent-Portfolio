@@ -38,7 +38,14 @@ export default async function handler(req, res) {
     const candidate = searchData.records[0].fields;
     const email = candidate.email;
     const firstName = candidate.fullName?.split(' ')[0] || candidate.name?.split(' ')[0] || 'Driver';
-    const portfolioUrl = `${APP_URL}/portfolio/${uuid}`;
+    const portfolioSlug = candidate.portfolio_slug;
+
+    if (!portfolioSlug) {
+      console.log(`No portfolio_slug for candidate ${uuid}`);
+      return res.status(200).json({ success: true, skipped: true, reason: 'no portfolio_slug' });
+    }
+
+    const portfolioUrl = `${APP_URL}/portfolio/${portfolioSlug}`;
 
     if (!email) {
       console.log(`No email on file for candidate ${uuid}`);

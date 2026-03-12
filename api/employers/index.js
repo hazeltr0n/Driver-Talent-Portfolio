@@ -1,3 +1,5 @@
+import { verifyAdminToken } from '../lib/auth.js';
+
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 
@@ -8,7 +10,9 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       return await listEmployers(req, res);
     } else if (req.method === 'POST') {
-      return await createEmployer(req.body, res);
+      // Get admin from token if available (for auto-setting career_agent)
+      const admin = verifyAdminToken(req);
+      return await createEmployer(req.body, res, admin);
     } else {
       return res.status(405).json({ error: 'Method not allowed' });
     }
@@ -48,7 +52,7 @@ async function listEmployers(req, res) {
   res.status(200).json({ employers });
 }
 
-async function createEmployer(data, res) {
+async function createEmployer(data, res, admin = null) {
   const {
     hubspot_company_id,
     hubspot_parent_company_id,
@@ -108,6 +112,11 @@ async function createEmployer(data, res) {
     main_contact_mobile: main_contact_mobile || null,
     created_at: new Date().toISOString().split('T')[0],
   };
+
+  // Auto-set career_agent if admin is authenticated
+  if (admin && admin.email) {
+    fields.career_agent_email = admin.email;
+  }
 
   // Remove null values
   Object.keys(fields).forEach(key => {

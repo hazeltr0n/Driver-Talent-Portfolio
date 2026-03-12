@@ -39,10 +39,10 @@ export async function updateCandidate(uuid, fields) {
   return response.json();
 }
 
-export async function createCandidate(fields) {
+export async function createCandidate(fields, authHeaders = {}) {
   const response = await fetch('/api/candidates', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
     body: JSON.stringify(fields),
   });
   if (!response.ok) {
@@ -85,10 +85,10 @@ export async function listJobs(status = 'Active') {
   return data.jobs;
 }
 
-export async function createJob(fields) {
+export async function createJob(fields, authHeaders = {}) {
   const response = await fetch('/api/jobs', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
     body: JSON.stringify(fields),
   });
   if (!response.ok) throw new Error('Create failed');
@@ -130,10 +130,10 @@ export async function listSubmissions(requisitionId = null) {
   return data.submissions;
 }
 
-export async function createSubmission(data) {
+export async function createSubmission(data, authHeaders = {}) {
   const response = await fetch('/api/submissions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
     body: JSON.stringify(data),
   });
   if (!response.ok) throw new Error('Create submission failed');
@@ -321,10 +321,10 @@ export async function listEmployers(search = null) {
   return data.employers;
 }
 
-export async function createEmployer(data) {
+export async function createEmployer(data, authHeaders = {}) {
   const response = await fetch('/api/employers', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
     body: JSON.stringify(data),
   });
   if (!response.ok) {
