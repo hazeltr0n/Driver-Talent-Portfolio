@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import AdminLayout from './AdminLayout';
+import AdminLayout, { useAdminAuth } from './AdminLayout';
 import { searchFreeAgents, searchCandidates, createCandidate, parseDocuments, fileToBase64, shortenUrl } from '../lib/api';
 
 const API_BASE = '/api';
@@ -31,6 +31,7 @@ function getPlacementStatusStyle(status) {
 }
 
 export default function Drivers() {
+  const { admin } = useAdminAuth();
   const [drivers, setDrivers] = useState([]);
   const [collaborators, setCollaborators] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +46,15 @@ export default function Drivers() {
   const [filterAgent, setFilterAgent] = useState('');
   const [sortBy, setSortBy] = useState('name');
   const [sortDir, setSortDir] = useState('asc');
+  const [showOnlyMine, setShowOnlyMine] = useState(() => {
+    const saved = localStorage.getItem('drivers_showOnlyMine');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  // Persist showOnlyMine preference
+  useEffect(() => {
+    localStorage.setItem('drivers_showOnlyMine', JSON.stringify(showOnlyMine));
+  }, [showOnlyMine]);
 
   // Inline editing
   const [editingCell, setEditingCell] = useState(null); // { uuid, field }
@@ -81,6 +91,11 @@ export default function Drivers() {
 
   // Filter drivers
   const filteredDrivers = drivers.filter(d => {
+    // "My Drivers" filter
+    if (showOnlyMine && admin?.email) {
+      const agentEmail = d.career_agent_email || d.career_agent?.email;
+      if (agentEmail !== admin.email) return false;
+    }
     if (filterStatus && d.placement_status !== filterStatus) return false;
     if (filterCDL && d.cdl_class !== filterCDL) return false;
     if (filterAgent && (d.career_agent?.id || d.career_agent?.email) !== filterAgent) return false;
@@ -190,6 +205,15 @@ export default function Drivers() {
 
       {/* Filters */}
       <div style={styles.filters}>
+        <label style={styles.toggleLabel}>
+          <input
+            type="checkbox"
+            checked={showOnlyMine}
+            onChange={e => setShowOnlyMine(e.target.checked)}
+            style={styles.toggleCheckbox}
+          />
+          My Drivers
+        </label>
         <input
           type="text"
           placeholder="Search..."
@@ -233,6 +257,7 @@ export default function Drivers() {
           <SortHeader field="location">Location</SortHeader>
           <SortHeader field="experience">Exp</SortHeader>
           <div style={styles.tableCell}>Agent</div>
+          <div style={styles.tableCell}>Video</div>
           <SortHeader field="status">Status</SortHeader>
           <div style={styles.tableCell}>Actions</div>
         </div>
@@ -289,6 +314,19 @@ export default function Drivers() {
                   {driver.career_agent?.name || '-'}
                 </span>
               )}
+            </div>
+            <div style={styles.tableCell}>
+              <span style={{
+                ...styles.statusBadge,
+                background: driver.video_status === 'complete' ? '#D1FAE5' :
+                           driver.video_status === 'processing' ? '#FEF3C7' :
+                           driver.video_status === 'recording' ? '#DBEAFE' : '#F3F4F6',
+                color: driver.video_status === 'complete' ? '#059669' :
+                       driver.video_status === 'processing' ? '#D97706' :
+                       driver.video_status === 'recording' ? '#2563EB' : '#6B7280',
+              }}>
+                {driver.video_status || '-'}
+              </span>
             </div>
             <div
               style={{ ...styles.tableCell, cursor: 'pointer' }}
@@ -365,6 +403,7 @@ export default function Drivers() {
 }
 
 function AddDriverModal({ onClose, onSuccess, onSelectExisting }) {
+  const { getAuthHeaders } = useAdminAuth();
   const [step, setStep] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [freeAgentResults, setFreeAgentResults] = useState([]);
@@ -455,7 +494,7 @@ function AddDriverModal({ onClose, onSuccess, onSelectExisting }) {
         city: selectedCandidate.city,
         state: selectedCandidate.state,
         synced_record_id: selectedCandidate.synced_record_id, // For linked record to Free Agents
-      });
+      }, getAuthHeaders());
       candidateUuid = created.uuid;
 
       // If driver already exists, skip to success with their existing URLs
@@ -889,7 +928,7 @@ function DriverModal({ driver, collaborators, onClose, onSave }) {
 
   const pspFields = [
     { key: 'psp_crashes_5yr', label: 'Crashes (5yr)', type: 'number' },
-    { key: 'psp_inspections_3yr', label: 'Inspections (3yr)', type: 'number' },
+    { key: 'psp_violations_3yr', label: 'PSP Violations (3yr)', type: 'number' },
     { key: 'psp_driver_oos', label: 'Driver OOS', type: 'number' },
   ];
 
@@ -1249,6 +1288,23 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+  },
+  toggleLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#004751',
+    cursor: 'pointer',
+    padding: '8px 12px',
+    background: '#E8ECEE',
+    borderRadius: 6,
+  },
+  toggleCheckbox: {
+    width: 16,
+    height: 16,
+    cursor: 'pointer',
   },
   title: {
     margin: 0,

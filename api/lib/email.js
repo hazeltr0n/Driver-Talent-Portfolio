@@ -1,50 +1,74 @@
-import nodemailer from 'nodemailer';
+import { google } from 'googleapis';
 
-const SMTP_HOST = process.env.SMTP_HOST;
-const SMTP_PORT = process.env.SMTP_PORT || 587;
-const SMTP_USER = process.env.SMTP_USER;
-const SMTP_PASS = process.env.SMTP_PASS;
+const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID;
+const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET;
+const GMAIL_REFRESH_TOKEN = process.env.GMAIL_REFRESH_TOKEN;
 const EMAIL_FROM = process.env.EMAIL_FROM || 'FreeWorld <placement@freeworld.org>';
 
-let transporter = null;
-
-function getTransporter() {
-  if (!transporter && SMTP_HOST && SMTP_USER && SMTP_PASS) {
-    transporter = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port: parseInt(SMTP_PORT),
-      secure: SMTP_PORT === '465',
-      auth: {
-        user: SMTP_USER,
-        pass: SMTP_PASS,
-      },
-    });
-  }
-  return transporter;
+// Extract email address from "Name <email>" format
+function extractEmail(from) {
+  const match = from.match(/<(.+)>/);
+  return match ? match[1] : from;
 }
 
-export async function sendEmail({ to, subject, html }) {
-  const transport = getTransporter();
-
-  if (!transport) {
-    console.log('📧 Email (SMTP not configured):');
+export async function sendEmail({ to, cc, subject, html }) {
+  if (!GMAIL_CLIENT_ID || !GMAIL_CLIENT_SECRET || !GMAIL_REFRESH_TOKEN) {
+    console.log('📧 Email (Gmail not configured):');
     console.log(`   To: ${to}`);
     console.log(`   Subject: ${subject}`);
     console.log(`   ---`);
+    console.log('   Run: http://localhost:3000/api/auth/gmail/authorize to set up Gmail OAuth');
     return { success: true, simulated: true };
   }
 
   try {
-    const result = await transport.sendMail({
-      from: EMAIL_FROM,
-      to,
-      subject,
-      html,
+    const oauth2Client = new google.auth.OAuth2(
+      GMAIL_CLIENT_ID,
+      GMAIL_CLIENT_SECRET
+    );
+
+    oauth2Client.setCredentials({
+      refresh_token: GMAIL_REFRESH_TOKEN,
     });
-    console.log(`📧 Email sent to ${to}: ${subject}`);
-    return { success: true, messageId: result.messageId };
+
+    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+
+    // Build the email
+    const fromEmail = extractEmail(EMAIL_FROM);
+    const headers = [
+      `From: ${EMAIL_FROM}`,
+      `To: ${to}`,
+    ];
+    if (cc) {
+      headers.push(`Cc: ${cc}`);
+    }
+    headers.push(
+      `Subject: ${subject}`,
+      'MIME-Version: 1.0',
+      'Content-Type: text/html; charset=utf-8'
+    );
+    const rawMessage = [...headers, '', html].join('\r\n');
+
+    console.log('📧 Email headers:', headers.slice(0, 4)); // Log first 4 headers (From, To, Cc, Subject)
+
+    // Base64url encode
+    const encodedMessage = Buffer.from(rawMessage)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+
+    const result = await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: {
+        raw: encodedMessage,
+      },
+    });
+
+    console.log(`📧 Email sent via Gmail to ${to}: ${subject}`);
+    return { success: true, messageId: result.data.id };
   } catch (err) {
-    console.error('📧 Email failed:', err.message);
+    console.error('📧 Gmail send failed:', err.message);
     throw err;
   }
 }

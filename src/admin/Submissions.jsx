@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import AdminLayout from './AdminLayout';
+import AdminLayout, { useAdminAuth } from './AdminLayout';
 import { listSubmissions, updateSubmission, createSubmission, searchCandidates, getCandidate, updateCandidate, lookupFitProfile, updateFitProfile } from '../lib/api';
 
 const AIRTABLE_BASE_ID = 'appjZUryTUrvwToXE';
@@ -9,6 +9,7 @@ const STATUSES = ['Submitted', 'Interviewing', 'Offer Extended', 'Hired', 'Rejec
 const REJECTION_REASONS = ['No Response', 'Failed Background', 'Client Rejected', 'Driver Declined', 'Position Filled'];
 
 export default function Submissions() {
+  const { admin } = useAdminAuth();
   const [submissions, setSubmissions] = useState([]);
   const [collaborators, setCollaborators] = useState([]);
   const [jobs, setJobs] = useState([]);
@@ -23,10 +24,19 @@ export default function Submissions() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('submitted_date');
   const [sortDir, setSortDir] = useState('desc');
+  const [showOnlyMine, setShowOnlyMine] = useState(() => {
+    const saved = localStorage.getItem('submissions_showOnlyMine');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
 
   // Inline editing
   const [editingCell, setEditingCell] = useState(null);
   const [savingCell, setSavingCell] = useState(null);
+
+  // Persist showOnlyMine preference
+  useEffect(() => {
+    localStorage.setItem('submissions_showOnlyMine', JSON.stringify(showOnlyMine));
+  }, [showOnlyMine]);
 
   useEffect(() => {
     loadSubmissions();
@@ -87,6 +97,11 @@ export default function Submissions() {
 
   // Filter submissions
   const filteredSubs = submissions.filter(sub => {
+    // "My Submissions" filter
+    if (showOnlyMine && admin?.email) {
+      const agentEmail = sub.career_agent_email || sub.career_agent?.email;
+      if (agentEmail !== admin.email) return false;
+    }
     if (filterStatus && sub.status !== filterStatus) return false;
     if (filterAgent && (sub.career_agent?.id || sub.career_agent_name) !== filterAgent) return false;
     if (searchQuery) {
@@ -191,6 +206,15 @@ export default function Submissions() {
 
       {/* Filters */}
       <div style={styles.filters}>
+        <label style={styles.toggleLabel}>
+          <input
+            type="checkbox"
+            checked={showOnlyMine}
+            onChange={e => setShowOnlyMine(e.target.checked)}
+            style={styles.toggleCheckbox}
+          />
+          My Submissions
+        </label>
         <select
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
@@ -360,6 +384,33 @@ function SubmissionModal({ submission, collaborators, onClose, onRefresh }) {
   const [loadingFitProfile, setLoadingFitProfile] = useState(false);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [localPdfUrl, setLocalPdfUrl] = useState(null);
+
+  // Use local state if just generated, otherwise use submission prop
+  const pdfUrl = localPdfUrl || submission.pdf_url;
+
+  const handleGeneratePdf = async () => {
+    if (!submission.candidate_uuid) return;
+    setGeneratingPdf(true);
+    try {
+      const res = await fetch('/api/submissions/generate-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ submissionId: submission.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'PDF generation failed');
+      setLocalPdfUrl(data.pdf_url);
+      // Auto-open the PDF in new tab
+      window.open(data.pdf_url, '_blank');
+    } catch (err) {
+      alert('Failed to generate PDF: ' + err.message);
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
 
   // Fetch candidate data on mount
   useEffect(() => {
@@ -520,16 +571,51 @@ function SubmissionModal({ submission, collaborators, onClose, onRefresh }) {
                   {submission.fit_score}%
                 </div>
               </div>
-              {submission.driver_fit_link && (
-                <div style={styles.fitBannerRight}>
-                  <button onClick={() => window.open(submission.driver_fit_link, '_blank')} style={styles.viewFitButton}>
-                    View Fit Profile
-                  </button>
-                  <button onClick={handleCopyLink} style={styles.copyButton}>
-                    {copied ? 'Copied!' : 'Copy Link'}
-                  </button>
-                </div>
-              )}
+              <div style={styles.fitBannerRight}>
+                {submission.driver_fit_link && (
+                  <>
+                    <button onClick={() => window.open(submission.driver_fit_link, '_blank')} style={styles.viewFitButton}>
+                      View Fit Profile
+                    </button>
+                    <button onClick={handleCopyLink} style={styles.copyButton}>
+                      {copied ? 'Copied!' : 'Copy Link'}
+                    </button>
+                  </>
+                )}
+                {submission.candidate_uuid && (
+                  <>
+                    {pdfUrl ? (
+                      <a
+                        href={pdfUrl}
+                        download
+                        style={{...styles.pdfButton, textDecoration: 'none', display: 'inline-block'}}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        📄 Download PDF
+                      </a>
+                    ) : (
+                      <button
+                        onClick={handleGeneratePdf}
+                        disabled={generatingPdf}
+                        style={{...styles.pdfButton, opacity: generatingPdf ? 0.7 : 1}}
+                      >
+                        {generatingPdf ? '⏳ Generating...' : '📄 Generate PDF'}
+                      </button>
+                    )}
+                    <button
+                      onClick={handleGeneratePdf}
+                      disabled={generatingPdf}
+                      style={{...styles.regenerateButton, opacity: generatingPdf ? 0.7 : 1}}
+                      title="Regenerate PDF"
+                    >
+                      {generatingPdf ? '⏳' : '🔄'}
+                    </button>
+                    <button onClick={() => setShowEmailModal(true)} style={styles.emailButton}>
+                      ✉️ Send Email
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           )}
 
@@ -921,12 +1007,209 @@ function SubmissionModal({ submission, collaborators, onClose, onRefresh }) {
             </>
           )}
         </div>
+
+        {showEmailModal && (
+          <EmailPreviewModal
+            submission={submission}
+            onClose={() => setShowEmailModal(false)}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EmailPreviewModal({ submission, onClose }) {
+  const [toEmail, setToEmail] = useState('');
+  const [ccEmail, setCcEmail] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState(null);
+
+  // HubSpot contact search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [activeField, setActiveField] = useState(null); // 'to' or 'cc'
+
+  const previewUrl = `/api/submissions/send-email?submissionId=${submission.id}`;
+
+  const handleSearch = async (query) => {
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    setSearching(true);
+    try {
+      const res = await fetch(`/api/hubspot/search-contacts?q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      setSearchResults(data.contacts || []);
+    } catch (err) {
+      console.error('HubSpot search error:', err);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleSelectContact = (contact) => {
+    if (activeField === 'to') {
+      const current = toEmail ? toEmail.split(',').map(e => e.trim()) : [];
+      if (!current.includes(contact.email)) {
+        setToEmail([...current, contact.email].filter(Boolean).join(', '));
+      }
+    } else if (activeField === 'cc') {
+      const current = ccEmail ? ccEmail.split(',').map(e => e.trim()) : [];
+      if (!current.includes(contact.email)) {
+        setCcEmail([...current, contact.email].filter(Boolean).join(', '));
+      }
+    }
+    setSearchQuery('');
+    setSearchResults([]);
+  };
+
+  const handleSend = async () => {
+    if (!toEmail) {
+      setError('Please enter an email address');
+      return;
+    }
+
+    setSending(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/submissions/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          submissionId: submission.id,
+          toEmail,
+          ccEmail: ccEmail || undefined,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to send email');
+      }
+
+      setSent(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div style={styles.emailModalOverlay} onClick={onClose}>
+      <div style={styles.emailModal} onClick={e => e.stopPropagation()}>
+        <div style={styles.emailModalHeader}>
+          <h3 style={styles.emailModalTitle}>Send Driver Profile Email</h3>
+          <button onClick={onClose} style={styles.closeButton}>×</button>
+        </div>
+
+        <div style={styles.emailModalBody}>
+          {sent ? (
+            <div style={styles.sentMessage}>
+              <div style={styles.sentIcon}>✅</div>
+              <div style={styles.sentText}>Email sent to {toEmail}{ccEmail ? ` (CC: ${ccEmail})` : ''}</div>
+              <button onClick={onClose} style={styles.doneButton}>Done</button>
+            </div>
+          ) : (
+            <>
+              {/* HubSpot Search */}
+              <div style={styles.contactSearchSection}>
+                <label style={styles.emailLabel}>Search HubSpot:</label>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => {
+                    setSearchQuery(e.target.value);
+                    handleSearch(e.target.value);
+                  }}
+                  placeholder="Search contacts by name, email, or company..."
+                  style={styles.emailInput}
+                />
+                {searching && <div style={styles.searchingText}>Searching...</div>}
+                {searchResults.length > 0 && (
+                  <div style={styles.contactResults}>
+                    {searchResults.map(contact => (
+                      <div
+                        key={contact.id}
+                        style={styles.contactResult}
+                      >
+                        <div style={styles.contactInfo}>
+                          <div style={styles.contactName}>{contact.name}</div>
+                          <div style={styles.contactMeta}>{contact.email} {contact.company ? `• ${contact.company}` : ''}</div>
+                        </div>
+                        <div style={styles.contactActions}>
+                          <button
+                            onClick={() => { setActiveField('to'); handleSelectContact(contact); }}
+                            style={styles.addToButton}
+                          >
+                            + To
+                          </button>
+                          <button
+                            onClick={() => { setActiveField('cc'); handleSelectContact(contact); }}
+                            style={styles.addCcButton}
+                          >
+                            + CC
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={styles.emailInputRow}>
+                <label style={styles.emailLabel}>To:</label>
+                <input
+                  type="text"
+                  value={toEmail}
+                  onChange={e => setToEmail(e.target.value)}
+                  placeholder="email@company.com (comma-separate multiple)"
+                  style={styles.emailInput}
+                />
+              </div>
+
+              <div style={styles.emailInputRow}>
+                <label style={styles.emailLabel}>CC:</label>
+                <input
+                  type="text"
+                  value={ccEmail}
+                  onChange={e => setCcEmail(e.target.value)}
+                  placeholder="Optional CC recipients"
+                  style={styles.emailInput}
+                />
+              </div>
+
+              {error && <div style={styles.emailError}>{error}</div>}
+
+              <div style={styles.previewLabel}>Email Preview:</div>
+              <iframe
+                src={previewUrl}
+                style={styles.previewFrame}
+                title="Email Preview"
+              />
+
+              <div style={styles.emailActions}>
+                <button onClick={onClose} style={styles.cancelButton}>Cancel</button>
+                <button onClick={handleSend} disabled={sending} style={styles.sendButton}>
+                  {sending ? 'Sending...' : 'Send Email'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
 function SubmitDriverModal({ jobs, onClose, onSuccess }) {
+  const { getAuthHeaders } = useAdminAuth();
   const [selectedJob, setSelectedJob] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -989,7 +1272,7 @@ function SubmitDriverModal({ jobs, onClose, onSuccess }) {
         requisition_id: selectedJob.id,
         employer: selectedJob.employer,
         job_title: selectedJob.title,
-      });
+      }, getAuthHeaders());
       onSuccess();
     } catch (err) {
       console.error(err);
@@ -1091,6 +1374,23 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+  },
+  toggleLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#004751',
+    cursor: 'pointer',
+    padding: '8px 12px',
+    background: '#E8ECEE',
+    borderRadius: 6,
+  },
+  toggleCheckbox: {
+    width: 16,
+    height: 16,
+    cursor: 'pointer',
   },
   title: {
     margin: 0,
@@ -1372,6 +1672,35 @@ const styles = {
     background: '#FFFFFF',
     color: '#004751',
     border: '1px solid #004751',
+    borderRadius: 6,
+    cursor: 'pointer',
+  },
+  pdfButton: {
+    padding: '8px 14px',
+    fontSize: 13,
+    fontWeight: 600,
+    background: '#FFFFFF',
+    color: '#059669',
+    border: '1px solid #059669',
+    borderRadius: 6,
+    cursor: 'pointer',
+  },
+  regenerateButton: {
+    padding: '8px 10px',
+    fontSize: 13,
+    background: '#FFFFFF',
+    color: '#5A7A82',
+    border: '1px solid #D1D9DD',
+    borderRadius: 6,
+    cursor: 'pointer',
+  },
+  emailButton: {
+    padding: '8px 14px',
+    fontSize: 13,
+    fontWeight: 600,
+    background: '#059669',
+    color: '#FFFFFF',
+    border: 'none',
     borderRadius: 6,
     cursor: 'pointer',
   },
@@ -1686,5 +2015,199 @@ const styles = {
     ':hover': {
       background: '#F0F4F5',
     },
+  },
+  // Email Modal styles
+  emailModalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0,0,0,0.6)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1100,
+  },
+  emailModal: {
+    background: '#FFFFFF',
+    borderRadius: 12,
+    width: '90%',
+    maxWidth: 700,
+    maxHeight: '90vh',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  emailModalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '16px 20px',
+    borderBottom: '1px solid #E8ECEE',
+    background: '#F8FAFB',
+  },
+  emailModalTitle: {
+    margin: 0,
+    fontSize: 18,
+    fontWeight: 700,
+    color: '#004751',
+  },
+  emailModalBody: {
+    padding: 20,
+    flex: 1,
+    overflow: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 16,
+  },
+  emailInputRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+  },
+  emailLabel: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#004751',
+    minWidth: 70,
+  },
+  emailInput: {
+    flex: 1,
+    padding: '10px 12px',
+    fontSize: 14,
+    border: '1px solid #D1D9DD',
+    borderRadius: 6,
+  },
+  emailError: {
+    background: '#FEF2F2',
+    color: '#DC2626',
+    padding: '8px 12px',
+    borderRadius: 6,
+    fontSize: 13,
+  },
+  previewLabel: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: '#5A7A82',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  previewFrame: {
+    width: '100%',
+    height: 400,
+    border: '1px solid #E8ECEE',
+    borderRadius: 8,
+    background: '#F4F4F4',
+  },
+  emailActions: {
+    display: 'flex',
+    gap: 10,
+    justifyContent: 'flex-end',
+    marginTop: 8,
+  },
+  sendButton: {
+    padding: '10px 20px',
+    fontSize: 14,
+    fontWeight: 600,
+    background: '#059669',
+    color: '#FFFFFF',
+    border: 'none',
+    borderRadius: 6,
+    cursor: 'pointer',
+  },
+  sentMessage: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+    gap: 16,
+  },
+  sentIcon: {
+    fontSize: 48,
+  },
+  sentText: {
+    fontSize: 16,
+    fontWeight: 600,
+    color: '#004751',
+  },
+  doneButton: {
+    padding: '10px 24px',
+    fontSize: 14,
+    fontWeight: 600,
+    background: '#004751',
+    color: '#FFFFFF',
+    border: 'none',
+    borderRadius: 6,
+    cursor: 'pointer',
+    marginTop: 8,
+  },
+  // HubSpot contact search
+  contactSearchSection: {
+    marginBottom: 16,
+    position: 'relative',
+  },
+  searchingText: {
+    fontSize: 12,
+    color: '#5A7A82',
+    marginTop: 4,
+  },
+  contactResults: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    background: '#FFFFFF',
+    border: '1px solid #D1D9DD',
+    borderRadius: 6,
+    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+    zIndex: 100,
+    maxHeight: 200,
+    overflowY: 'auto',
+  },
+  contactResult: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '10px 12px',
+    borderBottom: '1px solid #E8ECEE',
+    cursor: 'pointer',
+  },
+  contactInfo: {
+    flex: 1,
+  },
+  contactName: {
+    fontWeight: 600,
+    color: '#004751',
+    fontSize: 14,
+  },
+  contactMeta: {
+    fontSize: 12,
+    color: '#5A7A82',
+  },
+  contactActions: {
+    display: 'flex',
+    gap: 6,
+  },
+  addToButton: {
+    padding: '4px 8px',
+    fontSize: 11,
+    fontWeight: 600,
+    background: '#004751',
+    color: '#FFFFFF',
+    border: 'none',
+    borderRadius: 4,
+    cursor: 'pointer',
+  },
+  addCcButton: {
+    padding: '4px 8px',
+    fontSize: 11,
+    fontWeight: 600,
+    background: '#FFFFFF',
+    color: '#5A7A82',
+    border: '1px solid #D1D9DD',
+    borderRadius: 4,
+    cursor: 'pointer',
   },
 };

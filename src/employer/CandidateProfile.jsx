@@ -216,8 +216,8 @@ export default function CandidateProfile() {
                   <div style={styles.statLabel}>PSP Crashes (5yr)</div>
                 </div>
                 <div style={styles.statBox}>
-                  <div style={styles.statNumber}>{candidate.psp_inspections_3yr || 0}</div>
-                  <div style={styles.statLabel}>Inspections (3yr)</div>
+                  <div style={styles.statNumber}>{candidate.psp_violations_3yr || 0}</div>
+                  <div style={styles.statLabel}>PSP Violations (3yr)</div>
                 </div>
               </div>
 

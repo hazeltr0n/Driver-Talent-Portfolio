@@ -96,19 +96,373 @@ function ErrorState({ error }) {
   );
 }
 
+// PDF Layout Component - Single page with all elements
+function PdfLayout({ driver }) {
+  const d = driver;
+  const displayName = formatName(d.name);
+
+  return (
+    <div style={pdf.page}>
+      {/* Header */}
+      <div style={pdf.header}>
+        <div style={pdf.headerLeft}>
+          <img src="/fw-logo-white.svg" alt="FreeWorld" style={{ height: 40, width: 40 }} />
+          <span style={pdf.headerBrand}>Driver Fit Profile</span>
+        </div>
+        <div style={pdf.headerRight}>
+          <div style={pdf.driverName}>{displayName}</div>
+          <div style={pdf.driverMeta}>
+            {d.homeBase && `${d.homeBase} · `}{d.cdlClass}{d.yearsExp > 0 ? ` · ${d.yearsExp} yrs exp` : ''}
+            {d.endorsements?.length > 0 && ` · ${d.endorsements.join(', ')}`}
+          </div>
+        </div>
+      </div>
+
+      {/* Fit Score Banner */}
+      {d.jobFit && (
+        <div style={pdf.fitBanner}>
+          <div>
+            <div style={pdf.fitLabel}>Fit Score for {d.jobFit.role}</div>
+            <div style={pdf.fitEmployer}>{d.jobFit.employer}</div>
+          </div>
+          <div style={pdf.fitScore}>{d.jobFit.overallScore}%</div>
+        </div>
+      )}
+
+      {/* Two Column Layout */}
+      <div style={pdf.columns}>
+        {/* Left Column */}
+        <div style={pdf.leftCol}>
+          {/* Video Card - Clickable */}
+          {d.videoUrl && (
+            <a href={d.videoUrl} style={pdf.videoCard}>
+              <div style={pdf.videoThumb}>
+                <div style={pdf.playButton}>
+                  <span style={pdf.playTriangle}>▶</span>
+                </div>
+              </div>
+              <div style={pdf.videoCta}>
+                <div style={pdf.videoCtaTitle}>Watch {displayName}'s Story</div>
+                <div style={pdf.videoCtaSub}>Click to view video introduction</div>
+              </div>
+            </a>
+          )}
+
+          {/* Quote - right below video */}
+          {d.whyTrucking && (
+            <div style={pdf.quoteBox}>
+              <div style={pdf.quoteIcon}>"</div>
+              <p style={pdf.quoteText}>{d.whyTrucking}</p>
+              <p style={pdf.quoteAttr}>— {displayName}</p>
+            </div>
+          )}
+
+          {/* About */}
+          {d.story && (
+            <div style={pdf.section}>
+              <h3 style={pdf.sectionTitle}>About</h3>
+              <p style={pdf.text}>{d.story}</p>
+            </div>
+          )}
+
+          {/* Employment History - last 3 employers */}
+          {d.experience?.length > 0 && (
+            <div style={pdf.section}>
+              <h3 style={pdf.sectionTitle}>Employment History</h3>
+              {d.experience.slice(0, 3).map((exp, i) => (
+                <div key={i} style={pdf.expRow}>
+                  <span style={pdf.expCompany}>{exp.company}</span>
+                  <span style={pdf.expRole}>{exp.role}</span>
+                  <span style={pdf.expTenure}>{exp.tenure || '—'}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Safety Stats */}
+          <div style={pdf.section}>
+            <h3 style={pdf.sectionTitle}>Safety & Compliance</h3>
+            <div style={pdf.statsGrid}>
+              <div style={pdf.statBox}>
+                <div style={pdf.statNum}>{d.mvrDetails?.violations ?? 0}</div>
+                <div style={pdf.statLabel}>MVR Violations</div>
+              </div>
+              <div style={pdf.statBox}>
+                <div style={pdf.statNum}>{d.mvrDetails?.accidents ?? 0}</div>
+                <div style={pdf.statLabel}>At-Fault Accidents</div>
+              </div>
+              <div style={pdf.statBox}>
+                <div style={pdf.statNum}>{d.pspDetails?.crashes5yr ?? 0}</div>
+                <div style={pdf.statLabel}>PSP Crashes (5yr)</div>
+              </div>
+              <div style={pdf.statBox}>
+                <div style={pdf.statNum}>{d.pspDetails?.violations3yr ?? 0}</div>
+                <div style={pdf.statLabel}>PSP Violations</div>
+              </div>
+            </div>
+            <div style={pdf.complianceRow}>
+              <span>MVR: <strong style={d.mvr === 'Clear' ? pdf.good : pdf.warn}>{d.mvr}</strong></span>
+              <span>Clearinghouse: <strong style={d.clearinghouse === 'Not Prohibited' ? pdf.good : pdf.warn}>{d.clearinghouse}</strong></span>
+              <span>Medical: <strong style={d.license?.medicalCardStatus === 'Valid' ? pdf.good : pdf.warn}>{d.license?.medicalCardStatus}</strong></span>
+            </div>
+          </div>
+
+          {/* Training - moved to left column to fill space */}
+          {d.training?.school && (
+            <div style={pdf.section}>
+              <h3 style={pdf.sectionTitle}>CDL Training</h3>
+              <div style={pdf.trainingInfo}>
+                <span style={{fontWeight: 600}}>{d.training.school}</span>
+                {d.training.location && <span style={pdf.textMuted}> · {d.training.location}</span>}
+                {d.training.graduated && <span style={pdf.textMuted}> · Graduated {d.training.graduated}</span>}
+                {d.training.hours > 0 && <span style={pdf.textMuted}> · {d.training.hours} instruction hours</span>}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right Column */}
+        <div style={pdf.rightCol}>
+          {/* Fit Dimensions */}
+          {d.jobFit?.dimensions?.length > 0 && (
+            <div style={pdf.section}>
+              <h3 style={pdf.sectionTitle}>Fit Analysis</h3>
+              {d.jobFit.dimensions.map((dim, i) => (
+                <div key={i} style={pdf.dimRow}>
+                  <div style={pdf.dimHeader}>
+                    <span>{dim.name}</span>
+                    <span style={{ color: getScoreColor(dim.score), fontWeight: 700 }}>{dim.score}</span>
+                  </div>
+                  <div style={pdf.dimBarBg}>
+                    <div style={{ ...pdf.dimBarFill, width: `${dim.score}%`, background: getScoreColor(dim.score) }} />
+                  </div>
+                  {dim.note && <div style={pdf.dimNote}>{dim.note}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Equipment */}
+          {d.equipment?.length > 0 && (
+            <div style={pdf.section}>
+              <h3 style={pdf.sectionTitle}>Equipment Experience</h3>
+              {d.equipment.slice(0, 5).map((eq, i) => (
+                <div key={i} style={pdf.eqRow}>
+                  <span>{eq.type}</span>
+                  <span style={pdf.eqLevel}>{eq.level}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* AI Recommendation */}
+          {d.jobFit?.recommendation && (
+            <div style={pdf.aiBox}>
+              <div style={pdf.aiHeader}>
+                <span style={pdf.aiIcon}>AI</span>
+                <span style={pdf.aiTitle}>Recruiter Recommendation</span>
+              </div>
+              <p style={pdf.aiText}>{d.jobFit.recommendation}</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={pdf.footer}>
+        <div style={pdf.footerLeft}>
+          <img src="/fw-logo-white.svg" alt="" style={{ height: 14, width: 14 }} />
+          <span>FreeWorld Driver Fit Profile</span>
+        </div>
+        <span>Confidential · {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+      </div>
+    </div>
+  );
+}
+
+// PDF Styles - designed for single Letter page (8.5x11 with margins)
+const pdf = {
+  page: {
+    fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif",
+    fontSize: 11,
+    lineHeight: 1.4,
+    color: '#1A2A30',
+    padding: 0,
+    background: '#fff',
+    minHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    background: 'linear-gradient(135deg, #004751 0%, #006575 100%)',
+    padding: '20px 22px',
+    marginBottom: 20,
+    borderRadius: 10,
+  },
+  headerLeft: { display: 'flex', alignItems: 'center', gap: 12 },
+  headerBrand: { color: 'rgba(255,255,255,0.7)', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' },
+  headerRight: { textAlign: 'right' },
+  driverName: { color: '#fff', fontSize: 22, fontWeight: 700, fontFamily: 'Georgia, serif' },
+  driverMeta: { color: '#b0db2a', fontSize: 12, marginTop: 4 },
+
+  // Video Card
+  videoCard: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 14,
+    background: 'linear-gradient(135deg, #004751 0%, #006575 100%)',
+    padding: '14px 16px',
+    borderRadius: 8,
+    marginBottom: 16,
+    textDecoration: 'none',
+    cursor: 'pointer',
+  },
+  videoThumb: {
+    width: 72,
+    height: 48,
+    background: 'linear-gradient(135deg, #002830 0%, #004751 100%)',
+    borderRadius: 5,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  playButton: {
+    width: 30,
+    height: 30,
+    background: '#b0db2a',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playTriangle: { color: '#004751', fontSize: 11, marginLeft: 2 },
+  videoCta: { flex: 1 },
+  videoCtaTitle: { color: '#fff', fontSize: 13, fontWeight: 700, marginBottom: 2 },
+  videoCtaSub: { color: 'rgba(255,255,255,0.7)', fontSize: 9 },
+
+  fitBanner: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    background: 'linear-gradient(135deg, #b0db2a 0%, #9dd01e 100%)',
+    padding: '14px 20px',
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  fitLabel: { color: '#004751', fontSize: 12, fontWeight: 600 },
+  fitEmployer: { color: '#004751', fontSize: 10, opacity: 0.8 },
+  fitScore: { color: '#004751', fontSize: 30, fontWeight: 800 },
+
+  columns: { display: 'flex', gap: 20 },
+  leftCol: { flex: 1 },
+  rightCol: { width: 285 },
+
+  section: { marginBottom: 20 },
+  sectionTitle: { margin: '0 0 8px', fontSize: 12, fontWeight: 700, color: '#004751', borderBottom: '1px solid #E8ECEE', paddingBottom: 5 },
+
+  quoteBox: {
+    position: 'relative',
+    background: 'linear-gradient(135deg, #F0F9FF 0%, #E8F5E9 100%)',
+    borderLeft: '3px solid #004751',
+    padding: '14px 16px',
+    marginBottom: 18,
+    borderRadius: '0 8px 8px 0',
+  },
+  quoteIcon: { position: 'absolute', top: 4, left: 8, fontSize: 28, fontFamily: 'Georgia, serif', color: '#004751', opacity: 0.15 },
+  quoteText: { margin: 0, fontSize: 12, fontStyle: 'italic', color: '#004751', lineHeight: 1.5 },
+  quoteAttr: { margin: '6px 0 0', fontSize: 10, color: '#5A7A82' },
+
+  text: { margin: 0, fontSize: 11, lineHeight: 1.5 },
+  textMuted: { fontSize: 10, color: '#5A7A82' },
+
+  expRow: { display: 'grid', gridTemplateColumns: '1fr 1fr 70px', gap: 8, padding: '4px 0', borderBottom: '1px solid #F0F2F4', alignItems: 'center' },
+  expCompany: { fontWeight: 600, fontSize: 11 },
+  expRole: { fontSize: 10, color: '#5A7A82' },
+  expTenure: { fontSize: 10, color: '#5A7A82', textAlign: 'right' },
+
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 8 },
+  statBox: { background: '#F8FAFB', borderRadius: 6, padding: 8, textAlign: 'center' },
+  statNum: { fontSize: 18, fontWeight: 800, color: '#004751', fontFamily: 'Georgia, serif' },
+  statLabel: { fontSize: 8, color: '#5A7A82', textTransform: 'uppercase', letterSpacing: 0.3 },
+
+  complianceRow: { display: 'flex', gap: 16, fontSize: 10 },
+  good: { color: '#059669' },
+  warn: { color: '#D97706' },
+
+  dimRow: { marginBottom: 8 },
+  dimHeader: { display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 },
+  dimBarBg: { height: 4, background: '#E8ECEE', borderRadius: 2, overflow: 'hidden' },
+  dimBarFill: { height: '100%', borderRadius: 2 },
+  dimNote: { fontSize: 9, color: '#9CA3AF', fontStyle: 'italic', marginTop: 2 },
+
+  eqRow: { display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid #F0F2F4', fontSize: 11 },
+  eqLevel: { color: '#5A7A82', fontStyle: 'italic' },
+
+  aiBox: {
+    background: '#F8FAFB',
+    border: '1px solid #E8ECEE',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+  },
+  aiHeader: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 },
+  aiIcon: { background: 'linear-gradient(135deg, #004751, #006575)', color: '#b0db2a', fontSize: 8, fontWeight: 700, padding: '3px 5px', borderRadius: 4 },
+  aiTitle: { fontSize: 10, fontWeight: 600, color: '#004751', textTransform: 'uppercase', letterSpacing: 0.5 },
+  aiText: { margin: 0, fontSize: 10, color: '#5A7A82', lineHeight: 1.5 },
+
+  trainingInfo: { fontSize: 11 },
+
+  videoBar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    background: '#004751',
+    color: '#fff',
+    padding: '8px 12px',
+    borderRadius: 6,
+    marginTop: 12,
+    marginBottom: 12,
+    fontSize: 10,
+  },
+  playIcon: { color: '#b0db2a' },
+  videoUrl: { color: '#b0db2a', wordBreak: 'break-all' },
+
+  footer: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    background: '#004751',
+    color: 'rgba(255,255,255,0.6)',
+    padding: '12px 16px',
+    borderRadius: 6,
+    fontSize: 9,
+    marginTop: 'auto',
+  },
+  footerLeft: { display: 'flex', alignItems: 'center', gap: 6 },
+};
+
 export default function DriverPortfolio({ slug }) {
   const [driver, setDriver] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isPdfMode, setIsPdfMode] = useState(false);
   const videoRef = useRef(null);
 
-  // Detect mobile
+  // Detect mobile and PDF mode
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth <= 768);
     checkMobile();
     window.addEventListener('resize', checkMobile);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    setIsPdfMode(urlParams.get('pdf') === 'true');
+
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
@@ -149,6 +503,11 @@ export default function DriverPortfolio({ slug }) {
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
   if (!driver) return <NotFoundState slug={slug} />;
+
+  // Render PDF layout for single-page print
+  if (isPdfMode) {
+    return <PdfLayout driver={driver} />;
+  }
 
   const d = driver;
   const displayName = formatName(d.name);
@@ -284,8 +643,8 @@ export default function DriverPortfolio({ slug }) {
                   <div style={styles.statLabel}>PSP Crashes (5yr)</div>
                 </div>
                 <div style={styles.statBox}>
-                  <div style={styles.statNumber}>{d.pspDetails.inspections3yr}</div>
-                  <div style={styles.statLabel}>Inspections (3yr)</div>
+                  <div style={styles.statNumber}>{d.pspDetails.violations3yr}</div>
+                  <div style={styles.statLabel}>PSP Violations (3yr)</div>
                 </div>
               </div>
 

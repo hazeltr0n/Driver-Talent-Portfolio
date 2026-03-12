@@ -179,7 +179,7 @@ function transformToPortfolio(id, f) {
 
     pspDetails: {
       crashes5yr: f.psp_crashes_5yr || 0,
-      inspections3yr: f.psp_inspections_3yr || 0,
+      violations3yr: f.psp_violations_3yr || 0,
       driverOOS: f.psp_driver_oos || 0,
     },
 

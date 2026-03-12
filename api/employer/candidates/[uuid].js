@@ -63,7 +63,7 @@ export default async function handler(req, res) {
       mvr_summary: candidate.mvr_summary || '',
       // PSP (Pre-Employment Screening)
       psp_crashes_5yr: candidate.psp_crashes_5yr || 0,
-      psp_inspections_3yr: candidate.psp_inspections_3yr || 0,
+      psp_violations_3yr: candidate.psp_violations_3yr || 0,
       psp_driver_oos: candidate.psp_driver_oos || 0,
       // Compliance
       clearinghouse_status: candidate.clearinghouse_status || '',

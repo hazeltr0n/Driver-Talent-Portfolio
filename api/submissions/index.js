@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { verifyAdminToken } from '../lib/auth.js';
 
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
@@ -25,7 +26,9 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       return await listSubmissions(req, res);
     } else if (req.method === 'POST') {
-      return await createSubmission(req, res);
+      // Get admin from token if available (for auto-setting career_agent)
+      const admin = verifyAdminToken(req);
+      return await createSubmission(req, res, admin);
     } else {
       return res.status(405).json({ error: 'Method not allowed' });
     }
@@ -76,7 +79,7 @@ async function listSubmissions(req, res) {
   res.status(200).json({ submissions });
 }
 
-async function createSubmission(req, res) {
+async function createSubmission(req, res, admin = null) {
   const { candidate_uuid, candidate_name, requisition_id, employer, job_title } = req.body;
 
   if (!candidate_uuid || !requisition_id) {
@@ -129,6 +132,11 @@ async function createSubmission(req, res) {
     requisition_link: [requisition_id],
     ...fitData,
   };
+
+  // Auto-set career_agent if admin is authenticated
+  if (admin && admin.email) {
+    fields.career_agent_email = admin.email;
+  }
 
   // Add candidate link if we have the record
   if (candidate?.id) {
